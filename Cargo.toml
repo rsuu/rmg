@@ -1,0 +1,31 @@
+[package]
+name = "rmg"
+version = "0.0.0"
+edition = "2018"
+authors = ["RSUU <rsuuyu@gmail.com>"]
+description = "manga"
+readme = "README.md"
+homepage = "https://crates.io/crates/rmg"
+repository = "https://github.com/rsuu/rmg"
+license = "MIT"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+
+[dependencies]
+glob = "0.3.0"
+tempfile = "3.2.0"
+tar = "0.4.37"
+zip = "0.5.13"
+infer =  "0.3" # filetype
+#nom = "7.0.0"
+
+
+sdl2 = { version = "0.34.5" , features = ["image"]}
+image = "0.24.2"
+rgb = "0.8.32"
+lazy_static = "1.4.0"
+ndarray = { version = "0.15.4", features = ["matrixmultiply-threading"] }
+lexopt = "0.2.0"
+
+
