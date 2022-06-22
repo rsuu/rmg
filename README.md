@@ -1,11 +1,27 @@
 # rmg
 
+A Mnaga Reader
+(very slow)
+
+## Install
+
+### Build
+
+```bash
+cargo build --release
+```
+
+
 
 ## Usage
 
 
 ```bash
-fa rgb test.png
-fa rgba test.png
-fa rgba1 test.png 800 800
+fa --size 900,800 tests/files/jpg.tar
 ```
+
+
+## Demo
+
+
+![demo](./Docs/demo.mp4)
