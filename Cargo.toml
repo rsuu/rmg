@@ -1,0 +1,90 @@
+[package]
+name = "rmg"
+version = "0.0.13"
+edition = "2021"
+authors = ["RSUU <rsuuyu@gmail.com>"]
+description = "[WIP] Manga Reader"
+readme = "README.md"
+homepage = "https://crates.io/crates/rmg"
+repository = "https://github.com/rsuu/rmg"
+license = "MIT OR Apache-2.0"
+keywords = ["manga","comic"]
+#categories = []
+autobenches = true
+build = "build.rs"
+
+[profile.release]
+strip = true
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+lto = true
+opt-level = 3
+overflow-checks = false
+panic = "abort"
+
+[dependencies]
+# fs
+#tempfile = "3.3.0"
+walkdir = "2.3.2"
+dirs-next = "2.0.0"
+
+# archive
+tar = "0.4.38"
+#zstd = "0.11.2"
+zip = { version = "0.6.2", default-features = false, features = ["aes-crypto","bzip2","deflate", ] }
+
+# filetype
+infer = "0.9.0"
+
+# color
+rgb = "0.8.33"
+
+# image
+#sdl2 = { version = "0.35.2", features = ["image", "ttf"] }
+minifb = { version = "0.23.0", features = ["x11", "wayland"] }
+image = "0.24.3"
+fast_image_resize = "1.0.0"
+
+# args
+lexopt = "0.2.1"
+
+# metadata
+emeta = "0.1.1"
+#emeta = {version="*",path="../emeta"}
+
+# config
+syn = { version = "1.0.99", features = ["full", "extra-traits"] }
+
+# debug
+log = "0.4.17"
+simple_logger = { version = "2.3.0", features = ["colors", "threads"] }
+
+# error
+#anyhow = "1.0.62"
+#thiserror = "1.0.32"
+#memmap2 = "0.5.7"
+
+# font
+fontdue = "0.7.2"
+
+# async
+tokio = { version = "1.21.0", features = ["full"] }
+
+# other
+#rayon = "1.5.3"
+cfg-if = "1.0.0"
+
+[dev-dependencies]
+# benchmark
+criterion = "0.3.6"
+
+[[bench]]
+name = "bench_main"
+harness = false
+
+[features]
+default = ["ex_zip", "ex_tar"]
+ex_zip = []
+ex_tar = []
