@@ -1,3 +1,12 @@
+#![feature(is_some_with)]
+
+#[macro_use]
+pub mod utils {
+    pub mod error;
+    #[macro_use]
+    pub mod macros;
+}
+
 pub mod archive {
     pub mod tar;
     pub mod zip;
@@ -22,6 +31,7 @@ pub mod color {
 }
 
 pub mod reader {
+    pub mod canvas;
     pub mod display;
 }
 

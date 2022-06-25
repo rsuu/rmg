@@ -12,6 +12,8 @@ pub trait Affine<'a> {
     fn new(arr: &'a [Self::T], width: Self::T, height: Self::T) -> Self;
     fn translate_x(&self, step: usize, right: bool) -> Option<Vec<Self::T>>;
     fn translate_y(&self, step: usize, up: bool) -> Option<Vec<Self::T>>;
+    fn rotate_x(&self, step: f32) -> Option<Vec<Self::T>>;
+    fn rotate_y(&self, step: f32) -> Option<Vec<Self::T>>;
     // fn other(&self, _: usize, _: bool) -> Option<Vec<Self::T>>;
 }
 
@@ -23,6 +25,35 @@ impl<'a> Affine<'a> for ArrMatrix<'a, u32> {
         ArrMatrix { arr, width, height }
     }
 
+    fn rotate_x(&self, _step: f32) -> Option<Vec<Self::T>> {
+        //        if step == 0.0 || step >= 360.0 {
+        //            None
+        //        } else {
+        //            let width: usize = self.width.try_into().unwrap();
+        //            let height: usize = self.height.try_into().unwrap();
+        //            let img_size: usize = width * height;
+        //
+        //            let mut res: Vec<u32> = vec![zero; img_size];
+        //
+        //            for line in self.arr.chunks(width) {
+        //                for _ in line.iter() {
+        //                    x += 1;
+        //                }
+        //
+        //                x = 0;
+        //                y += 1;
+        //            }
+        //
+        //            Some(res)
+        //        }
+        //
+        todo!()
+    }
+
+    fn rotate_y(&self, _step: f32) -> Option<Vec<Self::T>> {
+        todo!()
+    }
+
     fn translate_x(&self, step: usize, right: bool) -> Option<Vec<Self::T>> {
         let mut x: usize = 0;
         let mut y: usize = 0;
@@ -31,7 +62,7 @@ impl<'a> Affine<'a> for ArrMatrix<'a, u32> {
         let height: usize = self.height.try_into().unwrap();
         let img_size: usize = width * height;
 
-        if self.arr.len() == 0 {
+        if self.arr.is_empty() || step == 0 {
             return None;
         }
 
@@ -43,7 +74,7 @@ impl<'a> Affine<'a> for ArrMatrix<'a, u32> {
                     for _ in line.iter() {
                         // have to use < x
                         // not <= x
-                        if ((x + step) < width) {
+                        if (x + step) < width {
                             res[x + step + (width * y)] = self.arr[x + (width * y)];
                         } else {
                         }
@@ -55,14 +86,14 @@ impl<'a> Affine<'a> for ArrMatrix<'a, u32> {
                     y += 1;
                 }
 
-                return Some(res);
-            } else if right == false {
+                Some(res)
+            } else if !right {
                 let mut res: Vec<u32> = vec![zero; width * height];
 
                 for line in self.arr.chunks(width) {
                     for _ in line.iter() {
                         //if (x.checked_sub(step)).is_some() {
-                        if x >= step && x - step >= 0 {
+                        if x >= step {
                             res[x - step + (width * y)] = self.arr[x + (width * y)];
                         } else {
                         }
@@ -74,14 +105,14 @@ impl<'a> Affine<'a> for ArrMatrix<'a, u32> {
                     y += 1;
                 }
 
-                return Some(res);
+                Some(res)
             } else {
                 unreachable!()
             }
         } else if step == width {
-            return Some(vec![zero; img_size]);
+            Some(vec![zero; img_size])
         } else {
-            return None;
+            None
         }
     }
 
@@ -93,7 +124,7 @@ impl<'a> Affine<'a> for ArrMatrix<'a, u32> {
         let height: usize = self.height.try_into().unwrap();
         let img_size: usize = width * height;
 
-        if self.arr.len() == 0 {
+        if self.arr.is_empty() || step == 0 {
             return None;
         }
 
@@ -103,7 +134,7 @@ impl<'a> Affine<'a> for ArrMatrix<'a, u32> {
 
                 for line in self.arr.chunks(width) {
                     for _ in line.iter() {
-                        if y >= step && y - step >= 0 {
+                        if y >= step {
                             res[x + width * (y - step)] = self.arr[x + (width * y)];
                         } else {
                         }
@@ -115,8 +146,8 @@ impl<'a> Affine<'a> for ArrMatrix<'a, u32> {
                     y += 1;
                 }
 
-                return Some(res);
-            } else if up == false {
+                Some(res)
+            } else if !up {
                 let mut res: Vec<u32> = vec![zero; width * height];
 
                 for line in self.arr.chunks(width) {
@@ -133,14 +164,14 @@ impl<'a> Affine<'a> for ArrMatrix<'a, u32> {
                     y += 1;
                 }
 
-                return Some(res);
+                Some(res)
             } else {
                 unreachable!()
             }
         } else if step == width {
-            return Some(vec![zero; img_size]);
+            Some(vec![zero; img_size])
         } else {
-            return None;
+            None
         }
     }
 }

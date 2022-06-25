@@ -9,11 +9,12 @@ use rmg::{
     archive::{tar, zip},
     cli,
     files::list,
-    img::size::{Size, TMetaSize},
+    img::size::Size,
     reader::display,
 };
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let tmp_dir = TempDir::new().unwrap().into_path();
 
     if let Ok(args) = cli::parse::Args::get_args() {
@@ -31,7 +32,7 @@ fn main() {
 
             if let Ok(list) = open(Path::new(path.as_str()), tmp_dir.as_path()) {
                 let file_list: Vec<&str> = list.iter().map(|s| s.to_str().unwrap()).collect();
-                display::cat_rgb_img(file_list.as_slice(), window_size).unwrap();
+                display::cat_rgb_img(&file_list, window_size).await.unwrap();
             }
         }
     }
@@ -42,7 +43,7 @@ fn main() {
 }
 
 pub fn open(path: &Path, tmp_dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
-    let ty = match list::get_filetype(path).as_ref() {
+    match list::get_filetype(path).as_ref() {
         "tar" => {
             tar::extract(path, tmp_dir)?;
         }

@@ -6,7 +6,7 @@ impl TransRgba {
         let r = (rgba[0] as u32) << 24;
         let g = (rgba[1] as u32) << 16;
         let b = (rgba[2] as u32) << 8;
-        let a = (rgba[3] as u32);
+        let a = rgba[3] as u32;
 
         r + g + b + a
     }
@@ -23,7 +23,6 @@ impl TransRgba {
 }
 
 trait ExtRgba {
-    #[inline(always)]
     fn as_u32(&self) -> u32;
 }
 
@@ -33,7 +32,7 @@ impl ExtRgba for rgb::RGBA8 {
         let r = (self.r as u32) << 24;
         let g = (self.g as u32) << 16;
         let b = (self.b as u32) << 8;
-        let a = (self.a as u32);
+        let a = self.a as u32;
 
         r + g + b + a
     }
