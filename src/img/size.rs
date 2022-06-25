@@ -27,6 +27,12 @@ impl TMetaSize for MetaSize<u32> {
     }
 
     fn resize(&mut self) {
+        // !!! important
+        // if width = 3 height = 4
+        // do width = (width/2) * 2    = (3/2) * 2 = 1 * 2 = 2
+        //    height = (height/2) * 2  = (4/2) * 2 = 2 * 2 = 4
+        // We will get a bug if miss it
+        // (╯°Д°)╯︵ ┻━┻
         // TODO
         let w = self.window.width as f32;
         let q = self.image.width as f32 / self.image.height as f32;
