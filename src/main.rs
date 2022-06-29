@@ -31,8 +31,39 @@ async fn main() {
             println!("Open: {}", path.as_str());
 
             if let Ok(list) = open(Path::new(path.as_str()), tmp_dir.as_path()) {
-                let file_list: Vec<&str> = list.iter().map(|s| s.to_str().unwrap()).collect();
-                display::cat_rgb_img(&file_list, window_size).await.unwrap();
+                // Only allow [.jpg || .jpeg || .png]
+                let file_list: Vec<String> = walkdir::WalkDir::new(tmp_dir.as_path())
+                    .into_iter()
+                    .filter_map(|entry| {
+                        let entry = entry.unwrap();
+                        let path = entry.path();
+                        let path_name = path.to_str().unwrap();
+                        if path.is_file() && path_name.ends_with(".jpg")
+                            || path_name.ends_with(".png")
+                            || path_name.ends_with(".jpeg")
+                        {
+                            Some(path_name.to_string())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                let mut file_list: Vec<&str> = file_list.iter().map(|s| s.as_str()).collect();
+                file_list.sort();
+                println!("list: {:?}", file_list);
+
+                match display::cat_rgb_img(&file_list, window_size).await {
+                    Ok(_) => {}
+                    Err(e) => match e {
+                        rmg::utils::types::MyError::ErrIo(e) => {
+                            panic!("{}", e);
+                        }
+                        _ => {}
+                    },
+                }
+            } else {
+                println!("err");
             }
         }
     }
@@ -42,18 +73,19 @@ async fn main() {
     };
 }
 
-pub fn open(path: &Path, tmp_dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
-    match list::get_filetype(path).as_ref() {
+pub fn open(from: &Path, to: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
+    match list::get_filetype(from).as_ref() {
         "tar" => {
-            tar::extract(path, tmp_dir)?;
+            tar::extract(from, to)?;
         }
 
         "zip" => {
-            zip::extract(path, tmp_dir)?;
+            //println!("Open zip");
+            zip::extract(from, to)?;
         }
 
         _ => panic!(),
     };
 
-    Ok(list::get_file_list(tmp_dir))
+    Ok(list::get_file_list(to))
 }

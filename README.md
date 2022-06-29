@@ -1,6 +1,6 @@
 # rmg
 
-A Mnaga Reader
+Mnaga Reader
 
 ## Install
 
@@ -10,16 +10,17 @@ A Mnaga Reader
 cargo build --release
 ```
 
-
-
 ## Usage
 
 
 ```bash
-fa --size 900,800 tests/files/jpg.tar
-```
+cargo run --release -- --size 900,800 tests/files/img.tar
 
+# OR
+
+rmg --size 900,800 tests/files/img.tar
+```
 
 ## Demo
 
-https://user-images.githubusercontent.com/38876461/176183979-8220f8c9-f408-4220-be10-3e3f415ba3f1.mp4
+https://github.com/rsuu/rmg/blob/main/docs/2022-06-29.mp4

@@ -1,28 +1,22 @@
-use std::{convert::TryInto, num::NonZeroU32, thread::sleep, time::Duration};
-
-use sdl2::{event::Event, keyboard::Keycode, mouse::MouseWheelDirection};
-
-use image::{self, io::Reader as ImageReader};
-
 use crate::{
     color::{format::PixelFormat, rgb::TransRgb},
     img::size::{MetaSize, Size, TMetaSize},
     math::arrmatrix::{Affine, ArrMatrix},
     reader::canvas::Canvas,
-    utils::error::{MyError, MyResult},
+    utils::types::{MyError, MyResult},
 };
 use fast_image_resize as fir;
-//use rayon::prelude::*;
+use image::{self, io::Reader as ImageReader};
+use sdl2::{event::Event, keyboard::Keycode, mouse::MouseWheelDirection};
+use std::{convert::TryInto, num::NonZeroU32, thread::sleep, time::Duration};
 
 pub async fn cat_rgb_img(file_list: &[&str], window_size: Size<u32>) -> MyResult {
     let duration = Duration::from_millis(100);
     let max_pixels = (window_size.width * window_size.height) as usize;
-
-    let mut canvas = unwrap_or_return! { Canvas::new(window_size, PixelFormat::Rgb),MyError::ErrCanvas
-    }; // Err(MyError::ErrCanvas(e))
-
     let n = 8; // drop 1/n part of image once
                // :drop
+
+    let mut canvas = Box::leak(Box::new(Canvas::new(window_size, PixelFormat::Rgb)?));
 
     let mut buf = Buffer {
         start: 0,
@@ -34,7 +28,6 @@ pub async fn cat_rgb_img(file_list: &[&str], window_size: Size<u32>) -> MyResult
         mode: Move::Stop,
         page: 1,
         max_page: file_list.len(),
-
         window_size: Size {
             width: 900,
             height: 900,
@@ -46,14 +39,7 @@ pub async fn cat_rgb_img(file_list: &[&str], window_size: Size<u32>) -> MyResult
     buf.lazy_load_imgs(&file_list[0..buf.page], PixelFormat::Rgb, window_size)
         .await?;
 
-    let mut event_pump = match canvas.sdl_context.event_pump() {
-        Ok(v) => v,
-        Err(e) => return Err(MyError::ErrEvent(e)),
-    };
-
-    // init
-    buf.move_down(&mut canvas);
-    buf.move_up(&mut canvas);
+    let mut event_pump = canvas.sdl_context.event_pump()?;
 
     if buf.page + 1 < buf.max_page {
         buf.lazy_load_imgs(
@@ -67,6 +53,11 @@ pub async fn cat_rgb_img(file_list: &[&str], window_size: Size<u32>) -> MyResult
     } else {
     }
 
+    // init
+    buf.move_down(&mut canvas);
+    buf.move_up(&mut canvas);
+
+    // match input
     'l1: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -98,6 +89,23 @@ pub async fn cat_rgb_img(file_list: &[&str], window_size: Size<u32>) -> MyResult
                 }
 
                 Event::KeyDown {
+                    keycode: Option::Some(Keycode::P),
+                    repeat: false,
+                    ..
+                } => {
+                    canvas.display_text(
+                        "\
+a:
+  1234
+b:
+  1234
+",
+                    );
+
+                    canvas.flush();
+                }
+
+                Event::KeyDown {
                     keycode: Option::Some(Keycode::J),
                     repeat: false,
                     ..
@@ -106,9 +114,7 @@ pub async fn cat_rgb_img(file_list: &[&str], window_size: Size<u32>) -> MyResult
                     // move down
 
                     buf.move_down(&mut canvas);
-
-                    // move down
-                    // Try to load next block of images
+                    buf.try_load_next(file_list).await?;
                 }
 
                 Event::KeyDown {
@@ -131,9 +137,12 @@ pub async fn cat_rgb_img(file_list: &[&str], window_size: Size<u32>) -> MyResult
                     // h
                     // move left
 
-                    if let Some(data) =
-                        ArrMatrix::new(canvas.data.as_slice(), canvas.width, canvas.height)
-                            .translate_x((canvas.width as usize) / 2, false)
+                    if let Some(data) = ArrMatrix::new(
+                        canvas.data.as_slice(),
+                        canvas.window_size.width,
+                        canvas.window_size.height,
+                    )
+                    .translate_x((canvas.window_size.width as usize) / 2, false)
                     {
                         canvas.data = data;
 
@@ -152,9 +161,12 @@ pub async fn cat_rgb_img(file_list: &[&str], window_size: Size<u32>) -> MyResult
                     // l
                     // move right
 
-                    if let Some(data) =
-                        ArrMatrix::new(canvas.data.as_slice(), canvas.width, canvas.height)
-                            .translate_x((canvas.width as usize) / 2, true)
+                    if let Some(data) = ArrMatrix::new(
+                        canvas.data.as_slice(),
+                        canvas.window_size.width,
+                        canvas.window_size.height,
+                    )
+                    .translate_x((canvas.window_size.width as usize) / 2, true)
                     {
                         canvas.data = data;
 
@@ -317,25 +329,18 @@ impl Buffer {
 }
 
 pub async fn resize(buffer: &mut Vec<u8>, path: &str, ww: u32, wh: u32) -> MyResult {
-    let img = match ImageReader::open(path) {
-        Ok(v) => match v.decode() {
-            Ok(v) => v,
-            Err(e) => return Err(MyError::ErrDecode(e)),
-        },
-        Err(e) => return Err(MyError::ErrIo(e)),
-    };
+    let img = ImageReader::open(path)?.decode()?;
     // TODO
     let mut meta = MetaSize::<u32>::new(1440, 900, ww, wh, img.width(), img.height());
 
     meta.resize();
 
     let src_image = fir::Image::from_vec_u8(
-        NonZeroU32::new(meta.image.width).unwrap(),
-        NonZeroU32::new(meta.image.height).unwrap(),
+        NonZeroU32::new(meta.image.width).expect(""),
+        NonZeroU32::new(meta.image.height).expect(""),
         img.to_rgb8().into_raw(),
         fir::PixelType::U8x3,
-    )
-    .unwrap();
+    )?;
 
     let dst_width = NonZeroU32::new(meta.fix.width).unwrap();
     let dst_height = NonZeroU32::new(meta.fix.height).unwrap();
@@ -344,7 +349,7 @@ pub async fn resize(buffer: &mut Vec<u8>, path: &str, ww: u32, wh: u32) -> MyRes
     let mut dst_view = dst_image.view_mut();
 
     let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Box));
-    resizer.resize(&src_image.view(), &mut dst_view).unwrap();
+    resizer.resize(&src_image.view(), &mut dst_view)?;
 
     (*buffer).extend_from_slice(dst_image.buffer());
 
