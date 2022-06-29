@@ -1,17 +1,23 @@
 [package]
 name = "rmg"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
-description = "A Manga Reader"
+description = "Manga Reader"
 readme = "README.md"
 homepage = "https://crates.io/crates/rmg"
 repository = "https://github.com/rsuu/rmg"
 license = "MIT OR Apache-2.0"
+keywords = ["manga","comic"]
+#categories = []
+autobenches = true
+
+
 
 [dependencies]
 # files
 tempfile = "3.2.0"
+walkdir = "2.3.2"
 tar = "0.4.37"
 zip = "0.5.13"
 
@@ -22,7 +28,7 @@ infer =  "0.3"
 rgb = "0.8.32"
 
 # image
-sdl2 = { version = "0.34.5" , features = ["image"]}
+sdl2 = { version = "0.34.5", features = ["image", "ttf"] }
 image = "0.24.2"
 fast_image_resize = "0.9.5"
 
@@ -33,5 +39,16 @@ glob = "0.3.0"
 # other
 #rayon = "1.5.3"
 tokio = { version = "1.19.2", features = ["full"] }
+
+# metadata
 byteorder = "1.4.3"
 miniserde = "0.1.24"
+
+# bench
+criterion = "0.3.5"
+zstd = "0.11.2"
+
+
+[[bench]]
+name = "bench_main"
+harness = false

@@ -1,8 +1,6 @@
-#![feature(is_some_with)]
-
 #[macro_use]
 pub mod utils {
-    pub mod error;
+    pub mod types;
     #[macro_use]
     pub mod macros;
 }
@@ -41,4 +39,5 @@ pub mod cli {
 
 pub mod metadata {
     pub mod meta;
+    pub mod tags;
 }
