@@ -16,7 +16,7 @@ pub fn c_translate_y(c: &mut Criterion) {
         matrix.translate_y(4, true).unwrap();
     }
 
-    c.bench_function("fib 20", |b| b.iter(|| run()));
+    c.bench_function("fib 20", |b| b.iter(run));
 }
 
 criterion_group!(bench, c_translate_y,);

@@ -9,13 +9,20 @@ pub struct Canvas {
     pub creator: TextureCreator<sdl2::video::WindowContext>,
     pub texture: RefCell<Texture<'static>>,
     pub data: Vec<u32>,
-    pub ttf: sdl2::ttf::Font<'static, 'static>,
+    pub ttf: Option<sdl2::ttf::Font<'static, 'static>>,
     pub window_size: Size<u32>,
     pub screen_size: Size<u32>,
 }
 
 impl Canvas {
-    pub fn new(size: Size<u32>, format: PixelFormat) -> Result<Self, Error> {
+    pub fn new<_Str>(
+        size: Size<u32>,
+        format: PixelFormat,
+        font_path: Option<&_Str>,
+    ) -> Result<Self, Error>
+    where
+        _Str: AsRef<str> + ?Sized,
+    {
         let (width, height) = (size.width, size.height);
         let sdl_context = sdl2::init()?;
         let video_subsystem = sdl_context.video()?;
@@ -36,23 +43,26 @@ impl Canvas {
             PixelFormat::Rgba => {
                 creator.create_texture_target(PixelFormatEnum::RGBA8888, width, height)?
             }
-
-            _ => {
-                todo!()
-            }
         };
 
         let texture = unsafe { std::mem::transmute::<_, Texture<'static>>(texture) };
         let data_len = (size.width * size.height) as usize;
         let screen = &sdl_context.video().unwrap().current_display_mode(0)?;
 
-        let ttf_context = Box::leak(Box::new(
-            sdl2::ttf::init().map_err(|e| e.to_string()).unwrap(),
-        ));
-        let mut font = ttf_context
-            .load_font("./tests/files/test.ttf", 128)
-            .unwrap();
-        font.set_style(sdl2::ttf::FontStyle::BOLD);
+        let font = if let Some(ttf) = font_path {
+
+            let ttf_context = Box::leak(Box::new(
+                sdl2::ttf::init().map_err(|e| e.to_string()).unwrap(),
+            ));
+
+            let mut font = ttf_context.load_font(ttf.as_ref(), 128).unwrap();
+
+            font.set_style(sdl2::ttf::FontStyle::BOLD);
+
+            Some(font)
+        } else {
+            None
+        };
 
         Ok(Canvas {
             sdl_canvas,
@@ -75,14 +85,17 @@ impl Canvas {
     pub fn display_text(&mut self, text: &str) {
         // TODO
 
-        if self
-            .texture
-            .borrow_mut()
-            .update(None, self.data_raw(), self.data_max_len())
-            .is_ok()
+        if self.ttf.is_some()
+            && self
+                .texture
+                .borrow_mut()
+                .update(None, self.data_raw(), self.data_max_len())
+                .is_ok()
         {
             let surface = self
                 .ttf
+                .as_ref()
+                .unwrap()
                 .render(text)
                 .blended_wrapped(sdl2::pixels::Color::RGBA(255, 0, 0, 255), 128 * 5)
                 .map_err(|e| e.to_string())
@@ -131,6 +144,7 @@ impl Canvas {
     pub fn data_raw(&self) -> &[u8] {
         // https://docs.rs/sdl2/latest/src/sdl2/render.rs.html#1998
         // return data.ptr()
+        // data -> u32_ptr -> u8_ptr
         unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const u8, 0) }
     }
 

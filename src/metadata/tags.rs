@@ -1,79 +1,83 @@
-use crate::utils::types::{Names, SelfResult};
-use miniserde::{json, Deserialize, Serialize};
-use std::convert::{TryFrom, TryInto};
+use crate::utils::types::{Names};
+use speedy::{Readable, Writable};
 
-pub trait TransTag
-where
-    Self: Sized,
-{
-    fn to_string(&self) -> String;
-    fn from_str(&self, data: &str) -> SelfResult<Self>;
-}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Readable, Writable)]
 pub struct TagArtist {
-    name: Names,
+    pub name: Names,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Readable, Writable)]
 pub struct TagCharacter {
-    name: Names,
+    pub name: Names,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Readable, Writable)]
 pub struct TagCosplayer {
-    name: Names,
+    pub name: Names,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Readable, Writable)]
 pub struct TagGroup {
-    name: Names,
+    pub name: Names,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Readable, Writable)]
+pub struct TagParody {
+    pub name: Names,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Readable, Writable)]
+pub struct TagMixed {
+    pub name: Names,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Readable, Writable)]
 pub struct TagFemale {
-    name: Names,
+    pub name: Names,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Readable, Writable)]
 pub struct TagMale {
-    name: Names,
+    pub name: Names,
 }
 
 #[repr(u8)]
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
+#[derive(PartialEq, Eq, Debug, Readable, Writable, Copy, Clone)]
 pub enum TagReclass {
-    Doujinshi = 1_u8,
-    Manga = 2,
+    Doujinshi,
+    Manga,
 
-    Imageset = 3,
-    Artistcg = 4,
-    Gamecg = 5,
+    Imageset,
+    Artistcg,
+    Gamecg,
 
-    Western = 6,
-    Asian = 7,
+    Western,
+    Asian,
 
-    Misc = 8,
+    Misc,
+
+    Level(TagReclassLevel),
 }
 
 // https://zh.wikipedia.org/zh-hant/電影分級制度#現行制度
 #[repr(u8)]
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub enum TagLevel {
-    L0 = 1_u8,
-    L6 = 2,
-    L12 = 3,
-    L15 = 4,
-    L18 = 5,
+#[derive(PartialEq, Eq, Debug, Readable, Writable, Copy, Clone)]
+pub enum TagReclassLevel {
+    L0,
+    L6,
+    L12,
+    L15,
+    L18,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Readable, Writable, Copy, Clone)]
 pub enum TagLanguage {
     TagLanguage,
     TagLanguageOther,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Readable, Writable, Copy, Clone)]
 pub enum TagLanguageOther {
     Speechless,  // 无言
     TextCleaned, // 文字清除
@@ -81,7 +85,7 @@ pub enum TagLanguageOther {
     Rewrite,     // 重写
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Readable, Writable, Copy, Clone)]
 pub enum TagLanguageId {
     Afrikaans,  // 南非语
     Albanian,   // 阿尔巴尼亚语
@@ -168,141 +172,8 @@ pub enum TagLanguageId {
     Zulu,       // 祖鲁语
 }
 
-macro_rules! M_TransTag {
-     ($($t:ty,)*) => ($(
-         impl TransTag for $t where Self: Sized {
-             fn to_string(&self) -> String {
-                 json::to_string(self)
-             }
-
-             fn from_str(&self, data: &str) -> SelfResult<Self> {
-                 Ok(json::from_str(data)?)
-             }
-         }
-     )*)
- }
-
-M_TransTag! {
-    Names,
-    TagArtist,
-    TagCharacter,
-    TagCosplayer,
-    TagFemale,
-    TagGroup,
-    TagLanguage,
-    TagLanguageId,
-    TagLevel,
-    TagMale,
-    TagReclass,
-}
-
-impl TryFrom<u8> for TagReclass {
-    type Error = ();
-
-    fn try_from(n: u8) -> Result<Self, Self::Error> {
-        use self::TagReclass::*;
-
-        let res = if n == Doujinshi as u8 {
-            Doujinshi
-        } else if n == Manga as u8 {
-            Manga
-        } else if n == Imageset as u8 {
-            Imageset
-        } else if n == Artistcg as u8 {
-            Artistcg
-        } else if n == Gamecg as u8 {
-            Gamecg
-        } else if n == Western as u8 {
-            Western
-        } else if n == Asian as u8 {
-            Asian
-        } else if n == Misc as u8 {
-            Misc
-        } else {
-            return Err(());
-        };
-
-        Ok(res)
-    }
-}
-
-impl TryFrom<TagReclass> for u8 {
-    type Error = ();
-
-    fn try_from(n: TagReclass) -> Result<Self, Self::Error> {
-        use self::TagReclass::*;
-
-        let res = match n {
-            Doujinshi => Doujinshi as u8,
-            Manga => Manga as u8,
-            Imageset => Imageset as u8,
-            Artistcg => Artistcg as u8,
-            Gamecg => Gamecg as u8,
-            Western => Western as u8,
-            Asian => Asian as u8,
-            Misc => Misc as u8,
-
-            _ => {
-                return Err(());
-            }
-        };
-
-        Ok(res)
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn te2() {
-        let v: Names = vec![TagLevel::L0.to_string(), TagReclass::Misc.to_string()];
-
-        debug_assert_eq!(v.to_string(), r#"["\"L0\"","\"Misc\""]"#);
-    }
-
-    #[test]
-    fn te1() {
-        let k = TagReclass::Doujinshi;
-
-        match u8::try_from(k) {
-            _ => {}
-        }
-
-        debug_assert_eq!(u8::try_from(k).unwrap(), 1_u8);
-    }
+    
 }
 
-// macro_rules! back_to_enum {
-//     ($(#[$meta:meta])* $vis:vis enum $name:ident {
-//         $($(#[$vmeta:meta])* $vname:ident $(= $val:expr)?,)*
-//     }) => {
-//         $(#[$meta])*
-//         $vis enum $name {
-//             $($(#[$vmeta])* $vname $(= $val)?,)*
-//         }
-//
-//         impl std::convert::TryFrom<i32> for $name {
-//             type Error = ();
-//
-//             fn try_from(v: i32) -> Result<Self, Self::Error> {
-//                 match v {
-//                     $(x if x == $name::$vname as i32 => Ok($name::$vname),)*
-//                     _ => Err(()),
-//                 }
-//             }
-//         }
-//     }
-// }
-//
-// back_to_enum! {
-//     enum MyEnum {
-//         A = 1,
-//         B,
-//         C,
-//     }
-// }
-
-// REF
-// https://stackoverflow.com/questions/28028854/how-do-i-match-enum-values-with-an-integer

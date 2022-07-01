@@ -1,6 +1,6 @@
 [package]
 name = "rmg"
-version = "0.0.3"
+version = "0.0.4"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Manga Reader"
@@ -15,11 +15,14 @@ autobenches = true
 
 
 [dependencies]
-# files
+# fs
 tempfile = "3.2.0"
 walkdir = "2.3.2"
+
+# archive
 tar = "0.4.37"
 zip = "0.5.13"
+zstd = "0.11.2"
 
 # filetype
 infer =  "0.3"
@@ -46,9 +49,15 @@ miniserde = "0.1.24"
 
 # bench
 criterion = "0.3.5"
-zstd = "0.11.2"
+
+# metadata
+speedy = "0.8.2"
+
+# config
+syn = { version = "1.0.98", features = ["full", "extra-traits"] }
 
 
 [[bench]]
 name = "bench_main"
 harness = false
+

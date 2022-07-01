@@ -11,6 +11,8 @@ pub mod archive {
 }
 
 pub mod files {
+    pub mod dir;
+    pub mod file;
     pub mod list;
 }
 
@@ -37,7 +39,12 @@ pub mod cli {
     pub mod parse;
 }
 
+pub mod config {
+    pub mod rsconf;
+}
+
 pub mod metadata {
+    pub mod import;
     pub mod meta;
     pub mod tags;
 }
