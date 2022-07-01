@@ -4,34 +4,44 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub fn get_filetype(path: &Path) -> String {
-    infer::get_from_path(path)
+pub fn get_filetype<T>(path: &T) -> String
+where
+    T: AsRef<Path> + ?Sized,
+{
+    infer::get_from_path(path.as_ref())
         .expect("file read successfully")
         .expect("file type is known")
         .extension()
         .to_string()
 }
 
-pub fn get_file_list(tmp_dir: &Path) -> Vec<PathBuf> {
-    let mut list_file = get_dir_list(tmp_dir);
+pub fn get_file_list<T>(tmp_dir: &T) -> Vec<PathBuf>
+where
+    T: AsRef<Path> + ?Sized,
+{
+    let list_file = get_dir_list(tmp_dir.as_ref());
 
-    list_file.sort_by_key(|name| name.to_lowercase()); // sort
+    // list_file.sort_by_key(|name| name.to_lowercase()); // sort
 
-    let mut file = PathBuf::new();
-    let mut file_iter: Vec<PathBuf> = Vec::default();
+    let mut file_path = PathBuf::new();
+    let mut file_iter: Vec<PathBuf> = Vec::new();
 
-    for f in list_file.into_iter() {
-        file.push(tmp_dir);
-        file.push(f);
-        file_iter.push(file.to_path_buf());
+    for f in list_file.iter() {
+        file_path.push(tmp_dir);
+        file_path.push(f);
+        file_iter.push(file_path.clone());
+        file_path.clear();
     }
 
     file_iter
 }
 
-pub fn get_dir_list(path: &Path) -> Vec<String> {
-    fs::read_dir(path)
+pub fn get_dir_list<T>(path: &T) -> Vec<PathBuf>
+where
+    T: AsRef<Path> + ?Sized,
+{
+    fs::read_dir(path.as_ref())
         .unwrap()
-        .filter_map(|f| f.ok().map(|f| f.path().display().to_string()))
-        .collect::<Vec<String>>()
+        .filter_map(|f| f.ok().map(|f| f.path()))
+        .collect::<Vec<PathBuf>>()
 }
