@@ -1,68 +1,71 @@
-use std::io::BufWriter;
+
 use std::num::NonZeroU32;
 
-use image::codecs::png::PngEncoder;
-use image::io::Reader as ImageReader;
-use image::{ColorType, ImageEncoder};
 
-use fast_image_resize as fr;
+use image::io::Reader as ImageReader;
+
+
+use fast_image_resize as fir;
 
 fn main() {
-    // Read source image from file
-    let img = ImageReader::open("./data/nasa-4928x3279.png")
+    not_work(); // output: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    work(); // output: [255, 196, 181, 255, 196, 181, 255, 198, 181, 255]
+}
+
+fn work() {
+    let img = ImageReader::open("/dev/shm/0/1.jpg")
         .unwrap()
         .decode()
         .unwrap();
     let width = NonZeroU32::new(img.width()).unwrap();
     let height = NonZeroU32::new(img.height()).unwrap();
-    let mut src_image = fr::Image::from_vec_u8(
+
+    let src_image = fir::Image::from_vec_u8(
         width,
         height,
-        img.to_rgba8().into_raw(),
-        fr::PixelType::U8x4,
+        img.to_rgb8().into_raw(),
+        fir::PixelType::U8x3,
     )
     .unwrap();
 
-    // Multiple RGB channels of source image by alpha channel
-    // (not required for the Nearest algorithm)
-    let alpha_mul_div = fr::MulDiv::default();
-    alpha_mul_div
-        .multiply_alpha_inplace(&mut src_image.view_mut())
-        .unwrap();
+    let fix_width = NonZeroU32::new(img.width() * 2).unwrap();
+    let fix_height = NonZeroU32::new(img.height() * 2).unwrap();
+    let dst_width = fix_width; // fix here
+    let dst_height = fix_height;
 
-    // Create container for data of destination image
-    let dst_width = NonZeroU32::new(1024).unwrap();
-    let dst_height = NonZeroU32::new(768).unwrap();
-    let mut dst_image = fr::Image::new(dst_width, dst_height, src_image.pixel_type());
-
-    // Get mutable view of destination image data
+    let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
     let mut dst_view = dst_image.view_mut();
+    let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Box));
 
-    // Create Resizer instance and resize source image
-    // into buffer of destination image
-    let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3));
     resizer.resize(&src_image.view(), &mut dst_view).unwrap();
 
-    // Divide RGB channels of destination image by alpha
-    alpha_mul_div.divide_alpha_inplace(&mut dst_view).unwrap();
+    eprintln!("{:?}", &dst_image.buffer()[0..10]);
+}
 
-    // Write destination image as PNG-file
-    let mut result_buf = BufWriter::new(Vec::new());
-    PngEncoder::new(&mut result_buf)
-        .write_image(
-            dst_image.buffer(),
-            dst_width.get(),
-            dst_height.get(),
-            ColorType::Rgba8,
-        )
+fn not_work() {
+    let img = ImageReader::open("/dev/shm/0/1.jpg")
+        .unwrap()
+        .decode()
         .unwrap();
-}
+    let width = NonZeroU32::new(img.width()).unwrap();
+    let height = NonZeroU32::new(img.height()).unwrap();
 
-fn ex2() {
-    let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(fr::FilterType::Lanczos3));
-    unsafe {
-        resizer.set_cpu_extensions(fr::CpuExtensions::Sse4_1);
-    }
-}
+    let src_image = fir::Image::from_vec_u8(
+        width,
+        height,
+        img.to_rgb8().into_raw(),
+        fir::PixelType::U8x3,
+    )
+    .unwrap();
+    let dst_width = width; // bug here
+    let dst_height = height;
 
-// https://docs.rs/fast_image_resize/latest/fast_image_resize/
+    let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
+    let mut dst_view = dst_image.view_mut();
+    let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Box));
+
+    resizer.resize(&src_image.view(), &mut dst_view).unwrap();
+
+    eprintln!("{:?}", &dst_image.buffer()[0..10]);
+}

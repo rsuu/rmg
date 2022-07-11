@@ -1,6 +1,6 @@
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::{Path},
 };
 
 pub fn rename<T>(is_try: bool, pad: usize, names: &[T]) -> Option<Vec<String>>

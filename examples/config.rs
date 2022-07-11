@@ -90,7 +90,7 @@ Keymap { up: 'k', down: 'j' };
 fn parse_main(item: &syn::Item) -> Option<Config> {
     if let syn::Item::Fn(f) = item {
         if f.sig.ident.to_string().as_str() == "main" {
-            return parse_struct(&f.block);
+            parse_struct(&f.block)
         } else {
             None
         }
@@ -104,7 +104,7 @@ fn parse_struct(block: &Box<syn::Block>) -> Option<Config> {
 
     for stmt in block.stmts.iter() {
         match stmt {
-            syn::Stmt::Semi(expr, token) => {
+            syn::Stmt::Semi(expr, _token) => {
                 match expr {
                     syn::Expr::Struct(expr_struct) => {
                         // TODO
@@ -231,9 +231,7 @@ fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                                 .token()
                                 .to_string()
                                 .as_str()
-                                .chars() // e.g. 'j'
-                                .skip(1) // e.g. j'
-                                .next() // e.g. j
+                                .chars().nth(1) // e.g. j
                                 .unwrap();
                         }
                     }
@@ -248,9 +246,7 @@ fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                                 .token()
                                 .to_string()
                                 .as_str()
-                                .chars()
-                                .skip(1)
-                                .next()
+                                .chars().nth(1)
                                 .unwrap();
                         }
                     }

@@ -36,11 +36,11 @@ impl Canvas {
         let creator = sdl_canvas.texture_creator();
 
         let texture = match format {
-            PixelFormat::Rgb => {
+            PixelFormat::Rgb8 => {
                 creator.create_texture_target(PixelFormatEnum::RGB888, width, height)?
             }
 
-            PixelFormat::Rgba => {
+            PixelFormat::Rgba8 => {
                 creator.create_texture_target(PixelFormatEnum::RGBA8888, width, height)?
             }
         };
@@ -50,7 +50,6 @@ impl Canvas {
         let screen = &sdl_context.video().unwrap().current_display_mode(0)?;
 
         let font = if let Some(ttf) = font_path {
-
             let ttf_context = Box::leak(Box::new(
                 sdl2::ttf::init().map_err(|e| e.to_string()).unwrap(),
             ));
@@ -111,7 +110,6 @@ impl Canvas {
                 .copy(&ttf_texture, None, None)
                 .unwrap_or_else(|e| panic!("{}", e));
         } else {
-            todo!()
         }
     }
 
@@ -128,6 +126,7 @@ impl Canvas {
                 .copy(&texture, None, None)
                 .unwrap_or_else(|e| panic!("{}", e));
         } else {
+            // panic
             todo!()
         }
     }

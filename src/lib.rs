@@ -21,6 +21,7 @@ pub mod math {
 }
 
 pub mod img {
+    pub mod resize;
     pub mod size;
 }
 
@@ -31,8 +32,10 @@ pub mod color {
 }
 
 pub mod reader {
+    pub mod buffer;
     pub mod canvas;
     pub mod display;
+    pub mod keymap;
 }
 
 pub mod cli {
@@ -41,10 +44,4 @@ pub mod cli {
 
 pub mod config {
     pub mod rsconf;
-}
-
-pub mod metadata {
-    pub mod import;
-    pub mod meta;
-    pub mod tags;
 }
