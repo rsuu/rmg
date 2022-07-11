@@ -1,4 +1,4 @@
-use crate::img::size::Size;
+use crate::{color::format, img::size::Size};
 use std::{fs::File, io::Read};
 
 #[derive(Debug)]
@@ -17,8 +17,11 @@ pub enum ConfigType {
 pub struct Base {
     pub size: Size<usize>,
     pub font: Option<String>,
+
     pub rename: bool,
     pub rename_pad: usize,
+
+    pub format: format::PixelFormat,
 }
 
 #[derive(Debug)]
@@ -47,8 +50,8 @@ impl Config {
 
             return parse_main(ast.items.first().unwrap()).unwrap();
         } else {
-            return Config::default();
-        };
+            Config::default()
+        }
     }
 }
 
@@ -75,8 +78,11 @@ impl Default for Base {
                 height: 400,
             },
             font: None,
+
             rename: true,
             rename_pad: 6,
+
+            format: format::PixelFormat::Rgb8,
         }
     }
 }
@@ -84,7 +90,7 @@ impl Default for Base {
 pub fn parse_main(item: &syn::Item) -> Option<Config> {
     if let syn::Item::Fn(f) = item {
         if f.sig.ident.to_string().as_str() == "main" {
-            return parse_struct(&f.block);
+            parse_struct(&f.block)
         } else {
             None
         }
@@ -98,7 +104,7 @@ pub fn parse_struct(block: &Box<syn::Block>) -> Option<Config> {
 
     for stmt in block.stmts.iter() {
         match stmt {
-            syn::Stmt::Semi(expr, token) => {
+            syn::Stmt::Semi(expr, _token) => {
                 match expr {
                     syn::Expr::Struct(expr_struct) => {
                         // TODO
@@ -125,6 +131,7 @@ pub fn parse_struct(block: &Box<syn::Block>) -> Option<Config> {
     Some(config)
 }
 
+// e.g. struct NAME {}
 pub fn match_struct_name(expr_struct: &syn::ExprStruct) -> ConfigType {
     let name = expr_struct.path.segments.first().unwrap().ident.to_string();
 
@@ -137,6 +144,7 @@ pub fn match_struct_name(expr_struct: &syn::ExprStruct) -> ConfigType {
     }
 }
 
+// e.g. BASE { rename, .. }
 pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
     let mut base = Base::default();
 
@@ -158,6 +166,7 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
                         }
                     }
                 }
+
                 "rename_pad" => {
                     // eprintln!("{:#?}", _fields);
 
@@ -189,6 +198,22 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
                         }
                     }
                 }
+
+                "format" => {
+                    //eprintln!("{:#?}", _fields);
+
+                    if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
+                        if let syn::Lit::Str(_lit_str) = &_expr_lit.lit {
+                            let format = _lit_str.token().to_string().trim_matches('"').to_string();
+                            base.format = match format.as_str() {
+                                "rgb8" => format::PixelFormat::Rgb8,
+                                "rgba8" => format::PixelFormat::Rgba8,
+                                _ => format::PixelFormat::Rgb8,
+                            }
+                        }
+                    }
+                }
+
                 "size" => {
                     //eprintln!("{:#?}", _fields);
 
@@ -224,6 +249,7 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
     base
 }
 
+// e.g. Keymap { up, ..}
 pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
     let mut keymap = Keymap::default();
 
@@ -239,9 +265,7 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                                 .token()
                                 .to_string()
                                 .as_str()
-                                .chars() // e.g. 'j'
-                                .skip(1) // e.g. j'
-                                .next() // e.g. j
+                                .chars().nth(1) // e.g. j
                                 .unwrap();
                         }
                     }
@@ -256,9 +280,7 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                                 .token()
                                 .to_string()
                                 .as_str()
-                                .chars()
-                                .skip(1)
-                                .next()
+                                .chars().nth(1)
                                 .unwrap();
                         }
                     }
@@ -272,16 +294,3 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
     //eprintln!("{:#?}", keymap);
     keymap
 }
-
-// let a = Some(53);
-// let b = Some(4);
-// let c = Some(2);
-//
-// if let Some(d) = (|| {
-//     let a = a?;
-//     let b = b?;
-//     let c = c?;
-//     Some(a * b - c)
-// })() {
-//     println!("{d}");
-// }

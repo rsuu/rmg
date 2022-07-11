@@ -18,12 +18,33 @@ pub enum MyError {
     ErrLexopt(lexopt::Error),                            // args
     ErrLexoptStr(std::ffi::OsString),
     ErrParseInt(std::num::ParseIntError),
+    ErrTryFromSlice(std::array::TryFromSliceError),
+    ErrMulDivImage(fast_image_resize::MulDivImageError),
+    ErrNull(()),
     ErrMagickNumber,
 }
 
 impl From<String> for MyError {
     fn from(e: String) -> Self {
         MyError::ErrEvent(e)
+    }
+}
+
+impl From<()> for MyError {
+    fn from(e: ()) -> Self {
+        MyError::ErrNull(e)
+    }
+}
+
+impl From<std::array::TryFromSliceError> for MyError {
+    fn from(e: std::array::TryFromSliceError) -> Self {
+        MyError::ErrTryFromSlice(e)
+    }
+}
+
+impl From<fast_image_resize::MulDivImageError> for MyError {
+    fn from(e: fast_image_resize::MulDivImageError) -> Self {
+        MyError::ErrMulDivImage(e)
     }
 }
 

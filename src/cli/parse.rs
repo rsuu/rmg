@@ -1,7 +1,9 @@
 use crate::{
+    color::format,
     img::size::Size,
     utils::types::{MyError, SelfResult},
 };
+use emeta::lib::{meta, tags};
 use lexopt::{self, prelude::*};
 use std::process::exit;
 
@@ -14,6 +16,8 @@ pub struct Args {
 
     pub rename: bool,
     pub rename_pad: usize,
+
+    pub format: Option<format::PixelFormat>,
 }
 
 impl Args {
@@ -26,6 +30,8 @@ impl Args {
 
             rename: true,
             rename_pad: 6,
+
+            format: None,
         }
     }
 
@@ -61,8 +67,50 @@ impl Args {
                 }
 
                 Long("pad") => {
-                    if let pad = parser.value()?.into_string()? {
-                        args.rename_pad = pad.parse::<usize>()?;
+                    let pad = parser.value()?.into_string()?;
+                    args.rename_pad = pad.parse::<usize>()?;
+                }
+
+                Long("format") => {
+                    let format = parser.value()?.into_string()?;
+                    args.format = match format.as_str() {
+                        "rgb8" => Some(format::PixelFormat::Rgb8),
+                        "rgba8" => Some(format::PixelFormat::Rgba8),
+                        _ => None,
+                    };
+                }
+
+                Short('m') | Long("meta") => {
+                    let sub = parser.value()?.into_string()?;
+
+                    match sub.to_ascii_lowercase().as_str() {
+                        "d" | "display" => {
+                            let mut meta = meta::MetaData::new();
+
+                            meta.male = Some(tags::TagMale {
+                                name: vec!["www".to_string()],
+                            });
+
+                            meta.write_to_file("/root/t/rmg").unwrap();
+                            meta.read_from_file("/root/t/rmg").unwrap();
+
+                            meta.display();
+                            meta.to_json();
+                        }
+
+                        "f" | "from" => {
+                            let file_path = parser.value()?.into_string()?;
+
+                            // echo xxx | rmg -m f -
+                            match file_path.as_str() {
+                                "-" => {
+                                    let meta = meta::MetaData::from_pipe().unwrap();
+                                    meta.display();
+                                }
+                                _ => {}
+                            }
+                        }
+                        _ => {}
                     }
                 }
 

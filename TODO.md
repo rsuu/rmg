@@ -12,19 +12,21 @@
 + v0.0.8
     + [] 完善 cli
 + v0.0.7
-   + [] 支持 zstd && orz
+    + [x] 预设大小
+    + [] 支持 zstd && orz
 + v0.0.6
     + [x] 归位窗口
     + [] 解析元数据 metadata.rmg
         + [] 显示元数据(gui)
-        + [] 显示元数据(cli)
-        + [] 导出为 json
-        + [] 由 json 导入
+        + [x] 显示元数据(cli)
+        + [x] 导出为 json
+        + [x] 由 json 导入
 
 + v0.0.5
     + [x] 重命名文件
 ```text
-cbb comic/ --pad=3 --dry-run
+let pad = 3
+
 1.png    -> 001.png
 8.png    -> 008.png
 3.png    -> 003.png
@@ -45,7 +47,7 @@ cbb comic/ --pad=3 --dry-run
         + [] 左移图片(或许不需要)
         + [] 右移图片(或许不需要)
         + [] 翻转图片(或许不需要)
-    + [] 支持 rgba
+    + [x] 支持 rgba
 + v0.0.4
     + [x] 解析目录下的文件
         + [x] 提取 rmg

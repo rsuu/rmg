@@ -281,6 +281,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f107b87b6afc2a64fd13cac55fe06d6c8859f12d4b14cbcdd2c67d0976781be"
 
 [[package]]
+name = "emeta"
+version = "0.1.0"
+dependencies = [
+ "miniserde",
+ "speedy",
+]
+
+[[package]]
 name = "exr"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -512,9 +520,9 @@ checksum = "7efd1d698db0759e6ef11a7cd44407407399a910c774dd804c64c032da7826ff"
 
 [[package]]
 name = "lexopt"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de7513aea7d10dc0694d719ac53de3b74f1600e41b9f81ed9f395d8ec36a2a70"
+checksum = "478ee9e62aaeaf5b140bd4138753d1f109765488581444218d3ddda43234f3e8"
 
 [[package]]
 name = "libc"
@@ -858,10 +866,11 @@ dependencies = [
 
 [[package]]
 name = "rmg"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "byteorder",
  "criterion",
+ "emeta",
  "fast_image_resize",
  "glob",
  "image",
@@ -947,9 +956,9 @@ checksum = "a2333e6df6d6598f2b1974829f853c2b4c5f4a6e503c10af918081aa6f8564e1"
 
 [[package]]
 name = "serde"
-version = "1.0.138"
+version = "1.0.139"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1578c6245786b9d168c5447eeacfb96856573ca56c9d68fdcf394be134882a47"
+checksum = "0171ebb889e45aa68b44aee0859b3eede84c6f5f5c228e6f140c0b2a0a46cad6"
 
 [[package]]
 name = "serde_cbor"
@@ -963,9 +972,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.138"
+version = "1.0.139"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "023e9b1467aef8a10fb88f25611870ada9800ef7e22afce356bb0d2387b6f27c"
+checksum = "dc1d3230c1de7932af58ad8ffbe1d784bd55efd5a9d84ac24f69c72d83543dfb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1281,9 +1290,9 @@ dependencies = [
 
 [[package]]
 name = "weezl"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c97e489d8f836838d497091de568cf16b117486d529ec5579233521065bd5e4"
+checksum = "9193164d4de03a926d909d3bc7c30543cecb35400c02114792c2cae20d5e2dbb"
 
 [[package]]
 name = "winapi"

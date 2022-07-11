@@ -81,7 +81,7 @@ async fn main() {
                 file_list.sort();
                 //eprintln!("list: {:#?}", file_list);
 
-                if args.rename {
+                if config.base.rename {
                     if let Some(new) =
                         files::file::rename(false, args.rename_pad, file_list.as_slice())
                     {
@@ -94,7 +94,8 @@ async fn main() {
                 let file_list: Vec<&str> = file_list.iter().map(|s| s.as_str()).collect();
                 //eprintln!("{:#?}", file_list);
 
-                match display::cat_rgb_img(&config, &file_list, meta_size).await {
+                eprintln!("{:#?}", config);
+                match display::cat_img(&config, &file_list, meta_size, config.base.format).await {
                     Ok(_) => {}
                     Err(e) => match e {
                         rmg::utils::types::MyError::ErrIo(e) => {
