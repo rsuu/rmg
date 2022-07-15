@@ -2,16 +2,11 @@ use crate::{
     color::{format::PixelFormat, rgb::TransRgb, rgba::TransRgba},
     img::{
         resize,
-        size::{Size, TMetaSize},
+        size::{Size},
     },
-    math::arrmatrix::{Affine},
     reader::{canvas::Canvas, keymap::Map},
     utils::types::MyResult,
 };
-
-
-
-use std::{convert::TryInto};
 
 /// buffer
 pub static mut RES_BUFFER: Vec<u32> = Vec::new();
@@ -44,69 +39,75 @@ impl Buffer {
         self.bytes[self.start..self.end].to_vec()
     }
 
+    pub fn update_block(&self, canvas: &mut Canvas) {
+        canvas.data.clear();
+        canvas
+            .data
+            .extend_from_slice(&self.bytes[self.start..self.end]);
+        canvas.update().unwrap();
+        canvas.flush();
+    }
+
     /// display prev page
     // Sliding Window
     pub fn move_up(&mut self, canvas: &mut Canvas) {
         if self.start >= self.block {
             self.start -= self.block;
             self.end -= self.block;
+        } else if self.start >= 0_usize {
+            let s = self.start;
+            self.start -= s;
+            self.end -= s;
         } else {
+            panic!()
         }
 
-        canvas.data.clear();
-        canvas
-            .data
-            .extend_from_slice(&self.bytes[self.start..self.end]);
-        canvas.update();
-        canvas.flush();
-
+        self.update_block(canvas);
         self.mode = Map::Up;
+
+        //eprintln!("start: {}, end: {}", self.start, self.end);
     }
 
     /// display next page
     // Sliding Window
     pub fn move_down(&mut self, canvas: &mut Canvas) {
-        if self.end + self.block <= self.bytes.len() {
+        if self.end <= self.bytes.len() - self.block {
             self.start += self.block;
             self.end += self.block;
+        } else if self.end <= self.bytes.len() {
+            let s = self.bytes.len() - self.end;
+            self.start += s;
+            self.end += s;
         } else {
+            panic!()
         }
 
-        //eprintln!("start: {}, end: {}", self.start, self.end);
-
-        canvas.data.clear();
-        canvas
-            .data
-            .extend_from_slice(&self.bytes[self.start..self.end]);
-        canvas.update();
-        canvas.flush();
-
+        self.update_block(canvas);
         self.mode = Map::Down;
 
-        self.temp_step += 1; // use as load next image
+        //eprintln!("start: {}, end: {}", self.start, self.end);
     }
 
     /// load next page
-    pub async fn try_load_next(&mut self, file_list: &[&str]) -> MyResult {
+    pub async fn try_load_next(&mut self, file_list: &[&str], step: usize) -> MyResult {
         // TODO: if time
-        if self.temp_step == self.step {
+        if self.temp_step == self.step && self.page < self.max_page {
             self.temp_step = 0;
 
-            if self.page < self.max_page {
-                unsafe {
-                    self.lazy_load_imgs(&file_list[self.page..self.page + 1], self.format)
-                        .await?;
-                }
+            unsafe {
+                self.lazy_load_imgs(&file_list[self.page..self.page + step], self.format)
+                    .await?;
             }
 
             self.page += 1;
         } else {
+            self.temp_step += 1; // use as load next image
         }
 
         Ok(())
     }
 
-    //
+    #[inline]
     pub async unsafe fn lazy_load_imgs(&mut self, imgs: &[&str], format: PixelFormat) -> MyResult {
         match format {
             PixelFormat::Rgb8 => {
@@ -120,8 +121,9 @@ impl Buffer {
                     )
                     .await?;
 
-                    for f in COLOR_BUFFER.as_slice().chunks(3) {
-                        RES_BUFFER.push(TransRgb::rgb_to_u32(f.try_into()?));
+                    // for f in COLOR_BUFFER.as_slice().chunks(3) {}
+                    for f in (3..COLOR_BUFFER.len()).step_by(3) {
+                        RES_BUFFER.push(TransRgb::rgb_to_u32(&COLOR_BUFFER[f - 3..f].try_into()?));
                     }
                 }
             }
@@ -137,13 +139,16 @@ impl Buffer {
                     )
                     .await?;
 
-                    for f in COLOR_BUFFER.as_slice().chunks(4) {
-                        RES_BUFFER.push(TransRgba::rgba_to_u32(f.try_into()?));
+                    // for f in COLOR_BUFFER.as_slice().chunks(4) {}
+                    for f in (4..COLOR_BUFFER.len()).step_by(4) {
+                        RES_BUFFER
+                            .push(TransRgba::rgba_to_u32(&COLOR_BUFFER[f - 4..f].try_into()?));
                     }
                 }
             }
         };
 
+        // push and clear
         self.bytes.extend_from_slice(RES_BUFFER.as_slice());
         RES_BUFFER.clear();
         COLOR_BUFFER.clear();

@@ -1,13 +1,12 @@
 use crate::{
-    color::{format::PixelFormat},
+    color::format::PixelFormat,
     img::size::{MetaSize, Size, TMetaSize},
-    math::arrmatrix::{Affine},
     utils::types::MyResult,
 };
 use fast_image_resize as fir;
 use image::{self, io::Reader as ImageReader};
 
-use std::{num::NonZeroU32};
+use std::num::NonZeroU32;
 
 pub async fn resize(
     buffer: &mut Vec<u8>,
@@ -63,19 +62,15 @@ pub fn resize_rgb8(
     let dst_width = NonZeroU32::new(meta.fix.width).ok_or(())?;
     let dst_height = NonZeroU32::new(meta.fix.height).ok_or(())?;
 
-    // Fix BUG
+    // HAS FIX
     // ISSUES: https://github.com/Cykooz/fast_image_resize/issues/9
-    if meta.fix.width == meta.image.width && meta.fix.height == meta.image.height {
-        (*buffer).extend_from_slice(src_image.buffer()); // update buffer
-    } else {
-        let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
-        let mut dst_view = dst_image.view_mut();
-        let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Box));
+    let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
+    let mut dst_view = dst_image.view_mut();
+    let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Box));
 
-        resizer.resize(&src_image.view(), &mut dst_view)?;
+    resizer.resize(&src_image.view(), &mut dst_view)?;
 
-        (*buffer).extend_from_slice(dst_image.buffer()); // update buffer
-    }
+    (*buffer).extend_from_slice(dst_image.buffer()); // update buffer
 
     //eprintln!("src_slice: {:?}", &src_image.buffer()[0..10]);
     //eprintln!("dst_slice: {:?}", &dst_image.buffer()[0..10]);
@@ -100,19 +95,15 @@ pub fn resize_rgba8(
     let dst_height = NonZeroU32::new(meta.fix.height).ok_or(())?;
     let alpha_mul_div = fir::MulDiv::default();
 
-    if meta.fix.width == meta.image.width && meta.fix.height == meta.image.height {
-        (*buffer).extend_from_slice(src_image.buffer()); // update buffer
-    } else {
-        let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
-        let mut dst_view = dst_image.view_mut();
-        let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Box));
+    let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
+    let mut dst_view = dst_image.view_mut();
+    let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Box));
 
-        resizer.resize(&src_image.view(), &mut dst_view)?;
-        alpha_mul_div.multiply_alpha_inplace(&mut src_image.view_mut())?;
-        alpha_mul_div.divide_alpha_inplace(&mut dst_view)?;
+    resizer.resize(&src_image.view(), &mut dst_view)?;
+    alpha_mul_div.multiply_alpha_inplace(&mut src_image.view_mut())?;
+    alpha_mul_div.divide_alpha_inplace(&mut dst_view)?;
 
-        (*buffer).extend_from_slice(dst_image.buffer()); // update buffer
-    }
+    (*buffer).extend_from_slice(dst_image.buffer()); // update buffer
 
     //eprintln!("src_image: {}x{}", src_image.width(), src_image.height());
     //eprintln!("dst_image: {}x{}", dst_image.width(), dst_image.height());

@@ -6,27 +6,44 @@ Mnaga Reader
 
 + Dependency
     + sdl2
-    + Optional Dependency
++ Optional Dependency
         + tar
         + zip
-
-### Build
+        + zstd
 
 ```bash
+cargo install rmg
+
+#OR
+
+git clone --depth 1 https://github.com/rsuu/rmg
+cd rmg
 cargo build --release
 ```
 
+
 ## Usage
 
-
 ```bash
-cargo run --release -- --size 900,800 tests/files/img.tar
+cargo run -- --config ./tests/files/config.rs --size 600,600 ./tests/files/img.zip
 
 # OR
 
-rmg --size 900,900 tests/files/img.tar
+./bin/rmg --config ./tests/files/config.rs --size 600,600 ./tests/files/img.zip
+
 ```
+
+KeyMap
+
+|#|#|
+|:-|:-|
+j | down
+k | up
+r | reset
+f | fullscreen
+q | exit
 
 ## Demo
 
-https://github.com/rsuu/rmg/blob/main/docs/2022-06-29.mp4
+![](./assets/2022-07-12.png)
+https://github.com/rsuu/rmg/blob/main/assets/2022-06-29.mp4

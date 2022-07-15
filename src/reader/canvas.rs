@@ -1,7 +1,6 @@
-use crate::{color::format::PixelFormat, img::size::Size};
+use crate::{color::format::PixelFormat, img::size::Size, utils::types::SelfResult};
 use sdl2::{pixels::PixelFormatEnum, render::Texture, render::TextureCreator};
 use std::cell::RefCell;
-type Error = Box<dyn std::error::Error>;
 
 pub struct Canvas {
     pub sdl_context: sdl2::Sdl,
@@ -19,7 +18,7 @@ impl Canvas {
         size: Size<u32>,
         format: PixelFormat,
         font_path: Option<&_Str>,
-    ) -> Result<Self, Error>
+    ) -> SelfResult<Self>
     where
         _Str: AsRef<str> + ?Sized,
     {
@@ -47,14 +46,12 @@ impl Canvas {
 
         let texture = unsafe { std::mem::transmute::<_, Texture<'static>>(texture) };
         let data_len = (size.width * size.height) as usize;
-        let screen = &sdl_context.video().unwrap().current_display_mode(0)?;
+        let screen = &sdl_context.video()?.current_display_mode(0)?;
 
         let font = if let Some(ttf) = font_path {
-            let ttf_context = Box::leak(Box::new(
-                sdl2::ttf::init().map_err(|e| e.to_string()).unwrap(),
-            ));
+            let ttf_context = Box::leak(Box::new(sdl2::ttf::init().map_err(|e| e.to_string())?));
 
-            let mut font = ttf_context.load_font(ttf.as_ref(), 128).unwrap();
+            let mut font = ttf_context.load_font(ttf.as_ref(), 128)?;
 
             font.set_style(sdl2::ttf::FontStyle::BOLD);
 
@@ -81,40 +78,8 @@ impl Canvas {
         })
     }
 
-    pub fn display_text(&mut self, text: &str) {
-        // TODO
-
-        if self.ttf.is_some()
-            && self
-                .texture
-                .borrow_mut()
-                .update(None, self.data_raw(), self.data_max_len())
-                .is_ok()
-        {
-            let surface = self
-                .ttf
-                .as_ref()
-                .unwrap()
-                .render(text)
-                .blended_wrapped(sdl2::pixels::Color::RGBA(255, 0, 0, 255), 128 * 5)
-                .map_err(|e| e.to_string())
-                .unwrap();
-
-            let ttf_texture = self
-                .creator
-                .create_texture_from_surface(&surface)
-                .map_err(|e| e.to_string())
-                .unwrap();
-
-            self.sdl_canvas
-                .copy(&ttf_texture, None, None)
-                .unwrap_or_else(|e| panic!("{}", e));
-        } else {
-        }
-    }
-
     #[inline(always)]
-    pub fn update(&mut self) {
+    pub fn update(&mut self) -> SelfResult<()> {
         let mut texture = self.texture.borrow_mut();
 
         if texture
@@ -122,13 +87,13 @@ impl Canvas {
             .is_ok()
         {
             // Copy data
-            self.sdl_canvas
-                .copy(&texture, None, None)
-                .unwrap_or_else(|e| panic!("{}", e));
+            self.sdl_canvas.copy(&texture, None, None)?;
         } else {
             // panic
             todo!()
         }
+
+        Ok(())
     }
 
     #[inline(always)]
@@ -159,6 +124,57 @@ impl Canvas {
     #[inline(always)]
     pub fn flush(&mut self) {
         self.sdl_canvas.present();
+    }
+
+    pub fn reset_pos(&mut self, x: i32, y: i32) {
+        self.sdl_canvas.window_mut().set_position(
+            sdl2::video::WindowPos::Positioned(x),
+            sdl2::video::WindowPos::Positioned(y),
+        );
+        self.sdl_canvas.present();
+    }
+
+    pub fn try_fullscreen(&mut self) -> SelfResult<()> {
+        if self.sdl_canvas.window_mut().fullscreen_state() == sdl2::video::FullscreenType::True {
+            self.sdl_canvas
+                .window_mut()
+                .set_fullscreen(sdl2::video::FullscreenType::Off)?;
+        } else {
+            self.sdl_canvas
+                .window_mut()
+                .set_fullscreen(sdl2::video::FullscreenType::True)?;
+        }
+        self.sdl_canvas.present();
+
+        Ok(())
+    }
+
+    pub fn display_text(&mut self, text: &str) -> SelfResult<()> {
+        // TODO
+
+        if self.ttf.is_some()
+            && self
+                .texture
+                .borrow_mut()
+                .update(None, self.data_raw(), self.data_max_len())
+                .is_ok()
+        {
+            let surface = self
+                .ttf
+                .as_ref()
+                .unwrap()
+                .render(text)
+                .blended_wrapped(sdl2::pixels::Color::RGBA(255, 0, 0, 255), 128 * 5)?;
+
+            let ttf_texture = self.creator.create_texture_from_surface(&surface)?;
+
+            self.sdl_canvas.copy(&ttf_texture, None, None)?;
+
+            self.sdl_canvas.present();
+        } else {
+        }
+
+        Ok(())
     }
 }
 

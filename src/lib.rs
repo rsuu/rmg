@@ -1,13 +1,18 @@
-#[macro_use]
 pub mod utils {
     pub mod types;
-    #[macro_use]
+
     pub mod macros;
 }
 
 pub mod archive {
+    #[cfg(feature = "ex_tar")]
     pub mod tar;
+
+    #[cfg(feature = "ex_zip")]
     pub mod zip;
+
+    #[cfg(feature = "ex_zstd")]
+    pub mod zstd;
 }
 
 pub mod files {

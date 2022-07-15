@@ -1,11 +1,4 @@
-use crate::{
-    img::size::{TMetaSize},
-    math::arrmatrix::{Affine},
-};
-
-
 use sdl2::{event::Event, keyboard::Keycode, mouse::MouseWheelDirection};
-
 
 pub trait TKeycode {
     fn as_char(&self) -> char;
@@ -36,13 +29,11 @@ pub enum Map {
 #[inline(always)]
 pub fn match_event(event: &sdl2::event::Event, keymaps: &[KeyMap]) -> Map {
     match event {
-        // up: move up
-        // down: move down
+            // Mouse
         Event::MouseWheel {
             direction: MouseWheelDirection::Normal,
             ..
         } => {
-            // Mouse
             if let Event::MouseWheel { y, .. } = event {
                 if *y < 0 {
                     return Map::Down;
