@@ -1,8 +1,8 @@
 use crate::{
     color::format::PixelFormat,
     config::rsconf::Config,
-    img::size::{MetaSize, TMetaSize},
-    math::arrmatrix::Affine,
+    img::size::{MetaSize},
+    math::arrmatrix::{Affine, ArrMatrix},
     reader::{
         buffer,
         canvas::Canvas,
@@ -10,7 +10,7 @@ use crate::{
     },
     utils::types::MyResult,
 };
-
+use emeta::meta;
 use std::{thread, time::Duration};
 
 /// display images
@@ -19,6 +19,7 @@ pub async fn cat_img(
     file_list: &[&str],
     meta_size: MetaSize<u32>,
     format: PixelFormat,
+    metadata: &Option<meta::MetaData>,
 ) -> MyResult {
     let screen_size = meta_size.screen;
     let window_size = meta_size.window;
@@ -29,7 +30,7 @@ pub async fn cat_img(
         config.base.font.as_deref(),
     )?));
     let step = 8; // drop 1/n part of image once
-    let block = (window_size.width as usize * (window_size.height as usize / step));
+    let block = window_size.width as usize * (window_size.height as usize / step);
 
     let mut buf = buffer::Buffer {
         bytes: vec![],                                          // buffer
@@ -73,6 +74,8 @@ pub async fn cat_img(
 
     let mut event_pump = canvas.sdl_context.event_pump()?;
 
+    let mut now_buf: Vec<u32> = Vec::new();
+
     // keymap
     'l1: loop {
         for event in event_pump.poll_iter() {
@@ -81,7 +84,7 @@ pub async fn cat_img(
             match keymap::match_event(&event, &keymaps) {
                 Map::Down => {
                     buf.move_down(canvas);
-                    buf.try_load_next(file_list).await?; // TODO: very slow
+                    buf.try_load_next(file_list, 1).await?; // TODO: very slow
                 }
 
                 Map::Up => {
@@ -89,42 +92,24 @@ pub async fn cat_img(
                 }
 
                 Map::DisplayMeta => {
-                    canvas.display_text(
-                        "\
-                a:
-                  1234
-                b:
-                  1234
-                ",
-                    );
+                    if let Some(meta) = metadata {
+                        //eprintln!("{:?}", meta);
 
-                    canvas.flush();
+                        canvas.display_text(meta.to_json().as_str())?;
+                    } else {
+                        //eprintln!("");
+                    }
                 }
 
                 Map::Reset => {
-                    canvas.sdl_canvas.window_mut().set_position(
-                        sdl2::video::WindowPos::Positioned(buf.window_position.0),
-                        sdl2::video::WindowPos::Positioned(buf.window_position.1),
-                    );
-                    canvas.flush();
+                    if canvas.sdl_canvas.window().position() != buf.window_position {
+                        canvas.reset_pos(buf.window_position.0, buf.window_position.1);
+                    } else {
+                    }
                 }
 
                 Map::FullScreen => {
-                    if canvas.sdl_canvas.window_mut().fullscreen_state()
-                        == sdl2::video::FullscreenType::True
-                    {
-                        canvas
-                            .sdl_canvas
-                            .window_mut()
-                            .set_fullscreen(sdl2::video::FullscreenType::Off)?;
-                    } else {
-                        canvas
-                            .sdl_canvas
-                            .window_mut()
-                            .set_fullscreen(sdl2::video::FullscreenType::True)?;
-                    }
-
-                    canvas.flush();
+                    canvas.try_fullscreen()?;
                 }
 
                 Map::Exit => {
@@ -132,8 +117,17 @@ pub async fn cat_img(
                 }
 
                 Map::Left => {
-                    /*
-                        if let Some(data) = ArrMatrix::new(
+                    // TODO
+                    if now_buf.is_empty() {
+                        now_buf = buf.get_block();
+                    } else {
+                    }
+
+                    if buf.mode == Map::Right {
+                        canvas.data = now_buf.clone();
+                    }
+
+                    if let Some(data) = ArrMatrix::new(
                         canvas.data.as_slice(),
                         canvas.window_size.width,
                         canvas.window_size.height,
@@ -142,16 +136,39 @@ pub async fn cat_img(
                     {
                         canvas.data = data;
 
-                        canvas.update();
+                        canvas.update().unwrap();
                         canvas.flush();
 
                         buf.mode = Map::Left;
                     }
-
-                       */
                 }
-                Map::Right => {}
 
+                Map::Right => {
+                    // TODO
+                    if now_buf.is_empty() {
+                        now_buf = buf.get_block();
+                    } else {
+                    }
+
+                    if buf.mode == Map::Left {
+                        canvas.data = now_buf.clone();
+                    }
+
+                    if let Some(data) = ArrMatrix::new(
+                        canvas.data.as_slice(),
+                        canvas.window_size.width,
+                        canvas.window_size.height,
+                    )
+                    .translate_x((canvas.window_size.width as usize) / 2, true)
+                    {
+                        canvas.data = data;
+
+                        canvas.update().unwrap();
+                        canvas.flush();
+
+                        buf.mode = Map::Left;
+                    }
+                }
                 _ => {}
             }
         }

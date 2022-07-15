@@ -1,18 +1,18 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
-
-use tempfile::TempDir;
-
+use cfg_if::cfg_if;
+use emeta::meta;
 use rmg::{
-    archive::{tar, zip},
+    archive::{tar, zip, zstd},
     cli,
     config::rsconf::Config,
     files::{self, list},
     img::size::{MetaSize, TMetaSize},
     reader::display,
 };
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+use tempfile::TempDir;
 
 #[tokio::main]
 async fn main() {
@@ -21,10 +21,16 @@ async fn main() {
     // parse config from file
     // OR
     // use default config
-    let mut config = Config::parse_from("./tests/files/config.rs");
+    let mut config: Config;
     //eprintln!("{:#?}", config);
 
     if let Ok(args) = cli::parse::Args::get_args() {
+        if let Some(config_path) = args.config_path {
+            config = Config::parse_from(config_path.as_str());
+        } else {
+            config = Config::parse_from("./tests/files/config.rs");
+        }
+
         if let Some(size) = args.size {
             config.base.size = size;
         } else {
@@ -47,6 +53,7 @@ async fn main() {
             if let Ok(_) = open::<Path>(Path::new(path.as_str()), tmp_dir.as_path()) {
                 // Check if has ".rmg" file
                 let mut rmg_file: Option<String> = None;
+                let mut metadata: Option<meta::MetaData> = None;
 
                 for f in walkdir::WalkDir::new(tmp_dir.as_path()).into_iter() {
                     if f.as_ref().unwrap().path().ends_with(".rmg") {
@@ -56,8 +63,17 @@ async fn main() {
                     }
                 }
 
-                if rmg_file.is_some() {
-                    eprintln!("rmg_file");
+                //let m = meta::MetaData::new();
+                //m.write_to_file("./.rmg");
+                if let Some(rmg_path) = rmg_file {
+                    metadata = Some(meta::MetaData::from_file(rmg_path.as_str()).unwrap());
+
+                    // e.g. rmg xxx.tar --meta d
+                    if args.meta_display {
+                        metadata.as_ref().unwrap().display();
+                        std::process::exit(0); // EXIT
+                    } else {
+                    }
                 } else {
                 }
 
@@ -93,9 +109,16 @@ async fn main() {
                 // Vec<String> to Vec<&str>
                 let file_list: Vec<&str> = file_list.iter().map(|s| s.as_str()).collect();
                 //eprintln!("{:#?}", file_list);
-
-                eprintln!("{:#?}", config);
-                match display::cat_img(&config, &file_list, meta_size, config.base.format).await {
+                //eprintln!("{:#?}", config);
+                match display::cat_img(
+                    &config,
+                    &file_list,
+                    meta_size,
+                    config.base.format,
+                    &metadata,
+                )
+                .await
+                {
                     Ok(_) => {}
                     Err(e) => match e {
                         rmg::utils::types::MyError::ErrIo(e) => {
@@ -115,9 +138,9 @@ async fn main() {
     };
 }
 
-pub fn open<T>(from: &T, to: &T) -> Result<Vec<PathBuf>, std::io::Error>
+pub fn open<_Path>(from: &_Path, to: &_Path) -> Result<Vec<PathBuf>, std::io::Error>
 where
-    T: AsRef<Path> + ?Sized,
+    _Path: AsRef<Path> + ?Sized,
 {
     if from.as_ref().is_dir() {
         files::dir::rec_copy_dir(from, to)?;
@@ -128,13 +151,28 @@ where
             }
 
             "zip" => {
-                //println!("Open zip");
-                zip::extract(from.as_ref(), to.as_ref())?;
+                cfg_if! {
+                    if #[cfg(feature="ex_zip")] {
+                        println!("Open zip");
+                        zip::extract(from.as_ref(), to.as_ref())?;
+                    }else {
+                        eprintln!("Not support zip");
+                    }
+                }
+            }
+
+            "zst" => {
+                let _to = format!("{}/zstd.tar", to.as_ref().display());
+                zstd::extract(from.as_ref(), _to.as_ref()).unwrap();
+
+                let _from = _to;
+                tar::extract(_from.as_ref(), to.as_ref())?;
+
+                fs::remove_file(_from)?;
             }
 
             _ => panic!(),
         };
     }
-
     Ok(list::get_file_list(to.as_ref()))
 }

@@ -3,12 +3,14 @@ use crate::{
     img::size::Size,
     utils::types::{MyError, SelfResult},
 };
-use emeta::lib::{meta, tags};
+use emeta::meta;
 use lexopt::{self, prelude::*};
 use std::process::exit;
 
 #[derive(Debug)]
 pub struct Args {
+    pub config_path: Option<String>,
+
     pub file_path: Option<String>,
     pub dir_path: Option<String>,
 
@@ -18,11 +20,15 @@ pub struct Args {
     pub rename_pad: usize,
 
     pub format: Option<format::PixelFormat>,
+
+    pub meta_display: bool,
 }
 
 impl Args {
     pub fn new() -> Self {
         Args {
+            config_path: None,
+
             file_path: None,
             dir_path: None,
 
@@ -32,6 +38,8 @@ impl Args {
             rename_pad: 6,
 
             format: None,
+
+            meta_display: false,
         }
     }
 
@@ -43,6 +51,13 @@ impl Args {
             match arg {
                 Long("help") | Short('h') => {
                     print_help();
+                }
+
+                Long("config") | Short('c') => {
+                    if args.config_path.is_none() {
+                        args.config_path = Some(parser.value()?.into_string()?);
+                    } else {
+                    }
                 }
 
                 Long("size") | Short('s') => {
@@ -85,17 +100,7 @@ impl Args {
 
                     match sub.to_ascii_lowercase().as_str() {
                         "d" | "display" => {
-                            let mut meta = meta::MetaData::new();
-
-                            meta.male = Some(tags::TagMale {
-                                name: vec!["www".to_string()],
-                            });
-
-                            meta.write_to_file("/root/t/rmg").unwrap();
-                            meta.read_from_file("/root/t/rmg").unwrap();
-
-                            meta.display();
-                            meta.to_json();
+                            args.meta_display = true;
                         }
 
                         "f" | "from" => {
