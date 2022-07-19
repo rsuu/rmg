@@ -1,9 +1,6 @@
 use crate::{
     color::{format::PixelFormat, rgb::TransRgb, rgba::TransRgba},
-    img::{
-        resize,
-        size::{Size},
-    },
+    img::{resize, size::Size},
     reader::{canvas::Canvas, keymap::Map},
     utils::types::MyResult,
 };
