@@ -1,4 +1,13 @@
-fn main() {}
+use dirs_next;
+
+fn main() {
+    match dirs_next::config_dir() {
+        Some(dir) => {
+            println!("{:?}", dir);
+        }
+        _ => {}
+    }
+}
 
 use std::{fmt::Display, str::FromStr};
 

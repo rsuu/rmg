@@ -1,6 +1,18 @@
 use crate::{color::format::PixelFormat, img::size::Size, utils::types::SelfResult};
-use sdl2::{pixels::PixelFormatEnum, render::Texture, render::TextureCreator};
+use sdl2::{
+    pixels::PixelFormatEnum,
+    rect::Rect,
+    render::TextureCreator,
+    render::{Texture, TextureQuery},
+};
 use std::cell::RefCell;
+
+// handle the annoying Rect i32
+macro_rules! rect(
+    ($x:expr, $y:expr, $w:expr, $h:expr) => (
+        Rect::new($x as i32, $y as i32, $w as u32, $h as u32)
+    )
+);
 
 pub struct Canvas {
     pub sdl_context: sdl2::Sdl,
@@ -144,6 +156,7 @@ impl Canvas {
                 .window_mut()
                 .set_fullscreen(sdl2::video::FullscreenType::True)?;
         }
+
         self.sdl_canvas.present();
 
         Ok(())
@@ -164,18 +177,48 @@ impl Canvas {
                 .as_ref()
                 .unwrap()
                 .render(text)
-                .blended_wrapped(sdl2::pixels::Color::RGBA(255, 0, 0, 255), 128 * 5)?;
-
+                .blended_wrapped(sdl2::pixels::Color::RGBA(255, 0, 0, 255), 128 * 10)?;
             let ttf_texture = self.creator.create_texture_from_surface(&surface)?;
+            let TextureQuery { width, height, .. } = ttf_texture.query();
 
-            self.sdl_canvas.copy(&ttf_texture, None, None)?;
+            let target = get_centered_rect(width, height, 900 - 64, 900 - 64, 900, 900);
 
+            self.sdl_canvas.copy(&ttf_texture, None, Some(target))?;
             self.sdl_canvas.present();
         } else {
         }
 
         Ok(())
     }
+}
+
+// Scale fonts to a reasonable size when they're too big (though they might look less smooth)
+pub fn get_centered_rect(
+    rect_width: u32,
+    rect_height: u32,
+    cons_width: u32,
+    cons_height: u32,
+    win_width: u32,
+    win_height: u32,
+) -> Rect {
+    let wr = rect_width as f32 / cons_width as f32;
+    let hr = rect_height as f32 / cons_height as f32;
+
+    let (w, h) = if wr > 1_f32 || hr > 1_f32 {
+        if wr > hr {
+            //println!("Scaling down! The text will look worse!");
+            let h = (rect_height as f32 / wr) as i32;
+            (cons_width as i32, h)
+        } else {
+            //println!("Scaling down! The text will look worse!");
+            let w = (rect_width as f32 / hr) as i32;
+            (w, cons_height as i32)
+        }
+    } else {
+        (rect_width as i32, rect_height as i32)
+    };
+
+    rect!(0, 0, w, h)
 }
 
 // REF

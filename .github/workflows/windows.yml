@@ -58,5 +58,9 @@ jobs:
       shell: bash
 
     - name: Build and Test
-      shell: cmd
-      run: ci\build.bat
+      shell: bash
+      run: |
+        bash ci/windows.sh
+        export RUSTFLAGS=-Awarnings
+        cargo test
+        cargo build

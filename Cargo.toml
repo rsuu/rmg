@@ -11,6 +11,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["manga","comic"]
 #categories = []
 autobenches = true
+build = "build.rs"
 
 
 
@@ -54,6 +55,7 @@ syn = { version = "1.0.98", features = ["full", "extra-traits"] }
 #rayon = "1.5.3"
 tokio = { version = "1.20.0", features = ["full"] }
 cfg-if = "1.0.0"
+dirs-next = "2.0.0"
 
 [dev-dependencies]
 # bench

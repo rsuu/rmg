@@ -1,7 +1,7 @@
 use crate::{
     color::format::PixelFormat,
     config::rsconf::Config,
-    img::size::{MetaSize},
+    img::size::MetaSize,
     math::arrmatrix::{Affine, ArrMatrix},
     reader::{
         buffer,
@@ -74,8 +74,6 @@ pub async fn cat_img(
 
     let mut event_pump = canvas.sdl_context.event_pump()?;
 
-    let mut now_buf: Vec<u32> = Vec::new();
-
     // keymap
     'l1: loop {
         for event in event_pump.poll_iter() {
@@ -91,17 +89,30 @@ pub async fn cat_img(
                     buf.move_up(canvas);
                 }
 
+                /*
                 Map::DisplayMeta => {
                     if let Some(meta) = metadata {
                         //eprintln!("{:?}", meta);
 
-                        canvas.display_text(meta.to_json().as_str())?;
+                        use emeta::meta::TUpdateMeta;
+                        use emeta::tags::*;
+                        let mut meta = emeta::meta::MetaData::new();
+
+                        meta.artist(&Some(emeta::tags::TagArtist {
+                            name: vec!["安慰大文档".to_string()],
+                        }));
+                        meta.group(&Some(emeta::tags::TagGroup {
+                            name: vec!["a".to_string()],
+                        }));
+                        let text = format!("{:?}", meta);
+                        canvas.display_text(text.as_str())?;
                     } else {
-                        //eprintln!("");
+                        // doing nothing
                     }
                 }
-
+                */
                 Map::Reset => {
+                    // check if the position of the window as same as position of the buffer
                     if canvas.sdl_canvas.window().position() != buf.window_position {
                         canvas.reset_pos(buf.window_position.0, buf.window_position.1);
                     } else {
@@ -116,6 +127,7 @@ pub async fn cat_img(
                     break 'l1;
                 }
 
+                /*
                 Map::Left => {
                     // TODO
                     if now_buf.is_empty() {
@@ -169,6 +181,7 @@ pub async fn cat_img(
                         buf.mode = Map::Left;
                     }
                 }
+                    */
                 _ => {}
             }
         }

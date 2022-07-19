@@ -56,15 +56,13 @@ async fn main() {
                 let mut metadata: Option<meta::MetaData> = None;
 
                 for f in walkdir::WalkDir::new(tmp_dir.as_path()).into_iter() {
-                    if f.as_ref().unwrap().path().ends_with(".rmg") {
-                        rmg_file = Some(f.as_ref().unwrap().path().display().to_string());
+                    if f.as_ref().expect("").path().ends_with(".rmg") {
+                        rmg_file = Some(f.as_ref().expect("").path().display().to_string());
                         break;
                     } else {
                     }
                 }
 
-                //let m = meta::MetaData::new();
-                //m.write_to_file("./.rmg");
                 if let Some(rmg_path) = rmg_file {
                     metadata = Some(meta::MetaData::from_file(rmg_path.as_str()).unwrap());
 
@@ -147,7 +145,13 @@ where
     } else {
         match list::get_filetype(from.as_ref()).as_str() {
             "tar" => {
-                tar::extract(from.as_ref(), to.as_ref())?;
+                cfg_if! {
+                    if #[cfg(feature="ex_zip")] {
+                        tar::extract(from.as_ref(), to.as_ref())?;
+                    } else {
+                        eprintln!("Not Support FileType: tar");
+                    }
+                }
             }
 
             "zip" => {
@@ -156,19 +160,25 @@ where
                         println!("Open zip");
                         zip::extract(from.as_ref(), to.as_ref())?;
                     }else {
-                        eprintln!("Not support zip");
+                        eprintln!("Not Support FileType: zip");
                     }
                 }
             }
 
             "zst" => {
-                let _to = format!("{}/zstd.tar", to.as_ref().display());
-                zstd::extract(from.as_ref(), _to.as_ref()).unwrap();
+                cfg_if! {
+                    if #[cfg(feature="ex_zip")] {
+                        let _to = format!("{}/zstd.tar", to.as_ref().display());
+                        zstd::extract(from.as_ref(), _to.as_ref()).unwrap();
 
-                let _from = _to;
-                tar::extract(_from.as_ref(), to.as_ref())?;
+                        let _from = _to;
+                        tar::extract(_from.as_ref(), to.as_ref())?;
 
-                fs::remove_file(_from)?;
+                        fs::remove_file(_from)?;
+                    }else {
+                        eprintln!("Not Support FileType: zstd");
+                    }
+                }
             }
 
             _ => panic!(),

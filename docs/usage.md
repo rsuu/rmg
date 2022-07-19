@@ -7,8 +7,6 @@ rmg --size 900,900 xxx.cbz
 rmg --size 900,900 xxx.tar
 rmg --size 900,900 xxx.zip
 
-
-
 rmg --rename false xxx.tar
 
 

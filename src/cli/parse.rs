@@ -138,6 +138,28 @@ impl Default for Args {
 }
 
 fn print_help() -> ! {
-    eprintln!("help");
+    eprintln!(
+        r#"\
+rmg 0.0.8
+Manga Reader
+
+USAGE:
+    rmg [OPTIONS] path
+
+META OPTIONS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+DISPLAY OPTIONS:
+    -s, --size       ...
+    -c, --config     ...
+    -m, --meta       ...
+
+OTHER OPTIONS:
+    --pad            ...
+    --rename         ...
+    --format         ...
+"#
+    );
     exit(127);
 }

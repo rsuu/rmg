@@ -1,9 +1,6 @@
 use crate::{
     color::{format::PixelFormat, rgb::TransRgb, rgba::TransRgba},
-    img::{
-        resize,
-        size::{Size},
-    },
+    img::{resize, size::Size},
     reader::{canvas::Canvas, keymap::Map},
     utils::types::MyResult,
 };
@@ -54,7 +51,7 @@ impl Buffer {
         if self.start >= self.block {
             self.start -= self.block;
             self.end -= self.block;
-        } else if self.start >= 0_usize {
+        } else if self.start >= usize::MIN {
             let s = self.start;
             self.start -= s;
             self.end -= s;
