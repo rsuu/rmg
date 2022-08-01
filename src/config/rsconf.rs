@@ -1,3 +1,6 @@
+// TODO
+// remove .unwrap()
+
 use crate::{color::format, img::size::Size};
 use std::{fs::File, io::Read};
 
@@ -8,86 +11,42 @@ pub struct Config {
 }
 
 #[derive(Debug)]
-pub enum ConfigType {
-    Base,
-    Keymap,
-}
-
-#[derive(Debug)]
 pub struct Base {
-    pub size: Size<usize>,
-    pub font: Option<String>,
+    pub size: Size<usize>,    // window size
+    pub font: Option<String>, // font file
 
-    pub rename: bool,
-    pub rename_pad: usize,
+    pub rename: bool,      // rename filename (default: true)
+    pub rename_pad: usize, // pad (default: 6)
 
-    pub format: format::PixelFormat,
+    pub format: format::PixelFormat, // [RGB / RGBA]
 }
 
 #[derive(Debug)]
 pub struct Keymap<_Char> {
-    pub up: _Char,
-    pub down: _Char,
+    pub up: _Char, // page up
+    pub down: _Char, // page down
+                   //pub full_screen: _Char,
+                   //pub exit: _Char,
+                   //pub reset: _Char,
 }
 
-impl Config {
-    pub fn parse_from<_Path>(path: &_Path) -> Self
-    where
-        _Path: AsRef<str> + ?Sized,
-    {
-        if let Ok(mut file) = File::open(path.as_ref()) {
-            let mut content = String::new();
-
-            file.read_to_string(&mut content).unwrap();
-
-            let ast = syn::parse_file(content.as_str()).unwrap();
-
-            //eprintln!("{:#?}", ast);
-
-            // not need now
-            // for item in ast.items.iter() {
+#[derive(Debug)]
+pub enum ConfigType {
+    Base, // e.g.
+    // struct Base {
+    // ..
+    // }
+    Keymap, // e.g.
+            // struct Keymap {
+            // ..
             // }
-
-            return parse_main(ast.items.first().unwrap()).unwrap();
-        } else {
-            Config::default()
-        }
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            base: Base::default(),
-            keymap: Keymap::default(),
-        }
-    }
-}
-
-impl Default for Keymap<char> {
-    fn default() -> Self {
-        Keymap { up: 'k', down: 'j' }
-    }
-}
-
-impl Default for Base {
-    fn default() -> Self {
-        Base {
-            size: Size::<usize> {
-                width: 400,
-                height: 400,
-            },
-            font: None,
-
-            rename: true,
-            rename_pad: 6,
-
-            format: format::PixelFormat::Rgb8,
-        }
-    }
 }
 
 pub fn parse_main(item: &syn::Item) -> Option<Config> {
+    // fn main() {
+    // ..
+    // }
+
     if let syn::Item::Fn(f) = item {
         if f.sig.ident.to_string().as_str() == "main" {
             parse_struct(&f.block)
@@ -144,7 +103,11 @@ pub fn match_struct_name(expr_struct: &syn::ExprStruct) -> ConfigType {
     }
 }
 
-// e.g. BASE { rename, .. }
+// e.g.
+// BASE {
+//   rename,
+//   ..
+// }
 pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
     let mut base = Base::default();
 
@@ -265,7 +228,8 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                                 .token()
                                 .to_string()
                                 .as_str()
-                                .chars().nth(1) // e.g. j
+                                .chars()
+                                .nth(1) // e.g. j
                                 .unwrap();
                         }
                     }
@@ -280,7 +244,8 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                                 .token()
                                 .to_string()
                                 .as_str()
-                                .chars().nth(1)
+                                .chars()
+                                .nth(1)
                                 .unwrap();
                         }
                     }
@@ -293,4 +258,59 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
 
     //eprintln!("{:#?}", keymap);
     keymap
+}
+
+impl Config {
+    pub fn parse_from<_Path>(path: &_Path) -> Self
+    where
+        _Path: AsRef<str> + ?Sized,
+    {
+        if let Ok(mut file) = File::open(path.as_ref()) {
+            let mut content = String::new();
+            file.read_to_string(&mut content).unwrap();
+
+            let ast = syn::parse_file(content.as_str()).unwrap();
+
+            //eprintln!("{:#?}", ast);
+
+            // not need now
+            // for item in ast.items.iter() {}
+
+            return parse_main(ast.items.first().unwrap()).unwrap();
+        } else {
+            Config::default()
+        }
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            base: Base::default(),
+            keymap: Keymap::default(),
+        }
+    }
+}
+
+impl Default for Keymap<char> {
+    fn default() -> Self {
+        Keymap { up: 'k', down: 'j' }
+    }
+}
+
+impl Default for Base {
+    fn default() -> Self {
+        Base {
+            size: Size::<usize> {
+                width: 400,
+                height: 400,
+            },
+            font: None,
+
+            rename: true,
+            rename_pad: 6,
+
+            format: format::PixelFormat::Rgb8,
+        }
+    }
 }

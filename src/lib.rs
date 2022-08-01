@@ -11,8 +11,8 @@ pub mod archive {
     #[cfg(feature = "ex_zip")]
     pub mod zip;
 
-    #[cfg(feature = "ex_zstd")]
-    pub mod zstd;
+    //#[cfg(feature = "ex_zstd")]
+    //pub mod zstd;
 }
 
 pub mod files {
@@ -26,6 +26,7 @@ pub mod math {
 }
 
 pub mod img {
+    pub mod covert;
     pub mod resize;
     pub mod size;
 }
@@ -38,9 +39,10 @@ pub mod color {
 
 pub mod reader {
     pub mod buffer;
-    pub mod canvas;
+    //pub mod canvas;
     pub mod display;
     pub mod keymap;
+    pub mod mini;
 }
 
 pub mod cli {

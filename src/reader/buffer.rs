@@ -1,26 +1,54 @@
 use crate::{
+    archive,
     color::{format::PixelFormat, rgb::TransRgb, rgba::TransRgba},
-    img::{resize, size::Size},
-    reader::{canvas::Canvas, keymap::Map},
-    utils::types::MyResult,
+    img::{
+        resize::{self, resize_bytes},
+        size::Size,
+    },
+    reader::{keymap::Map, mini::Canvas2},
+    utils::types::{ArchiveType, MyResult},
 };
+use log::debug;
+use minifb::Key;
+use std::{borrow::BorrowMut, ptr};
 
-/// buffer
-pub static mut RES_BUFFER: Vec<u32> = Vec::new();
+use std::path::Path;
+use std::path::PathBuf;
 
-/// buffer
-pub static mut COLOR_BUFFER: Vec<u8> = Vec::new();
+#[derive(Debug)]
+pub struct PageInfo {
+    pub path: PathBuf,
+    pub name: String,
+    pub len: usize,
+    pub pos: usize,
+}
 
+impl PageInfo {
+    pub fn new(path: PathBuf, name: String, len: usize, pos: usize) -> Self {
+        PageInfo {
+            path,
+            name,
+            len,
+            pos,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Buffer {
     pub bytes: Vec<u32>,
-
+    pub max_bytes: usize,
     pub start: usize,
     pub end: usize,
+
+    pub page_list: Vec<PageInfo>,
+    pub page_end: usize,
+
+    pub archive_path: PathBuf,
+    pub archive_type: ArchiveType,
+
     pub block: usize,
-    pub page: usize,
-    pub max_page: usize,
     pub step: usize,
-    pub temp_step: usize,
 
     pub mode: Map,
     pub format: PixelFormat,
@@ -28,128 +56,287 @@ pub struct Buffer {
     pub window_size: Size<u32>,
     pub screen_size: Size<u32>,
     pub window_position: (i32, i32),
+
+    pub view: (usize, usize),
 }
 
 impl Buffer {
-    /// return a block of image
-    pub fn get_block(&self) -> Vec<u32> {
-        self.bytes[self.start..self.end].to_vec()
+    pub fn init(&mut self, canvas: &mut Canvas2) {
+        if !self.page_list.is_empty() {
+            self.next(self.view.1); // view: (0,0)
+        } else {
+            panic!()
+        }
+        'l1: while self.need_pad() && self.not_tail() {
+            self.load_next();
+        }
     }
 
-    pub fn update_block(&self, canvas: &mut Canvas) {
-        canvas.data.clear();
-        canvas
-            .data
-            .extend_from_slice(&self.bytes[self.start..self.end]);
-        canvas.update().unwrap();
-        canvas.flush();
+    /// goto next page
+    pub fn move_down(&mut self, canvas: &mut Canvas2) {
+        self.try_free(canvas);
+        self.inline_move_down(canvas);
+
+        self.mode = Map::Down;
+
+        log::info!("move_down()");
     }
 
-    /// display prev page
-    // Sliding Window
-    pub fn move_up(&mut self, canvas: &mut Canvas) {
-        if self.start >= self.block {
-            self.start -= self.block;
-            self.end -= self.block;
-        } else if self.start >= usize::MIN {
+    /// goto prev page
+    pub fn move_up(&mut self, canvas: &mut Canvas2) {
+        // BUG:
+
+        self.try_free(canvas);
+        self.inline_move_up(canvas);
+
+        self.mode = Map::Up;
+
+        log::info!("move_up()");
+    }
+
+    pub fn move_left(&mut self) {
+        // NOTE: overflow
+        if self.bytes.len() > self.end + 100 {
+            self.start += 100;
+            self.end += 100;
+
+            println!("start: {}", self.start);
+            println!("end: {}", self.end);
+        } else {
+        }
+
+        self.mode = Map::Left;
+    }
+
+    pub fn move_right(&mut self) {
+        // MAYBE BUG:
+        if self.start >= 100 {
+            self.start -= 100;
+            self.end -= 100;
+        } else if self.start >= 0 {
             let s = self.start;
             self.start -= s;
             self.end -= s;
         } else {
-            panic!()
         }
 
-        self.update_block(canvas);
-        self.mode = Map::Up;
-
-        //eprintln!("start: {}, end: {}", self.start, self.end);
-    }
-
-    /// display next page
-    // Sliding Window
-    pub fn move_down(&mut self, canvas: &mut Canvas) {
-        if self.end <= self.bytes.len() - self.block {
-            self.start += self.block;
-            self.end += self.block;
-        } else if self.end <= self.bytes.len() {
-            let s = self.bytes.len() - self.end;
-            self.start += s;
-            self.end += s;
-        } else {
-            panic!()
-        }
-
-        self.update_block(canvas);
-        self.mode = Map::Down;
-
-        //eprintln!("start: {}, end: {}", self.start, self.end);
-    }
-
-    /// load next page
-    pub async fn try_load_next(&mut self, file_list: &[&str], step: usize) -> MyResult {
-        // TODO: if time
-        if self.temp_step == self.step && self.page < self.max_page {
-            self.temp_step = 0;
-
-            unsafe {
-                self.lazy_load_imgs(&file_list[self.page..self.page + step], self.format)
-                    .await?;
-            }
-
-            self.page += 1;
-        } else {
-            self.temp_step += 1; // use as load next image
-        }
-
-        Ok(())
+        self.mode = Map::Right;
     }
 
     #[inline]
-    pub async unsafe fn lazy_load_imgs(&mut self, imgs: &[&str], format: PixelFormat) -> MyResult {
-        match format {
-            PixelFormat::Rgb8 => {
-                for filename in imgs.iter() {
-                    resize::resize(
-                        &mut COLOR_BUFFER,
-                        filename,
-                        self.screen_size,
-                        self.window_size,
-                        PixelFormat::Rgb8,
-                    )
-                    .await?;
+    pub fn inline_move_down(&mut self, canvas: &mut Canvas2) {
+        if self.bytes.len() > self.end + self.block {
+            self.start += self.block;
+            self.end += self.block;
+        } else if self.bytes.len() >= self.end {
+            self.start += self.bytes.len() - self.end;
+            self.end += self.bytes.len() - self.end;
+        } else {
+        }
+    }
 
-                    // for f in COLOR_BUFFER.as_slice().chunks(3) {}
-                    for f in (3..COLOR_BUFFER.len()).step_by(3) {
-                        RES_BUFFER.push(TransRgb::rgb_to_u32(&COLOR_BUFFER[f - 3..f].try_into()?));
-                    }
+    #[inline]
+    pub fn inline_move_up(&mut self, canvas: &mut Canvas2) {
+        if self.start >= self.block {
+            self.start -= self.block;
+            self.end -= self.block;
+        } else if self.start >= 0 {
+            if self.not_head() {
+                self.load_prev();
+
+                if self.start >= self.block && self.start >= self.max_bytes {
+                    self.start -= self.block;
+                    self.end -= self.block;
+                } else {
+                    let s = self.start;
+                    self.start -= s;
+                    self.end -= s;
+                }
+            } else {
+                let s = self.start;
+                self.start -= s;
+                self.end -= s;
+            }
+        } else {
+        }
+    }
+
+    pub fn load_prev(&mut self) {
+        self.goto_prev();
+        self.prev(self.view.0);
+    }
+
+    pub fn load_next(&mut self) {
+        self.goto_next();
+        self.next(self.view.1);
+    }
+
+    pub fn prev(&mut self, pos: usize) {
+        let mut bytes = Vec::new();
+        let mut buffer = Vec::new();
+
+        self.load_img(&mut bytes, pos);
+
+        for f in (0..bytes.len()).step_by(3) {
+            buffer.push(TransRgb::rgb_to_u32(&bytes[f..f + 3].try_into().unwrap()));
+        }
+
+        push_front(&mut self.bytes, buffer.as_slice());
+
+        self.start += buffer.len();
+        self.end += buffer.len();
+    }
+
+    pub fn next(&mut self, pos: usize) {
+        let mut bytes = Vec::new();
+        let mut buffer = Vec::new();
+
+        self.load_img(&mut bytes, pos);
+
+        // for f in buffer.as_slice().chunks(3) {}
+        for f in (0..bytes.len()).step_by(3) {
+            buffer.push(TransRgb::rgb_to_u32(&bytes[f..f + 3].try_into().unwrap()));
+        }
+
+        self.bytes.extend_from_slice(buffer.as_slice());
+        self.page_list[pos].len = buffer.len();
+    }
+
+    #[inline]
+    pub fn try_free(&mut self, canvas: &mut Canvas2) {
+        match self.mode {
+            Map::Down => {
+                let cut_len = self.page_list[self.view.0].len;
+
+                if (self.at_tail() || self.need_pad()) && self.not_tail() {
+                    self.load_next();
+
+                    log::info!("next");
+                } else if self.bytes.len() > self.max_bytes + cut_len && self.start >= cut_len {
+                    self.view.0 += 1;
+                    free_head(&mut self.bytes, cut_len);
+
+                    self.start -= cut_len;
+                    self.end -= cut_len;
+                } else {
                 }
             }
+            Map::Up => {
+                let cut_len = self.page_list[self.view.1].len;
 
-            PixelFormat::Rgba8 => {
-                for filename in imgs.iter() {
-                    resize::resize(
-                        &mut COLOR_BUFFER,
-                        filename,
-                        self.screen_size,
-                        self.window_size,
-                        PixelFormat::Rgba8,
-                    )
-                    .await?;
+                if (self.at_head() || self.need_pad()) && self.not_head() {
+                    self.load_prev();
 
-                    // for f in COLOR_BUFFER.as_slice().chunks(4) {}
-                    for f in (4..COLOR_BUFFER.len()).step_by(4) {
-                        RES_BUFFER
-                            .push(TransRgba::rgba_to_u32(&COLOR_BUFFER[f - 4..f].try_into()?));
-                    }
+                    log::info!("prev: {}", self.bytes.len() % 2);
+                } else if self.bytes.len() > self.max_bytes * 2 + cut_len
+                    && self.view.1 - 1 >= 0
+                    && self.bytes.len() > self.end + cut_len
+                {
+                    self.view.1 -= 1;
+                    free_tail(&mut self.bytes, cut_len);
+
+                    log::debug!("le:: bytes.len: {:?}", cut_len);
+                } else {
                 }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn load_img(&self, buffer: &mut Vec<u8>, pos: usize) {
+        let bytes = match self.archive_type {
+            Tar => archive::tar::load_file(
+                self.archive_path.as_path(),
+                self.page_list[pos].path.as_path(),
+            )
+            .unwrap(),
+
+            Zip => {
+                todo!()
+            }
+
+            Zstd => {
+                todo!()
             }
         };
 
-        // push and clear
-        self.bytes.extend_from_slice(RES_BUFFER.as_slice());
-        RES_BUFFER.clear();
-        COLOR_BUFFER.clear();
+        resize_bytes(bytes.as_slice(), buffer, self.screen_size, self.window_size);
+    }
 
-        Ok(())
+    #[inline(always)]
+    pub fn flush(&self, canvas: &mut Canvas2) {
+        canvas.flush(&self.bytes[self.start..self.end]);
+    }
+
+    pub fn at_head(&self) -> bool {
+        self.start == 0
+    }
+
+    pub fn at_tail(&self) -> bool {
+        self.end == self.bytes.len()
+    }
+
+    pub fn not_head(&self) -> bool {
+        self.view.0 >= 1
+    }
+
+    pub fn not_tail(&self) -> bool {
+        self.view.1 + 1 < self.page_end
+    }
+
+    pub fn need_pad(&self) -> bool {
+        self.bytes.len() < self.max_bytes * 2
+    }
+
+    pub fn goto_prev(&mut self) {
+        self.view.0 -= 1;
+    }
+
+    pub fn goto_next(&mut self) {
+        self.view.1 += 1;
+    }
+}
+
+#[inline]
+pub fn push_front<T>(vec: &mut Vec<T>, slice: &[T])
+where
+    T: Copy,
+{
+    unsafe {
+        let len = vec.len();
+        let amt = slice.len();
+
+        vec.reserve(amt);
+
+        ptr::copy(vec.as_ptr(), vec.as_mut_ptr().offset((amt) as isize), len);
+        ptr::copy(slice.as_ptr(), vec.as_mut_ptr(), amt);
+
+        vec.set_len(len + amt);
+    }
+}
+
+pub fn free_head<T>(buffer: &mut Vec<T>, range: usize)
+where
+    T: Sized + Clone,
+{
+    buffer.drain(..range);
+}
+
+pub fn free_tail<T>(buffer: &mut Vec<T>, range: usize)
+where
+    T: Sized,
+{
+    buffer.truncate(buffer.len() - range);
+}
+
+mod test {
+    use super::*;
+
+    #[test]
+    fn _push_front() {
+        let mut a = vec![4, 5, 6];
+        push_front(&mut a, [1, 2, 3].as_slice());
+
+        assert_eq!(a.as_slice(), [1, 2, 3, 4, 5, 6].as_slice());
     }
 }

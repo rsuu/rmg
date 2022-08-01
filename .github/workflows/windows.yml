@@ -60,7 +60,7 @@ jobs:
     - name: Build and Test
       shell: bash
       run: |
-        bash ci/windows.sh
+        bash ci/build_windows.sh
         export RUSTFLAGS=-Awarnings
         cargo test
         cargo build

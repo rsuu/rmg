@@ -3,7 +3,7 @@ fn main() {
         size: (900, 900),
         font: "./tests/files/test.ttf",
         format: "rgb8",
-        rename: false,
+        rename: true,
         rename_pad: 6,
     };
 

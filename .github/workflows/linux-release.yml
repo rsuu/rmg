@@ -12,10 +12,6 @@ jobs:
     env:
       CFG_RELEASE_CHANNEL: ${{ matrix.cfg_release_channel }}
     strategy:
-      # https://help.github.com/en/actions/getting-started-with-github-actions/about-github-actions#usage-limits
-      # There's a limit of 60 concurrent jobs across all repos in the rust-lang organization.
-      # In order to prevent overusing too much of that 60 limit, we throttle the
-      # number of rustfmt jobs that will run concurrently.
       #max-parallel: 1
       fail-fast: false
       matrix:
@@ -36,4 +32,24 @@ jobs:
         rustup target add ${{ matrix.target }}
 
     - name: Build and Test
-      run: bash ./ci/build_linux.sh
+      run: bash ./ci/build_linux_release.sh
+
+    - name: Build archive
+      shell: bash
+      run: |
+        cargo build --release
+        mkdir linux_release
+        cp target/release/rmg linux_release
+        tar czf "$staging.tar.gz" linux_release
+        echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+
+    - name: Upload Release Asset
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ env.ASSET }}
+        asset_name: ${{ env.ASSET }}
+        asset_content_type: application/octet-stream

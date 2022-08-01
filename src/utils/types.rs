@@ -4,6 +4,13 @@ pub type MyResult = SelfResult<()>;
 // tags
 pub type Names = Vec<String>;
 
+#[derive(Debug, Copy, Clone)]
+pub enum ArchiveType {
+    Tar,
+    Zip,
+    Zstd,
+}
+
 #[derive(Debug)]
 pub enum MyError {
     ErrCanvas(Box<dyn std::error::Error>), // canvas
@@ -25,11 +32,6 @@ pub enum MyError {
     ErrSpeedy(speedy::Error), // metadata
 
     ErrLexopt(lexopt::Error), // args
-
-    ErrIntegerOrSdl(sdl2::IntegerOrSdlError),
-    ErrTextureValue(sdl2::render::TextureValueError),
-    ErrWindowBuild(sdl2::video::WindowBuildError),
-    ErrFontError(sdl2::ttf::FontError),
 
     ErrNull(()),
     ErrMagickNumber,
@@ -54,14 +56,6 @@ crate::impl_from! {
       , MyError::ErrLexopt;
     miniserde::Error
       , MyError::ErrMiniserde;
-    sdl2::IntegerOrSdlError
-      , MyError::ErrIntegerOrSdl;
-    sdl2::render::TextureValueError
-      , MyError::ErrTextureValue;
-    sdl2::ttf::FontError
-      , MyError::ErrFontError;
-    sdl2::video::WindowBuildError
-      , MyError::ErrWindowBuild;
     speedy::Error
       , MyError::ErrSpeedy;
     std::array::TryFromSliceError

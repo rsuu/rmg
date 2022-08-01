@@ -1,18 +1,51 @@
+extern crate tar;
 
-use std::{fs::File, path::Path};
-use tar::Archive;
+use log::debug;
+use std::io::{prelude, Read, Seek, Write};
+use std::{
+    fs::{File, OpenOptions},
+    path::Path,
+};
+
+pub fn load_file(tar_file: &Path, name_path: &Path) -> Option<Vec<u8>> {
+    let file = OpenOptions::new()
+        .write(false)
+        .read(true)
+        .create(false)
+        .open(tar_file)
+        .unwrap();
+    let mut tar_file = tar::Archive::new(&file);
+    let mut buffer = Vec::new();
+
+    for file in tar_file.entries().unwrap() {
+        let mut f = file.unwrap();
+
+        if f.header().path().as_deref().unwrap() == name_path {
+            f.read_to_end(&mut buffer).expect("");
+
+            return Some(buffer);
+        } else {
+        }
+    }
+
+    None
+}
 
 pub fn extract(tar_path: &Path, tmp_dir: &Path) -> Result<(), std::io::Error> {
     let file = File::open(tar_path)?;
-    let mut tar = Archive::new(file);
+    let mut tar = tar::Archive::new(file);
     tar.unpack(tmp_dir)?;
 
     Ok(())
 }
 
-pub fn get_file_list(tar_path: &Path) -> Result<Vec<String>, std::io::Error> {
-    let file = File::open(tar_path)?;
-    let mut tar = Archive::new(file);
+pub fn get_file_list(path: &Path) -> Result<Vec<String>, std::io::Error> {
+    let file = OpenOptions::new()
+        .write(false)
+        .read(true)
+        .create(false)
+        .open(path)?;
+    let mut tar = tar::Archive::new(file);
     let mut list = Vec::new();
 
     for f in tar.entries()? {
@@ -21,60 +54,3 @@ pub fn get_file_list(tar_path: &Path) -> Result<Vec<String>, std::io::Error> {
 
     Ok(list)
 }
-
-// pub fn ex_files(
-//     tar_path: &Path,
-//     files_len: usize,
-//     start: usize,
-//     len: usize,
-// ) -> Result<bool, std::io::Error> {
-//     let file = File::open(tar_path)?;
-//     let mut tar = Archive::new(file);
-//
-//     let end = start + len;
-//
-//     if end <= files_len {
-//         tar.entries()?.enumerate().for_each(|(n, f)| {
-//             if n >= start && n <= end {
-//                 let mut f = f.expect("");
-//                 let filename = f.path().expect("");
-//
-//                 let mut out = std::fs::File::create(filename.as_ref()).unwrap();
-//                 copy(&mut f, &mut out).expect("");
-//             }
-//         });
-//     } else {
-//         // This way is Not good
-//         return Ok(false);
-//     }
-//
-//     Ok(true)
-// }
-//
-// pub fn ex_files2(
-//     tar_path: &Path,
-//     files_len: usize,
-//     start: usize,
-//     len: usize,
-// ) -> Result<bool, std::io::Error> {
-//     let file = File::open(tar_path)?;
-//     let mut tar = Archive::new(file);
-//
-//     let end = if start + len > files_len {
-//         files_len
-//     } else {
-//         start + len
-//     };
-//
-//     tar.entries()?.enumerate().for_each(|(n, f)| {
-//         if n >= start && n <= end {
-//             let mut f = f.expect("");
-//             let filename = f.path().expect("");
-//
-//             let mut out = std::fs::File::create(filename.as_ref()).unwrap();
-//             copy(&mut f, &mut out).expect("");
-//         }
-//     });
-//
-//     Ok(true)
-// }

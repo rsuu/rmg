@@ -139,8 +139,7 @@ impl Default for Args {
 
 fn print_help() -> ! {
     eprintln!(
-        r#"\
-rmg 0.0.8
+        r#"rmg 0.0.8
 Manga Reader
 
 USAGE:

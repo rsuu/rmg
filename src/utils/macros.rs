@@ -24,3 +24,16 @@ macro_rules! impl_from {
             )*
     }
 }
+
+#[macro_export]
+macro_rules! check {
+   ( $( $args:expr ),* ) => {
+       #[cfg(debug_assertions)]
+       {
+           dbg!( $( $args ),* );
+       }
+
+       #[cfg(not(debug_assertions))]
+       { }
+   }
+}

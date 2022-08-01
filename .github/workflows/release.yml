@@ -2,9 +2,9 @@ name: release
 
 on:
   push:
-  release:
-    types: [created]
-  workflow_dispatch:
+    branches:
+      - main
+  pull_request:
 
 jobs:
   build-release:
@@ -49,28 +49,28 @@ jobs:
         uses: actions-rs/cargo@v1
         run:
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            bash ci/windows.sh
-            cargo build --release
+          bash ci/build_windows.sh
           elif [ "${{ matrix.os }}" = "mac-latest" ]; then
+          bash ci/build_mac.sh
           else
-            sudo apt-get -y install libsdl2-dev libsdl2-image-2.0-0 libsdl2-ttf-2.0-0 libsdl2-image-dev libsdl2-ttf-dev
-            cargo build --release
+          bash ci/build_linux.sh
           fi
+          cargo build --release
 
       - name: Build archive
         shell: bash
         run: |
-          staging="rustfmt_${{ matrix.build }}_${{ github.event.release.tag_name }}"
+          staging="rmg_${{ matrix.build }}_${{ github.event.release.tag_name }}"
           mkdir -p "$staging"
 
           cp {README.md,LICENSE-MIT,LICENSE-APACHE} "$staging/"
 
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp target/release/{rustfmt.exe,cargo-fmt.exe,rustfmt-format-diff.exe,git-rustfmt.exe} "$staging/"
+            cp target/release/{rmg.exe} "$staging/"
             7z a "$staging.zip" "$staging"
             echo "ASSET=$staging.zip" >> $GITHUB_ENV
           else
-            cp target/release/{rustfmt,cargo-fmt,rustfmt-format-diff,git-rustfmt} "$staging/"
+            cp target/release/{rmg} "$staging/"
             tar czf "$staging.tar.gz" "$staging"
             echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
           fi

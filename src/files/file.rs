@@ -1,28 +1,4 @@
-use std::{
-    fs,
-    path::{Path},
-};
-
-pub fn rename<T>(is_try: bool, pad: usize, names: &[T]) -> Option<Vec<String>>
-where
-    T: AsRef<str>,
-{
-    let new = pad_names(pad, names);
-
-    if is_try {
-        eprintln!("{:#?}", new);
-    } else {
-        // eprintln!("rename");
-
-        for n in 0..names.len() {
-            fs::rename(names[n].as_ref(), new[n].as_str()).unwrap();
-        }
-
-        return Some(new);
-    }
-
-    None
-}
+use std::{fs, path::Path};
 
 /// ```text
 /// if pad == 6
@@ -44,6 +20,7 @@ where
         let filename = full.file_stem().unwrap().to_str().unwrap();
 
         path.push('/');
+        log::debug!("{:?}", path);
 
         if filename.len() < pad {
             //eprintln!("{}", filename.len());
@@ -59,4 +36,28 @@ where
     }
 
     new_names
+}
+
+pub fn pad_name(pad: usize, name: &str) -> String {
+    let full = Path::new(name);
+
+    let mut path = full.parent().unwrap().to_str().unwrap().to_string();
+    let suffix = full.extension().unwrap().to_str().unwrap();
+    let filename = full.file_stem().unwrap().to_str().unwrap();
+
+    path.push('/');
+    log::debug!("{:?}", path);
+
+    if filename.len() < pad {
+        //eprintln!("{}", filename.len());
+
+        for _ in 0..pad - filename.len() {
+            path.push('0');
+        }
+    } else {
+    }
+
+    path.push_str(format!("{}.{}", filename, suffix).as_ref());
+
+    path
 }

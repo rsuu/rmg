@@ -5,10 +5,11 @@ use crate::{
 };
 use fast_image_resize as fir;
 use image::{self, io::Reader as ImageReader};
+use log::{debug, error};
 
 use std::num::NonZeroU32;
 
-pub async fn resize(
+pub fn resize(
     buffer: &mut Vec<u8>,
     path: &str,
     screen_size: Size<u32>,
@@ -80,6 +81,7 @@ pub fn resize_rgb8(
     Ok(())
 }
 
+#[inline]
 pub fn resize_rgba8(
     buffer: &mut Vec<u8>,
     img: &image::DynamicImage,
@@ -109,4 +111,31 @@ pub fn resize_rgba8(
     //eprintln!("dst_image: {}x{}", dst_image.width(), dst_image.height());
 
     Ok(())
+}
+
+pub fn resize_bytes(
+    bytes: &[u8],
+    buffer: &mut Vec<u8>,
+    screen_size: Size<u32>,
+    window_size: Size<u32>,
+) {
+    match image::load_from_memory(&bytes) {
+        Ok(ref img) => {
+            let mut meta = MetaSize::<u32>::new(
+                screen_size.width,
+                screen_size.height,
+                window_size.width,
+                window_size.height,
+                img.width(),
+                img.height(),
+            );
+
+            meta.resize();
+
+            resize_rgb8(buffer, img, &meta).unwrap();
+        }
+        Err(_) => {
+            error!("Can not resize image");
+        }
+    }
 }
