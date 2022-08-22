@@ -191,7 +191,7 @@ impl Buffer {
         let mut bytes = Vec::new();
         let mut buffer = Vec::new();
 
-        self.load_img(&mut bytes, pos);
+        self.load_img(&mut bytes, pos); // TODO: too slow
 
         // for f in buffer.as_slice().chunks(3) {}
         for f in (0..bytes.len()).step_by(3) {
@@ -244,18 +244,27 @@ impl Buffer {
     }
 
     pub fn load_img(&self, buffer: &mut Vec<u8>, pos: usize) {
-        let bytes = match self.archive_type {
-            Tar => archive::tar::load_file(
-                self.archive_path.as_path(),
-                self.page_list[pos].path.as_path(),
-            )
-            .unwrap(),
+        log::debug!("archive_type == {:?}", self.archive_type);
 
-            Zip => {
-                todo!()
+        let bytes = match self.archive_type {
+            ArchiveType::Tar => {
+                log::debug!("ex_tar()");
+
+                archive::tar::load_file(
+                    self.archive_path.as_path(),
+                    self.page_list[pos].path.as_path(),
+                )
+                .unwrap()
             }
 
-            Zstd => {
+            ArchiveType::Zip => {
+                log::debug!("ex_zip()");
+
+                archive::zip::load_file(self.archive_path.as_path(), self.page_list[pos].pos)
+                    .unwrap()
+            }
+
+            _ => {
                 todo!()
             }
         };

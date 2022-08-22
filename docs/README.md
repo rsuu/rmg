@@ -5,11 +5,10 @@ Mnaga Reader
 ## Install
 
 + Dependency
-    + sdl2
+  + Linux: x11 OR wayland
 + Optional Dependency
-    + tar
-    + zip
-    + zstd
+  + tar
+  + zip
 
 ```bash
 cargo install rmg
@@ -29,18 +28,23 @@ cargo run -- --config ./tests/files/config.rs --size 600,600 ./tests/files/img.z
 
 # OR
 
-./bin/rmg --config ./tests/files/config.rs --size 600,600 ./tests/files/img.zip
+rmg --config ./tests/files/config.rs --size 600,600 ./tests/files/img.zip
+
+# OR
+
+rmg --config ./tests/files/config.rs ./tests/files/img.zip
+
 
 ```
 
-KeyMap
+### KeyMap
 
 |#|#|
 |:-|:-|
 j | down
 k | up
-r | reset
-f | fullscreen
+r | ? reset
+f | ? fullscreen
 q | exit
 
 ## Demo

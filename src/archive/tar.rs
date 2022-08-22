@@ -1,5 +1,3 @@
-extern crate tar;
-
 use log::debug;
 use std::io::{prelude, Read, Seek, Write};
 use std::{
@@ -31,6 +29,7 @@ pub fn load_file(tar_file: &Path, name_path: &Path) -> Option<Vec<u8>> {
     None
 }
 
+#[allow(unused)]
 pub fn extract(tar_path: &Path, tmp_dir: &Path) -> Result<(), std::io::Error> {
     let file = File::open(tar_path)?;
     let mut tar = tar::Archive::new(file);
@@ -39,7 +38,7 @@ pub fn extract(tar_path: &Path, tmp_dir: &Path) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-pub fn get_file_list(path: &Path) -> Result<Vec<String>, std::io::Error> {
+pub fn get_file_list(path: &Path) -> Result<Vec<(String, usize)>, std::io::Error> {
     let file = OpenOptions::new()
         .write(false)
         .read(true)
@@ -48,8 +47,8 @@ pub fn get_file_list(path: &Path) -> Result<Vec<String>, std::io::Error> {
     let mut tar = tar::Archive::new(file);
     let mut list = Vec::new();
 
-    for f in tar.entries()? {
-        list.push(f?.path()?.display().to_string());
+    for (idx, f) in tar.entries()?.enumerate() {
+        list.push((f?.path()?.display().to_string(), idx));
     }
 
     Ok(list)

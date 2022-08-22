@@ -1,3 +1,5 @@
+use minifb::Key;
+
 pub trait TKeycode {
     fn as_char(&self) -> char;
 }
@@ -22,6 +24,120 @@ pub enum Map {
 
     Exit,
     Stop,
+}
+
+impl KeyMap {
+    pub fn new() -> Vec<Self> {
+        vec![
+            KeyMap::add('f', Map::FullScreen),
+            KeyMap::add('h', Map::Left),
+            KeyMap::add('j', Map::Down),
+            KeyMap::add('k', Map::Up),
+            KeyMap::add('l', Map::Right),
+            KeyMap::add('p', Map::DisplayMeta),
+            KeyMap::add('q', Map::Exit),
+            KeyMap::add('r', Map::Reset),
+        ]
+    }
+
+    pub fn add(key: char, map: Map) -> Self {
+        Self { key, map }
+    }
+
+    #[inline]
+    pub fn by_key(key: char, keymaps: &[Self]) -> Map {
+        for keymap in keymaps.iter() {
+            if key == keymap.key {
+                return keymap.map;
+            }
+        }
+
+        Map::Stop
+    }
+
+    #[inline]
+    pub fn by_map(map: Map, keymaps: &[Self]) -> char {
+        for keymap in keymaps.iter() {
+            if map == keymap.map {
+                return keymap.key;
+            }
+        }
+
+        '\0'
+    }
+}
+
+impl TKeycode for &[Key] {
+    fn as_char(&self) -> char {
+        match *self {
+            &[Key::A] => 'a',
+            &[Key::B] => 'b',
+            &[Key::C] => 'c',
+            &[Key::D] => 'd',
+            &[Key::E] => 'e',
+            &[Key::F] => 'f',
+            &[Key::G] => 'g',
+            &[Key::H] => 'h',
+            &[Key::I] => 'i',
+            &[Key::J] => 'j',
+            &[Key::K] => 'k',
+            &[Key::L] => 'l',
+            &[Key::M] => 'm',
+            &[Key::N] => 'n',
+            &[Key::O] => 'o',
+            &[Key::P] => 'p',
+            &[Key::Q] => 'q',
+            &[Key::R] => 'r',
+            &[Key::S] => 's',
+            &[Key::T] => 't',
+            &[Key::U] => 'u',
+            &[Key::V] => 'v',
+            &[Key::W] => 'w',
+            &[Key::X] => 'x',
+            &[Key::Y] => 'y',
+            &[Key::Z] => 'z',
+            _ => '\0',
+        }
+    }
+}
+
+// impl TKeycode for sdl2::keyboard::Keycode {
+//     fn as_char(&self) -> char {
+//         match self {
+//             Keycode::A => 'a',
+//             Keycode::B => 'b',
+//             Keycode::C => 'c',
+//             Keycode::D => 'd',
+//             Keycode::E => 'e',
+//             Keycode::F => 'f',
+//             Keycode::G => 'g',
+//             Keycode::H => 'h',
+//             Keycode::I => 'i',
+//             Keycode::J => 'j',
+//             Keycode::K => 'k',
+//             Keycode::L => 'l',
+//             Keycode::M => 'm',
+//             Keycode::N => 'n',
+//             Keycode::O => 'o',
+//             Keycode::P => 'p',
+//             Keycode::Q => 'q',
+//             Keycode::R => 'r',
+//             Keycode::S => 's',
+//             Keycode::T => 't',
+//             Keycode::U => 'u',
+//             Keycode::V => 'v',
+//             Keycode::W => 'w',
+//             Keycode::X => 'x',
+//             Keycode::Y => 'y',
+//             Keycode::Z => 'z',
+//             _ => '\0',
+//         }
+//     }
+// }
+
+#[inline]
+pub fn match_event(event: &[Key], keymaps: &[KeyMap]) -> Map {
+    KeyMap::by_key(event.as_char(), keymaps)
 }
 
 // #[inline(always)]
@@ -64,75 +180,3 @@ pub enum Map {
 //     }
 // }
 //
-// impl KeyMap {
-//     pub fn new() -> Vec<Self> {
-//         vec![
-//             KeyMap::add('f', Map::FullScreen),
-//             KeyMap::add('h', Map::Left),
-//             KeyMap::add('j', Map::Down),
-//             KeyMap::add('k', Map::Up),
-//             KeyMap::add('l', Map::Right),
-//             KeyMap::add('p', Map::DisplayMeta),
-//             KeyMap::add('q', Map::Exit),
-//             KeyMap::add('r', Map::Reset),
-//         ]
-//     }
-//
-//     pub fn add(key: char, map: Map) -> Self {
-//         Self { key, map }
-//     }
-//
-//     pub fn by_key(key: char, keymaps: &[Self]) -> Map {
-//         for keymap in keymaps.iter() {
-//             if key == keymap.key {
-//                 return keymap.map;
-//             }
-//         }
-//
-//         Map::Stop
-//     }
-//
-//     pub fn by_map(map: Map, keymaps: &[Self]) -> char {
-//         for keymap in keymaps.iter() {
-//             if map == keymap.map {
-//                 return keymap.key;
-//             }
-//         }
-//
-//         '\0'
-//     }
-// }
-//
-// impl TKeycode for sdl2::keyboard::Keycode {
-//     fn as_char(&self) -> char {
-//         match self {
-//             Keycode::A => 'a',
-//             Keycode::B => 'b',
-//             Keycode::C => 'c',
-//             Keycode::D => 'd',
-//             Keycode::E => 'e',
-//             Keycode::F => 'f',
-//             Keycode::G => 'g',
-//             Keycode::H => 'h',
-//             Keycode::I => 'i',
-//             Keycode::J => 'j',
-//             Keycode::K => 'k',
-//             Keycode::L => 'l',
-//             Keycode::M => 'm',
-//             Keycode::N => 'n',
-//             Keycode::O => 'o',
-//             Keycode::P => 'p',
-//             Keycode::Q => 'q',
-//             Keycode::R => 'r',
-//             Keycode::S => 's',
-//             Keycode::T => 't',
-//             Keycode::U => 'u',
-//             Keycode::V => 'v',
-//             Keycode::W => 'w',
-//             Keycode::X => 'x',
-//             Keycode::Y => 'y',
-//             Keycode::Z => 'z',
-//             _ => '\0',
-//         }
-//     }
-// }

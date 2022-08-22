@@ -1,4 +1,5 @@
 use std::io::prelude::*;
+use std::io::BufReader;
 use std::{fs::File, path::Path};
 use zip::ZipArchive;
 
@@ -13,17 +14,36 @@ where
     Ok(())
 }
 
-pub fn get_filelist<R>(reader: R) -> zip::result::ZipResult<()>
+pub fn get_file_list<_Path>(path: &_Path) -> Result<Vec<(String, usize)>, ()>
 where
-    R: Read + Seek,
+    _Path: AsRef<Path> + ?Sized,
 {
-    let mut zip = zip::ZipArchive::new(reader)?;
+    let mut res: Vec<(String, usize)> = Vec::new();
 
-    for i in 0..zip.len() {
-        let mut file = zip.by_index(i)?;
-        println!("Filename: {}", file.name());
-        //std::io::copy(&mut file, &mut std::io::stdout());
+    let file = File::open(path.as_ref()).unwrap();
+    let reader = BufReader::new(file);
+    let mut zip = zip::ZipArchive::new(reader).unwrap();
+
+    for idx in 0..zip.len() {
+        let mut file = zip.by_index(idx).unwrap();
+
+        res.push((file.name().to_string(), idx));
     }
 
-    Ok(())
+    Ok(res)
+}
+
+pub fn load_file<_Path>(path: &_Path, idx: usize) -> Result<Vec<u8>, ()>
+where
+    _Path: AsRef<Path> + ?Sized,
+{
+    let file = File::open(path.as_ref()).unwrap();
+    let reader = BufReader::new(file);
+    let mut zip = zip::ZipArchive::new(reader).unwrap();
+    let mut file = zip.by_index(idx).unwrap();
+
+    let mut res = Vec::with_capacity(file.size() as usize);
+    file.read_to_end(&mut res);
+
+    Ok(res)
 }

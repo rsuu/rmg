@@ -8,7 +8,7 @@ use std::time::Duration;
 fn main() {
     let mut f = File::open("Cargo.toml").unwrap();
 
-    let mut target = String::new();
+    let mut target = Vec::new();
 
     let (tx, rx) = mpsc::channel();
 
@@ -16,27 +16,17 @@ fn main() {
 
     thread::spawn(move || {
         while n < 6 {
-            let mut buffer = vec![0; 10];
-            // read up to 10 bytes
-            let line_read = f.read(&mut buffer[..]).unwrap();
-
-            if line_read == 0 {
-                break;
-            }
-
-            let content_chunks = str::from_utf8(&buffer[..line_read]).unwrap();
-
-            tx.send(content_chunks.to_lowercase()).unwrap();
-            println!("{}", n);
+            tx.send(1).unwrap();
             n += 1;
-
-            thread::sleep(Duration::from_secs(1));
+            println!("{:?}", 0);
+            thread::sleep(Duration::from_millis(1));
         }
     });
 
     for r in rx {
-        target.push_str(&r);
+        target.push(r);
+        println!("{:?}", target);
     }
 
-    println!("{}", target);
+    println!("start");
 }

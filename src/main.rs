@@ -68,11 +68,14 @@ fn main() {
             println!("Open: {}", path.as_str());
 
             let file_list = get_file_list(path.as_str()).unwrap();
-            let page_list = if config.base.rename {
-                get_page_list(&file_list, args.rename_pad)
-            } else {
+            let page_list = if args.rename_pad == 0 {
                 get_page_list(&file_list, 0)
+            } else {
+                get_page_list(&file_list, args.rename_pad)
             };
+            let archive_type = get_archive_type(path.as_str()).unwrap();
+
+            log::debug!("page_list: {:?}", page_list);
 
             match display::cat_img(
                 &config,
@@ -81,6 +84,7 @@ fn main() {
                 config.base.format,
                 &None,
                 path.as_str(),
+                archive_type,
             ) {
                 Ok(_) => {}
                 Err(e) => match e {
@@ -110,28 +114,45 @@ pub fn get_archive_type<_Path>(path: &_Path) -> Result<ArchiveType, ()>
 where
     _Path: AsRef<Path> + ?Sized,
 {
-    let mut ty: ArchiveType = ArchiveType::Tar;
-    todo!();
+    let res: ArchiveType = if path.as_ref().is_dir() {
+        ArchiveType::Dir
+    } else {
+        let inline_res: ArchiveType = match list::get_filetype(path.as_ref()).as_str() {
+            "tar" => ArchiveType::Tar,
+            "zip" => ArchiveType::Zip,
+
+            _ => {
+                return Err(());
+            }
+        };
+
+        inline_res
+    };
+
+    Ok(res)
 }
 
-pub fn get_page_list(file_list: &[String], rename_pad: usize) -> Vec<PageInfo> {
+pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<PageInfo> {
     let mut page_list = Vec::new();
 
     // Only allow [.jpg || .jpeg || .png]
-    for (pos, p) in file_list.iter().enumerate() {
-        if !p.ends_with('/') && p.ends_with(".jpg") || p.ends_with(".png") || p.ends_with(".jpeg") {
-            let p = if rename_pad == 0 {
-                PageInfo::new(PathBuf::from(&p), p.clone(), 0, pos)
+    for (path, idx) in file_list.iter() {
+        if !path.ends_with('/') && path.ends_with(".jpg")
+            || path.ends_with(".png")
+            || path.ends_with(".jpeg")
+        {
+            let info = if rename_pad == 0 {
+                PageInfo::new(PathBuf::from(path.as_str()), path.clone(), 0, *idx)
             } else {
                 PageInfo::new(
-                    PathBuf::from(&p),
-                    files::file::pad_name(rename_pad, p.as_str()),
+                    PathBuf::from(path.as_str()),
+                    files::file::pad_name(rename_pad, path.as_str()),
                     0,
-                    pos,
+                    *idx,
                 )
             };
 
-            page_list.push(p);
+            page_list.push(info);
         } else {
         }
     }
@@ -142,7 +163,7 @@ pub fn get_page_list(file_list: &[String], rename_pad: usize) -> Vec<PageInfo> {
     page_list
 }
 
-pub fn get_file_list<_Path>(from: &_Path) -> Result<Vec<String>, ()>
+pub fn get_file_list<_Path>(from: &_Path) -> Result<Vec<(String, usize)>, ()>
 where
     _Path: AsRef<Path> + ?Sized,
 {
@@ -167,8 +188,8 @@ where
             "zip" => {
                 cfg_if! {
                     if #[cfg(feature="ex_zip")] {
-                        println!("Open zip");
-                        return Err(());
+                        let file_list = archive::zip::get_file_list(from.as_ref()).unwrap();
+                        return Ok(file_list);
 
                     }else {
                         eprintln!("Not Support FileType: zip");

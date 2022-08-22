@@ -8,7 +8,7 @@ pub type Names = Vec<String>;
 pub enum ArchiveType {
     Tar,
     Zip,
-    Zstd,
+    Dir,
 }
 
 #[derive(Debug)]
