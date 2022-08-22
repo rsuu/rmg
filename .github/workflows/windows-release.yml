@@ -1,4 +1,4 @@
-name: windows
+name: windows-release
 on:
   push:
     branches:
@@ -58,5 +58,24 @@ jobs:
       run: |
         bash ci/build_windows.sh
         export RUSTFLAGS=-Awarnings
-        cargo test
-        cargo build
+        cargo build --release
+    - name: Build archive
+      shell: bash
+      run: |
+        cargo build --release
+        mkdir linux_release
+        cp target/release/rmg.exe window_release
+        tar czf "$staging.tar.gz" window_release
+        echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+
+    - name: Upload Release Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ env.ASSET }}
+        asset_name: ${{ env.ASSET }}
+        asset_content_type: application/octet-stream
+          #asset_content_type: application/zip

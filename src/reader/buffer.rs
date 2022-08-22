@@ -61,21 +61,31 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn init(&mut self, canvas: &mut Canvas2) {
+    pub fn init(&mut self) {
         if !self.page_list.is_empty() {
-            self.next(self.view.1); // view: (0,0)
+            //self.next(self.view.1); // view: (0,0)
         } else {
             panic!()
         }
         'l1: while self.need_pad() && self.not_tail() {
+            self.next(self.view.1);
+
             self.load_next();
         }
     }
 
     /// goto next page
-    pub fn move_down(&mut self, canvas: &mut Canvas2) {
-        self.try_free(canvas);
-        self.inline_move_down(canvas);
+    pub fn move_down(&mut self) {
+        //self.try_free();
+
+        if self.bytes.len() > self.end + self.block {
+            self.start += self.block;
+            self.end += self.block;
+        } else if self.bytes.len() >= self.end {
+            self.start += self.bytes.len() - self.end;
+            self.end += self.bytes.len() - self.end;
+        } else {
+        }
 
         self.mode = Map::Down;
 
@@ -83,11 +93,31 @@ impl Buffer {
     }
 
     /// goto prev page
-    pub fn move_up(&mut self, canvas: &mut Canvas2) {
-        // BUG:
+    pub fn move_up(&mut self) {
+        // self.try_free();
 
-        self.try_free(canvas);
-        self.inline_move_up(canvas);
+        if self.start >= self.block {
+            self.start -= self.block;
+            self.end -= self.block;
+        } else if self.start >= 0 {
+            if self.not_head() {
+                self.load_prev();
+
+                if self.start >= self.block && self.start >= self.max_bytes {
+                    self.start -= self.block;
+                    self.end -= self.block;
+                } else {
+                    let s = self.start;
+                    self.start -= s;
+                    self.end -= s;
+                }
+            } else {
+                let s = self.start;
+                self.start -= s;
+                self.end -= s;
+            }
+        } else {
+        }
 
         self.mode = Map::Up;
 
@@ -121,44 +151,6 @@ impl Buffer {
         }
 
         self.mode = Map::Right;
-    }
-
-    #[inline]
-    pub fn inline_move_down(&mut self, canvas: &mut Canvas2) {
-        if self.bytes.len() > self.end + self.block {
-            self.start += self.block;
-            self.end += self.block;
-        } else if self.bytes.len() >= self.end {
-            self.start += self.bytes.len() - self.end;
-            self.end += self.bytes.len() - self.end;
-        } else {
-        }
-    }
-
-    #[inline]
-    pub fn inline_move_up(&mut self, canvas: &mut Canvas2) {
-        if self.start >= self.block {
-            self.start -= self.block;
-            self.end -= self.block;
-        } else if self.start >= 0 {
-            if self.not_head() {
-                self.load_prev();
-
-                if self.start >= self.block && self.start >= self.max_bytes {
-                    self.start -= self.block;
-                    self.end -= self.block;
-                } else {
-                    let s = self.start;
-                    self.start -= s;
-                    self.end -= s;
-                }
-            } else {
-                let s = self.start;
-                self.start -= s;
-                self.end -= s;
-            }
-        } else {
-        }
     }
 
     pub fn load_prev(&mut self) {
@@ -203,7 +195,7 @@ impl Buffer {
     }
 
     #[inline]
-    pub fn try_free(&mut self, canvas: &mut Canvas2) {
+    pub fn try_free(&mut self) {
         match self.mode {
             Map::Down => {
                 let cut_len = self.page_list[self.view.0].len;

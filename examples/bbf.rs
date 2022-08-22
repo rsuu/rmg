@@ -17,8 +17,8 @@ const BLOCK_LEN: u64 = 2;
 fn main() {
     let path = std::env::args().nth(1).unwrap();
 
-    //let packs = Packs::from_dir(Path::new(&path), 1024 * 1024 / 2);
-    let packs = Packs::from_tar(Path::new(&path), 1024 * 1024 / 2);
+    let packs = Packs::from_dir(Path::new(&path), 1024 * 1024 / 2);
+    //let packs = Packs::from_tar(Path::new(&path), 1024 * 1024 / 2);
 
     println!("{:#?}", packs);
 }

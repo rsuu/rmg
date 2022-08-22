@@ -43,7 +43,7 @@ where
     let mut file = zip.by_index(idx).unwrap();
 
     let mut res = Vec::with_capacity(file.size() as usize);
-    file.read_to_end(&mut res);
+    file.read_to_end(&mut res).unwrap();
 
     Ok(res)
 }

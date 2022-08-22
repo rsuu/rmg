@@ -1,6 +1,6 @@
 [package]
 name = "rmg"
-version = "0.0.8"
+version = "0.0.10"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "[WIP] Manga Reader"
@@ -34,38 +34,40 @@ rgb = "0.8.33"
 # image
 #sdl2 = { version = "0.35.2", features = ["image", "ttf"] }
 minifb = { version = "0.23.0", features = ["x11", "wayland"] }
-image = "0.24.2"
-fast_image_resize = "0.9.7"
+image = "0.24.3"
+fast_image_resize = "1.0.0"
 
 # args
 lexopt = "0.2.1"
 
 # metadata
 byteorder = "1.4.3"
-miniserde = "0.1.24"
+miniserde = "0.1.27"
 speedy = "0.8.2"
 emeta = "0.1.1"
 #emeta = {version="*",path="../emeta"}
 
 # config
-syn = { version = "1.0.98", features = ["full", "extra-traits"] }
+syn = { version = "1.0.99", features = ["full", "extra-traits"] }
 
 # other
 #rayon = "1.5.3"
-#tokio = { version = "1.20.0", features = ["full"] }
+tokio = { version = "1.20.1", features = ["full"] }
 cfg-if = "1.0.0"
 
 # debug
 log = "0.4.17"
-simple_logger = { version = "1.16", features = ["colors", "threads"] }
+simple_logger = { version = "2.3.0", features = ["colors", "threads"] }
 
 # error
-anyhow = "1.0.60"
+anyhow = "1.0.62"
 thiserror = "1.0.32"
 #memmap2 = "0.5.7"
 
 # font
 fontdue = "0.7.2"
+crossbeam = { version = "0.8.2", features = ["crossbeam-channel"] }
+futures = "0.3.23"
 #io-uring = "0.5.3"
 
 [dev-dependencies]

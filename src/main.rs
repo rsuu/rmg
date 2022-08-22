@@ -32,7 +32,8 @@ pub enum DataStoreError {
     Unknown,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     //env_logger::init();
     init();
 
@@ -85,8 +86,12 @@ fn main() {
                 &None,
                 path.as_str(),
                 archive_type,
-            ) {
-                Ok(_) => {}
+            )
+            .await
+            {
+                Ok(_) => {
+                    std::process::exit(0);
+                }
                 Err(e) => match e {
                     rmg::utils::types::MyError::ErrIo(e) => {
                         panic!("{}", e);
@@ -168,6 +173,7 @@ where
     _Path: AsRef<Path> + ?Sized,
 {
     if from.as_ref().is_dir() {
+        todo!();
         //files::dir::rec_copy_dir(from, to)?;
         return Err(());
     } else {
@@ -185,6 +191,7 @@ where
                     }
                 }
             }
+
             "zip" => {
                 cfg_if! {
                     if #[cfg(feature="ex_zip")] {

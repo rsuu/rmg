@@ -1,9 +1,9 @@
-name: linux
+name: linux-release
+
 on:
   push:
-    branches:
-      - main
-  pull_request:
+    tags:
+    - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 jobs:
   test:
@@ -44,7 +44,7 @@ jobs:
         echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
 
     - name: Upload Release Asset
-      if: github.event_name == 'release'
+      id: upload-release-asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,3 +53,4 @@ jobs:
         asset_path: ${{ env.ASSET }}
         asset_name: ${{ env.ASSET }}
         asset_content_type: application/octet-stream
+          #asset_content_type: application/zip
