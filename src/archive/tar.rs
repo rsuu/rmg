@@ -1,11 +1,11 @@
 use log::debug;
-use std::io::{prelude, Read, Seek, Write};
+use std::io::{prelude, Read, Seek};
 use std::{
     fs::{File, OpenOptions},
     path::Path,
 };
 
-pub fn load_file(tar_file: &Path, name_path: &Path) -> Option<Vec<u8>> {
+pub fn load_file(tar_file: &Path, idx: usize) -> Option<Vec<u8>> {
     let file = OpenOptions::new()
         .write(false)
         .read(true)
@@ -15,10 +15,9 @@ pub fn load_file(tar_file: &Path, name_path: &Path) -> Option<Vec<u8>> {
     let mut tar_file = tar::Archive::new(&file);
     let mut buffer = Vec::new();
 
-    for file in tar_file.entries().unwrap() {
-        let mut f = file.unwrap();
-
-        if f.header().path().as_deref().unwrap() == name_path {
+    for (n, file) in tar_file.entries().unwrap().enumerate() {
+        if n == idx {
+            let mut f = file.unwrap();
             f.read_to_end(&mut buffer).expect("");
 
             return Some(buffer);

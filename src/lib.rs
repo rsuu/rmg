@@ -21,10 +21,6 @@ pub mod files {
     pub mod list;
 }
 
-pub mod math {
-    pub mod arrmatrix;
-}
-
 pub mod img {
     pub mod covert;
     pub mod resize;

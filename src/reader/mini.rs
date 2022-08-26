@@ -1,6 +1,4 @@
-use image::GenericImageView;
 use minifb::{Key, Scale, ScaleMode, Window};
-use std::cmp;
 
 pub struct Canvas2 {
     pub window: Window,

@@ -121,7 +121,9 @@ impl Args {
 
                 Value(v) => args.file_path = Some(v.into_string()?),
 
-                _ => return Err(MyError::ErrLexopt(arg.unexpected())),
+                _ => {
+                    print_help();
+                }
             }
         }
 

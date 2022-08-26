@@ -1,26 +1,37 @@
 use crate::{
     archive,
-    color::{format::PixelFormat, rgb::TransRgb, rgba::TransRgba},
+    color::{format::PixelFormat, rgb::TransRgb},
     img::{
         resize::{self, resize_bytes},
         size::Size,
     },
     reader::{keymap::Map, mini::Canvas2},
-    utils::types::{ArchiveType, MyResult},
+    utils::types::ArchiveType,
 };
-use log::debug;
-use minifb::Key;
-use std::{borrow::BorrowMut, ptr};
+use log;
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, RwLock},
+};
+use tokio;
 
-use std::path::Path;
-use std::path::PathBuf;
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum State {
+    NextReady,
+    NextDone,
+    NextLoad,
 
-#[derive(Debug)]
+    PrevReady,
+    PrevDone,
+    PrevLoad,
+}
+
+#[derive(Debug, Clone)]
 pub struct PageInfo {
-    pub path: PathBuf,
-    pub name: String,
-    pub len: usize,
-    pub pos: usize,
+    pub path: PathBuf, // ? maybe not need
+    pub name: String,  // name of image
+    pub len: usize,    // ? maybe not need
+    pub pos: usize,    // index of the image in the archive file
 }
 
 impl PageInfo {
@@ -57,28 +68,127 @@ pub struct Buffer {
     pub screen_size: Size<u32>,
     pub window_position: (i32, i32),
 
-    pub view: (usize, usize),
+    pub range_start: usize,
+    pub range_end: usize,
 }
 
 impl Buffer {
     pub fn init(&mut self) {
-        if !self.page_list.is_empty() {
-            //self.next(self.view.1); // view: (0,0)
+        if self.page_list.len() > 1 {
+            self.range_start += 1;
+
+            'l1: while self.bytes.len() < self.max_bytes * 2 && self.range_end + 1 < self.page_end {
+                log::info!("load next");
+                self.range_end += 1;
+
+                let page_pos = self.page_list[self.range_end].pos;
+
+                let mut img_buf = Vec::new();
+
+                get_rgb_buffer(
+                    &mut img_buf,
+                    self.archive_type,
+                    self.archive_path.as_path(),
+                    page_pos,
+                    self.screen_size,
+                    self.window_size,
+                );
+
+                self.bytes.extend_from_slice(img_buf.as_slice());
+                self.page_list[self.range_end].len = img_buf.len();
+            }
         } else {
             panic!()
-        }
-        'l1: while self.need_pad() && self.not_tail() {
-            self.next(self.view.1);
-
-            self.load_next();
         }
     }
 
     /// goto next page
-    pub fn move_down(&mut self) {
-        //self.try_free();
+    // HACK: async version
+    pub fn move_down(
+        &mut self,
+        color_buffer_arc: &Arc<RwLock<Vec<u32>>>,
+        state_arc: &Arc<RwLock<State>>,
+    ) {
+        log::debug!("start: {}", self.range_start);
 
-        if self.bytes.len() > self.end + self.block {
+        let cut_len = self.page_list[self.range_start].len;
+
+        // try to load next page
+        if (self.at_block_tail() || self.need_pad_next())
+            && self.range_end + 1 < self.page_end
+            && (*state_arc.read().unwrap() == State::NextLoad
+                || *state_arc.read().unwrap() == State::PrevLoad)
+        {
+            self.range_end += 1;
+
+            // this block will only works once before `state == State::Start`
+            let color_buf = color_buffer_arc.clone();
+            let state = state_arc.clone();
+            *state.write().unwrap() = State::NextReady;
+
+            let archive_type = self.archive_type;
+            let archive_path = self.archive_path.clone();
+            let page_pos = self.page_list[self.range_end].pos;
+            let screen_size = self.screen_size;
+            let window_size = self.window_size;
+
+            // ready
+            let join = tokio::spawn(async move {
+                let mut img_selffer = Vec::new();
+
+                get_rgb_buffer(
+                    &mut img_selffer,
+                    archive_type,
+                    archive_path.as_path(),
+                    page_pos,
+                    screen_size,
+                    window_size,
+                );
+
+                color_buf
+                    .write()
+                    .unwrap()
+                    .extend_from_slice(img_selffer.as_slice());
+
+                *state.write().unwrap() = State::NextDone;
+
+                log::debug!("DONE");
+            });
+
+            // go
+            // WARN: DO NOT use `join.await`
+            join;
+        }
+
+        // load next
+        if *state_arc.read().unwrap() == State::NextDone && self.not_page_tail() {
+            self.page_list[self.range_end].len = color_buffer_arc.read().unwrap().len();
+            self.bytes
+                .extend_from_slice(color_buffer_arc.read().unwrap().as_slice());
+
+            color_buffer_arc.write().unwrap().clear();
+
+            log::debug!("state == {:?}", state_arc.read().unwrap());
+            log::debug!("load next");
+
+            *state_arc.write().unwrap() = State::NextLoad;
+
+            // try to free up the memory
+            while self.start > cut_len
+                && self.bytes.len() >= self.max_bytes * 4 + cut_len
+                && self.range_start < self.range_end
+            {
+                self.range_start += 1;
+                free_head(&mut self.bytes, cut_len);
+
+                self.start -= cut_len;
+                self.end -= cut_len;
+            }
+        } else {
+        }
+
+        // scrolling viewer
+        if self.bytes.len() >= self.end + self.block {
             self.start += self.block;
             self.end += self.block;
         } else if self.bytes.len() >= self.end {
@@ -87,35 +197,109 @@ impl Buffer {
         } else {
         }
 
+        // change the state
         self.mode = Map::Down;
 
         log::info!("move_down()");
     }
 
     /// goto prev page
-    pub fn move_up(&mut self) {
-        // self.try_free();
+    pub fn move_up(
+        &mut self,
+        color_buffer_arc: &Arc<RwLock<Vec<u32>>>,
+        state_arc: &Arc<RwLock<State>>,
+    ) {
+        let cut_len = self.page_list[self.range_end].len;
+
+        // try to load prev page
+        if (self.at_block_head() || self.need_pad_prev())
+            && self.range_start > 1
+            && (*state_arc.read().unwrap() == State::PrevLoad
+                || *state_arc.read().unwrap() == State::NextLoad)
+        {
+            self.range_start -= 1;
+
+            let color_buf = color_buffer_arc.clone();
+            let state = state_arc.clone();
+            *state.write().unwrap() = State::PrevReady;
+
+            let archive_type = self.archive_type;
+            let archive_path = self.archive_path.clone();
+            let page_pos = self.page_list[self.range_start].pos;
+            let screen_size = self.screen_size;
+            let window_size = self.window_size;
+
+            // ready
+            let join = tokio::spawn(async move {
+                let mut img_selffer = Vec::new();
+
+                get_rgb_buffer(
+                    &mut img_selffer,
+                    archive_type,
+                    archive_path.as_path(),
+                    page_pos,
+                    screen_size,
+                    window_size,
+                );
+
+                color_buf
+                    .write()
+                    .unwrap()
+                    .extend_from_slice(img_selffer.as_slice());
+
+                *state.write().unwrap() = State::PrevDone;
+
+                log::debug!("DONE");
+            });
+
+            // go
+            // WARN: DO NOT use `join.await`
+            join;
+
+            log::debug!("{}", self.range_start);
+
+            // free
+        } else {
+        }
+
+        // load prev
+        if *state_arc.read().unwrap() == State::PrevDone {
+            push_front(&mut self.bytes, color_buffer_arc.read().unwrap().as_slice());
+
+            let len = color_buffer_arc.read().unwrap().len();
+
+            self.start += len;
+            self.end += len;
+
+            color_buffer_arc.write().unwrap().clear();
+            *state_arc.write().unwrap() = State::PrevLoad;
+
+            log::debug!("state == {:?}", state_arc.read().unwrap());
+            log::debug!("load prev");
+
+            // HACK: try to free up the memory
+            // BUG:
+            while self.bytes.len() >= self.end + cut_len
+                && self.bytes.len() > self.max_bytes * 2 + cut_len
+                && self.range_start < self.range_end
+                && self.range_end > 1
+            {
+                self.range_end -= 1;
+
+                free_tail(&mut self.bytes, cut_len);
+
+                log::debug!("move_up: free()");
+            }
+        } else {
+        }
 
         if self.start >= self.block {
             self.start -= self.block;
             self.end -= self.block;
         } else if self.start >= 0 {
-            if self.not_head() {
-                self.load_prev();
-
-                if self.start >= self.block && self.start >= self.max_bytes {
-                    self.start -= self.block;
-                    self.end -= self.block;
-                } else {
-                    let s = self.start;
-                    self.start -= s;
-                    self.end -= s;
-                }
-            } else {
-                let s = self.start;
-                self.start -= s;
-                self.end -= s;
-            }
+            let s = self.start;
+            self.start -= s;
+            self.end -= s;
         } else {
         }
 
@@ -130,8 +314,8 @@ impl Buffer {
             self.start += 100;
             self.end += 100;
 
-            println!("start: {}", self.start);
-            println!("end: {}", self.end);
+            log::debug!("start: {}", self.start);
+            log::debug!("end: {}", self.end);
         } else {
         }
 
@@ -153,155 +337,45 @@ impl Buffer {
         self.mode = Map::Right;
     }
 
-    pub fn load_prev(&mut self) {
-        self.goto_prev();
-        self.prev(self.view.0);
-    }
-
-    pub fn load_next(&mut self) {
-        self.goto_next();
-        self.next(self.view.1);
-    }
-
-    pub fn prev(&mut self, pos: usize) {
-        let mut bytes = Vec::new();
-        let mut buffer = Vec::new();
-
-        self.load_img(&mut bytes, pos);
-
-        for f in (0..bytes.len()).step_by(3) {
-            buffer.push(TransRgb::rgb_to_u32(&bytes[f..f + 3].try_into().unwrap()));
-        }
-
-        push_front(&mut self.bytes, buffer.as_slice());
-
-        self.start += buffer.len();
-        self.end += buffer.len();
-    }
-
-    pub fn next(&mut self, pos: usize) {
-        let mut bytes = Vec::new();
-        let mut buffer = Vec::new();
-
-        self.load_img(&mut bytes, pos); // TODO: too slow
-
-        // for f in buffer.as_slice().chunks(3) {}
-        for f in (0..bytes.len()).step_by(3) {
-            buffer.push(TransRgb::rgb_to_u32(&bytes[f..f + 3].try_into().unwrap()));
-        }
-
-        self.bytes.extend_from_slice(buffer.as_slice());
-        self.page_list[pos].len = buffer.len();
-    }
-
-    #[inline]
-    pub fn try_free(&mut self) {
-        match self.mode {
-            Map::Down => {
-                let cut_len = self.page_list[self.view.0].len;
-
-                if (self.at_tail() || self.need_pad()) && self.not_tail() {
-                    self.load_next();
-
-                    log::info!("next");
-                } else if self.bytes.len() > self.max_bytes + cut_len && self.start >= cut_len {
-                    self.view.0 += 1;
-                    free_head(&mut self.bytes, cut_len);
-
-                    self.start -= cut_len;
-                    self.end -= cut_len;
-                } else {
-                }
-            }
-            Map::Up => {
-                let cut_len = self.page_list[self.view.1].len;
-
-                if (self.at_head() || self.need_pad()) && self.not_head() {
-                    self.load_prev();
-
-                    log::info!("prev: {}", self.bytes.len() % 2);
-                } else if self.bytes.len() > self.max_bytes * 2 + cut_len
-                    && self.view.1 - 1 >= 0
-                    && self.bytes.len() > self.end + cut_len
-                {
-                    self.view.1 -= 1;
-                    free_tail(&mut self.bytes, cut_len);
-
-                    log::debug!("le:: bytes.len: {:?}", cut_len);
-                } else {
-                }
-            }
-            _ => {}
-        }
-    }
-
-    pub fn load_img(&self, buffer: &mut Vec<u8>, pos: usize) {
-        log::debug!("archive_type == {:?}", self.archive_type);
-
-        let bytes = match self.archive_type {
-            ArchiveType::Tar => {
-                log::debug!("ex_tar()");
-
-                archive::tar::load_file(
-                    self.archive_path.as_path(),
-                    self.page_list[pos].path.as_path(),
-                )
-                .unwrap()
-            }
-
-            ArchiveType::Zip => {
-                log::debug!("ex_zip()");
-
-                archive::zip::load_file(self.archive_path.as_path(), self.page_list[pos].pos)
-                    .unwrap()
-            }
-
-            _ => {
-                todo!()
-            }
-        };
-
-        resize_bytes(bytes.as_slice(), buffer, self.screen_size, self.window_size);
-    }
-
     #[inline(always)]
     pub fn flush(&self, canvas: &mut Canvas2) {
         canvas.flush(&self.bytes[self.start..self.end]);
+
+        log::debug!("self.bytes.len() == {}", self.bytes.len());
     }
 
-    pub fn at_head(&self) -> bool {
+    pub fn need_pad_next(&self) -> bool {
+        self.bytes.len() < self.max_bytes * 6
+    }
+
+    pub fn need_pad_prev(&self) -> bool {
+        self.bytes.len() < self.max_bytes * 8
+    }
+
+    pub fn at_block_head(&self) -> bool {
         self.start == 0
     }
 
-    pub fn at_tail(&self) -> bool {
+    pub fn at_block_tail(&self) -> bool {
         self.end == self.bytes.len()
     }
 
-    pub fn not_head(&self) -> bool {
-        self.view.0 >= 1
+    pub fn not_page_head(&self) -> bool {
+        self.range_start >= 0
     }
 
-    pub fn not_tail(&self) -> bool {
-        self.view.1 + 1 < self.page_end
+    pub fn not_page_tail(&self) -> bool {
+        self.range_end < self.page_end
     }
 
-    pub fn need_pad(&self) -> bool {
-        self.bytes.len() < self.max_bytes * 2
-    }
-
-    pub fn goto_prev(&mut self) {
-        self.view.0 -= 1;
-    }
-
-    pub fn goto_next(&mut self) {
-        self.view.1 += 1;
+    pub fn to_prev_page(&mut self) {
+        self.range_start -= 1;
     }
 }
 
-#[inline]
 pub fn push_front<T>(vec: &mut Vec<T>, slice: &[T])
 where
-    T: Copy,
+    T: ?Copy + Clone,
 {
     unsafe {
         let len = vec.len();
@@ -309,8 +383,8 @@ where
 
         vec.reserve(amt);
 
-        ptr::copy(vec.as_ptr(), vec.as_mut_ptr().offset((amt) as isize), len);
-        ptr::copy(slice.as_ptr(), vec.as_mut_ptr(), amt);
+        std::ptr::copy(vec.as_ptr(), vec.as_mut_ptr().offset((amt) as isize), len);
+        std::ptr::copy(slice.as_ptr(), vec.as_mut_ptr(), amt);
 
         vec.set_len(len + amt);
     }
@@ -328,6 +402,61 @@ where
     T: Sized,
 {
     buffer.truncate(buffer.len() - range);
+}
+
+pub fn get_rgb_buffer(
+    buffer: &mut Vec<u32>,
+    archive_type: ArchiveType,
+    archive_path: &Path,
+    page_pos: usize,
+    screen_size: Size<u32>,
+    window_size: Size<u32>,
+) {
+    let mut img = Vec::new();
+
+    resize_img(
+        &mut img,
+        archive_type,
+        archive_path,
+        page_pos,
+        screen_size,
+        window_size,
+    );
+
+    for f in (0..img.len()).step_by(3) {
+        buffer.push(TransRgb::rgb_to_u32(&img[f..f + 3].try_into().unwrap()));
+    }
+}
+
+pub fn resize_img(
+    buffer: &mut Vec<u8>,
+    archive_type: ArchiveType,
+    archive_path: &Path,
+    page_pos: usize,
+    screen_size: Size<u32>,
+    window_size: Size<u32>,
+) {
+    log::debug!("archive_type == {:?}", archive_type);
+
+    let bytes = match archive_type {
+        ArchiveType::Tar => {
+            log::debug!("ex_tar()");
+
+            archive::tar::load_file(archive_path, page_pos).unwrap()
+        }
+
+        ArchiveType::Zip => {
+            log::debug!("ex_zip()");
+
+            archive::zip::load_file(archive_path, page_pos).unwrap()
+        }
+
+        _ => {
+            todo!()
+        }
+    };
+
+    resize::resize_bytes(bytes.as_slice(), buffer, screen_size, window_size);
 }
 
 mod test {

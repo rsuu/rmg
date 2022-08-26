@@ -4,7 +4,7 @@ use crate::{
     utils::types::MyResult,
 };
 use fast_image_resize as fir;
-use image::{self, io::Reader as ImageReader};
+use image::{self};
 use log::{debug, error};
 use std::num::NonZeroU32;
 
@@ -49,8 +49,7 @@ pub fn resize_rgb8(
     let dst_width = NonZeroU32::new(meta.fix.width).ok_or(())?;
     let dst_height = NonZeroU32::new(meta.fix.height).ok_or(())?;
 
-    // HAS FIX
-    // ISSUES: https://github.com/Cykooz/fast_image_resize/issues/9
+    // FIXED: https://github.com/Cykooz/fast_image_resize/issues/9
     let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
     let mut dst_view = dst_image.view_mut();
     let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Box));

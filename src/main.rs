@@ -1,26 +1,21 @@
 use cfg_if::cfg_if;
 use emeta::meta;
-use log::{debug, error, info, trace, warn};
+use log;
 use rmg::{
-    archive::{self, zip},
+    archive::{self},
     cli,
     config::rsconf::Config,
     files::{self, list},
     img::size::{MetaSize, TMetaSize},
     reader::{
-        buffer::{self, PageInfo},
+        self,
+        buffer::{push_front, PageInfo},
         display,
     },
     utils::types::ArchiveType,
 };
 use simple_logger;
-use std::ptr;
-use std::{
-    fs,
-    io::Read,
-    path::{Path, PathBuf},
-};
-use tempfile::TempDir;
+use std::path::{Path, PathBuf};
 use thiserror;
 
 #[derive(thiserror::Error, Debug)]
@@ -63,18 +58,28 @@ async fn main() {
             0,
             0,
         );
-        debug!("meta_size: {:#?}", &meta_size);
+        log::debug!("meta_size: {:#?}", &meta_size);
 
         if let Some(path) = args.file_path {
             println!("Open: {}", path.as_str());
 
             let file_list = get_file_list(path.as_str()).unwrap();
-            let page_list = if args.rename_pad == 0 {
+            let mut page_list = if args.rename_pad == 0 {
                 get_page_list(&file_list, 0)
             } else {
                 get_page_list(&file_list, args.rename_pad)
             };
             let archive_type = get_archive_type(path.as_str()).unwrap();
+
+            push_front(
+                &mut page_list,
+                &[PageInfo {
+                    path: PathBuf::new(),
+                    name: "".to_string(),
+                    len: 0,
+                    pos: 0,
+                }],
+            );
 
             log::debug!("page_list: {:?}", page_list);
 
@@ -163,7 +168,7 @@ pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Pa
     }
 
     page_list.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
-    debug!("sort: page_list: {:#?}", page_list.as_slice());
+    log::debug!("sort: page_list: {:#?}", page_list.as_slice());
 
     page_list
 }
@@ -175,7 +180,7 @@ where
     if from.as_ref().is_dir() {
         todo!();
         //files::dir::rec_copy_dir(from, to)?;
-        return Err(());
+        //return Err(());
     } else {
         match list::get_filetype(from.as_ref()).as_str() {
             "tar" => {

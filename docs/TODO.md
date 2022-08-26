@@ -1,33 +1,36 @@
-+ v0.1.0
-    + [] 添加注释
-    + [] 添加文档
-    + [] 添加测试
-+ v0.0.12
-    + [] 完善元数据的显示
-+ v0.0.11
-    + [] 简化代码
-+ v0.0.10
++ [] v0.1.0
+    + [] remove .unwrap()
+    + [] more useful help messages
+    + [] more tests
++ [] v0.0.12
+    + [] display a bit metadata
+    + [] bug fix
++ [x] v0.0.11
+    + [x] async support for move_down()
+    + [x] async support for move_up()
++ [x] v0.0.10
     + [x] make it fast
     + [x] limit RAM usage
     + [x] drop: SDL2
     + [x] drop: zstd
-+ v0.0.9
+    + [x] drop: display metadata
++ [] v0.0.9
     + [] 支持放大镜(或许不需要)
     + [] 支持 orz(或许不需要)
-+ v0.0.8
++ [x] v0.0.8
     + [x] 完善 cli
     + [x] 修复 bug
-+ v0.0.7
++ [x] v0.0.7
     + [x] 预设大小
     + [x] 支持 zstd
-+ v0.0.6
++ [x] v0.0.6
     + [x] 归位窗口
-    + 解析元数据 metadata.rmg
+    + [x] 解析元数据 metadata.rmg
         + [x] 显示元数据(gui)
         + [x] 显示元数据(cli)
         + [x] 导出为 json
         + [x] 由 json 导入
-+ v0.0.5
++ [x] v0.0.5
     + [x] 重命名文件
 ```text
 pad = 3
@@ -53,18 +56,18 @@ pad = 3
         + [] 右移图片(或许不需要)
         + [] 翻转图片(或许不需要)
     + [x] 支持 rgba
-+ v0.0.4
++ [x] v0.0.4
     + [x] 解析目录下的文件
         + [x] 提取 rmg
         + [x] 排除其他文件
     + [x] 显示文字
     + [x] 浏览目录
-+ v0.0.3
++ [x] v0.0.3
     + [x] 修复 bug
-+ v0.0.2
++ [x] v0.0.2
     + [x] 自动设定图片大小
     + [x] 惰性加载图片(提取部分文件)
-+ v0.0.1
++ [x] v0.0.1
     + [x] 滚动图片
 
 

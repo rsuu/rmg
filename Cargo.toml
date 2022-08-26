@@ -66,8 +66,8 @@ thiserror = "1.0.32"
 
 # font
 fontdue = "0.7.2"
-crossbeam = { version = "0.8.2", features = ["crossbeam-channel"] }
-futures = "0.3.23"
+#crossbeam = { version = "0.8.2", features = ["crossbeam-channel"] }
+#futures = "0.3.23"
 #io-uring = "0.5.3"
 
 [dev-dependencies]

@@ -25,7 +25,7 @@ where
     let mut zip = zip::ZipArchive::new(reader).unwrap();
 
     for idx in 0..zip.len() {
-        let mut file = zip.by_index(idx).unwrap();
+        let file = zip.by_index(idx).unwrap();
 
         res.push((file.name().to_string(), idx));
     }
