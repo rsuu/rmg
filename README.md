@@ -6,6 +6,8 @@ Mnaga Reader
 
 + Dependency
   + Linux: x11 OR wayland
+  + Windows: None
+  + Mac: None(I DO NOT KNOW)
 + Optional Dependency
   + tar
   + zip

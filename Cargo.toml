@@ -13,6 +13,16 @@ keywords = ["manga","comic"]
 autobenches = true
 build = "build.rs"
 
+[profile.release]
+strip = true
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+lto = true
+opt-level = 3
+overflow-checks = false
+panic = "abort"
 
 [dependencies]
 # fs

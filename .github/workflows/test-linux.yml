@@ -1,4 +1,4 @@
-name: linux
+name: test-linux
 on:
   push:
     branches:

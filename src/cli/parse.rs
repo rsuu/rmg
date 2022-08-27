@@ -141,22 +141,21 @@ impl Default for Args {
 
 fn print_help() -> ! {
     eprintln!(
-        r#"rmg 0.0.8
+        r#"rmg: 0.0.11
 Manga Reader
 
 USAGE:
-    rmg [OPTIONS] path
+    rmg [OPTIONS] file
 
-META OPTIONS:
+OPTIONS:
     -h, --help       Prints help information
     -V, --version    Prints version information
 
-DISPLAY OPTIONS:
-    -s, --size       ...
+    -s, --size       Max width and height of buffer
+                     e.g. rmg --size 900,900
     -c, --config     ...
     -m, --meta       ...
 
-OTHER OPTIONS:
     --pad            ...
     --rename         ...
     --format         ...

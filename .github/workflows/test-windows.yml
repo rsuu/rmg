@@ -1,9 +1,9 @@
-name: windows-release
-
+name: test-windows
 on:
   push:
-    tags:
-    - 'v*'
+    branches:
+      - main
+  pull_request:
 
 jobs:
   test:
@@ -21,8 +21,7 @@ jobs:
           x86_64-pc-windows-gnu,
           x86_64-pc-windows-msvc,
         ]
-        #cfg_release_channel: [nightly, stable]
-        cfg_release_channel: [nightly]
+        cfg_release_channel: [nightly, stable]
 
     steps:
     # The Windows runners have autocrlf enabled by default
@@ -59,26 +58,5 @@ jobs:
       run: |
         bash ci/build_windows.sh
         export RUSTFLAGS=-Awarnings
-        cargo build --release
-
-    - name: Target name
-      shell: bash
-      run: |
-        _name="${{ matrix.target }}_${{ matrix.cfg_release_channel }}"
-        echo $_name
-        mkdir release
-        cp target/release/rmg.exe LICENSE-MIT LICENSE-APACHE2.0 release
-        tar czf "$_name.tar.gz" release
-        echo "ASSET=$_name.tar.gz" >> $GITHUB_ENV
-
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        tag_name: ${{ github.ref }}
-        name: Release
-        body: Release
-        draft: false
-        prerelease: false
-        files: |
-          ${{ ASSET }}
+        cargo test
+        cargo build

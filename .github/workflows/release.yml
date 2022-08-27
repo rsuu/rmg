@@ -1,3 +1,5 @@
+# https://github.com/BurntSushi/ripgrep/blob/master/.github/workflows/release.yml
+
 name: release
 
 on:
@@ -6,8 +8,31 @@ on:
     - 'v*'
 
 jobs:
+  create-release:
+    name: create-release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      bin_version: ${{ env.BIN_VERSION }}
+    steps:
+      - name: Get the release version from the tag
+        shell: bash
+        if: env.BIN_VERSION == ''
+        run: |
+          echo "BIN_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "version is: ${{ env.BIN_VERSION }}"
+      - name: Create GitHub release
+        id: release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.BIN_VERSION }}
+          release_name: ${{ env.BIN_VERSION }}
+
   build-release:
     name: build-release
+    needs: ['create-release']
     strategy:
       matrix:
         build: [linux-x86_64, macos-x86_64, windows-x86_64-gnu, windows-x86_64-msvc]
@@ -29,6 +54,8 @@ jobs:
             rust: nightly-x86_64-msvc
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
     steps:
       - uses: actions/checkout@v3
 
@@ -47,35 +74,34 @@ jobs:
       - name: Build and Test
         shell: bash
         run: |
-          export RUSTFLAGS=-Awarnings
+          export RUSTFLAGS="-Awarnings"
           cargo build --release
 
       - name: Build archive
         shell: bash
         run: |
-          staging="rmg_${{ matrix.build }}_${{ github.event.release.tag_name }}"
+          staging="rmg_${{ matrix.build }}_${{ needs.create-release.outputs.bin_version }}"
           mkdir -p "$staging"
 
           cp {README.md,LICENSE-MIT,LICENSE-APACHE2.0} "$staging/"
 
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp target/release/{rmg.exe} "$staging/"
+            cp target/release/rmg.exe "$staging/"
             7z a "$staging.zip" "$staging"
             echo "ASSET=$staging.zip" >> $GITHUB_ENV
           else
-            cp target/release/{rmg} "$staging/"
+            cp target/release/rmg "$staging/"
             tar czf "$staging.tar.gz" "$staging"
             echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
           fi
 
-      - name: Upload
-        uses: softprops/action-gh-release@v1
+      - name: Upload Release Asset
         if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          name: Release
-          body: Release
-          draft: false
-          prerelease: false
-          files: |
-            ${{ ASSET }}
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream

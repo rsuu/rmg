@@ -9,9 +9,9 @@ export RUSTFMT_CI=1
 rustc -Vv
 cargo -V
 
-brew install SDL2
-brew install SDL2_image
-brew install SDL2_ttf
+#brew install SDL2
+#brew install SDL2_image
+#brew install SDL2_ttf
 
 # Build and test main crate
 cargo build
