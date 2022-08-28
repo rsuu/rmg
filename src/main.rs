@@ -35,77 +35,80 @@ async fn main() {
     // parse config from file
     // OR
     // use default config
-    let mut config: Config;
+    let mut args = cli::parse::Args::new();
 
-    if let Ok(args) = cli::parse::Args::get_args() {
-        if let Some(config_path) = args.config_path {
-            config = Config::parse_from(config_path.as_str());
-        } else {
-            config = Config::parse_from("./tests/files/config.rs");
-        }
+    args.parse().unwrap_or_else(|_| panic!());
+    args.set_config_path();
 
-        if let Some(size) = args.size {
-            config.base.size = size;
+    let mut config: Config = if let Some(ref config_path) = args.config_path {
+        Config::parse_from(config_path)
+    } else {
+        panic!("");
+    };
+
+    args.set_size(&mut config);
+
+    log::debug!("config: {:#?}", args);
+
+    if let Some(size) = args.size {
+        config.base.size = size;
+    } else {
+        // default
+    };
+
+    let meta_size = MetaSize::new(
+        0,
+        0,
+        config.base.size.width as u32,
+        config.base.size.height as u32,
+        0,
+        0,
+    );
+    log::debug!("meta_size: {:#?}", &meta_size);
+
+    if let Some(path) = args.file_path {
+        println!("Open: {}", path.as_str());
+
+        let file_list = get_file_list(path.as_str()).unwrap();
+        let mut page_list = if args.rename_pad == 0 {
+            get_page_list(&file_list, 0)
         } else {
-            // default
+            get_page_list(&file_list, args.rename_pad)
         };
+        let archive_type = get_archive_type(path.as_str()).unwrap();
 
-        let meta_size = MetaSize::new(
-            0,
-            0,
-            config.base.size.width as u32,
-            config.base.size.height as u32,
-            0,
-            0,
+        push_front(
+            &mut page_list,
+            &[PageInfo {
+                path: PathBuf::new(),
+                name: "".to_string(),
+                len: 0,
+                pos: 0,
+            }],
         );
-        log::debug!("meta_size: {:#?}", &meta_size);
 
-        if let Some(path) = args.file_path {
-            println!("Open: {}", path.as_str());
+        log::debug!("page_list: {:?}", page_list);
 
-            let file_list = get_file_list(path.as_str()).unwrap();
-            let mut page_list = if args.rename_pad == 0 {
-                get_page_list(&file_list, 0)
-            } else {
-                get_page_list(&file_list, args.rename_pad)
-            };
-            let archive_type = get_archive_type(path.as_str()).unwrap();
-
-            push_front(
-                &mut page_list,
-                &[PageInfo {
-                    path: PathBuf::new(),
-                    name: "".to_string(),
-                    len: 0,
-                    pos: 0,
-                }],
-            );
-
-            log::debug!("page_list: {:?}", page_list);
-
-            match display::cat_img(
-                &config,
-                page_list,
-                meta_size,
-                config.base.format,
-                &None,
-                path.as_str(),
-                archive_type,
-            )
-            .await
-            {
-                Ok(_) => {
-                    std::process::exit(0);
-                }
-                Err(e) => match e {
-                    rmg::utils::types::MyError::ErrIo(e) => {
-                        panic!("{}", e);
-                    }
-                    _ => {}
-                },
+        match display::cat_img(
+            &config,
+            page_list,
+            meta_size,
+            config.base.format,
+            &None,
+            path.as_str(),
+            archive_type,
+        )
+        .await
+        {
+            Ok(_) => {
+                std::process::exit(0);
             }
-        } else {
-            println!("err");
+            Err(e) => match e {
+                rmg::utils::types::MyError::ErrIo(e) => {
+                    panic!("{}", e);
+                }
+                _ => {}
+            },
         }
     }
 }
@@ -178,9 +181,8 @@ where
     _Path: AsRef<Path> + ?Sized,
 {
     if from.as_ref().is_dir() {
-        todo!();
-        //files::dir::rec_copy_dir(from, to)?;
-        //return Err(());
+        let file_list = archive::dir::get_file_list(from.as_ref()).unwrap();
+        return Ok(file_list);
     } else {
         match list::get_filetype(from.as_ref()).as_str() {
             "tar" => {

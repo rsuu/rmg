@@ -26,7 +26,7 @@ panic = "abort"
 
 [dependencies]
 # fs
-tempfile = "3.3.0"
+#tempfile = "3.3.0"
 walkdir = "2.3.2"
 dirs-next = "2.0.0"
 
@@ -51,19 +51,11 @@ fast_image_resize = "1.0.0"
 lexopt = "0.2.1"
 
 # metadata
-byteorder = "1.4.3"
-miniserde = "0.1.27"
-speedy = "0.8.2"
 emeta = "0.1.1"
 #emeta = {version="*",path="../emeta"}
 
 # config
 syn = { version = "1.0.99", features = ["full", "extra-traits"] }
-
-# other
-#rayon = "1.5.3"
-tokio = { version = "1.20.1", features = ["full"] }
-cfg-if = "1.0.0"
 
 # debug
 log = "0.4.17"
@@ -76,24 +68,23 @@ thiserror = "1.0.32"
 
 # font
 fontdue = "0.7.2"
-#crossbeam = { version = "0.8.2", features = ["crossbeam-channel"] }
-#futures = "0.3.23"
-#io-uring = "0.5.3"
+
+# async
+tokio = { version = "1.20.1", features = ["full"] }
+
+# other
+#rayon = "1.5.3"
+cfg-if = "1.0.0"
 
 [dev-dependencies]
-# bench
+# benchmark
 criterion = "0.3.6"
-#orz = { version="1.6.1",git="https://github.com/richox/orz"}
 
 [[bench]]
 name = "bench_main"
 harness = false
 
 [features]
-default = ["zip", "tar"]
-tar = ["ex_tar"]
-zip = ["ex_zip"]
-#zstd = ["ex_zstd"]
-#ex_zstd = []
+default = ["ex_zip", "ex_tar"]
 ex_zip = []
 ex_tar = []

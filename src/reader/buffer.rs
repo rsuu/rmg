@@ -341,7 +341,7 @@ impl Buffer {
     pub fn flush(&self, canvas: &mut Canvas2) {
         canvas.flush(&self.bytes[self.start..self.end]);
 
-        log::debug!("self.bytes.len() == {}", self.bytes.len());
+        //log::debug!("self.bytes.len() == {}", self.bytes.len());
     }
 
     pub fn need_pad_next(&self) -> bool {
@@ -449,6 +449,12 @@ pub fn resize_img(
             log::debug!("ex_zip()");
 
             archive::zip::load_file(archive_path, page_pos).unwrap()
+        }
+
+        ArchiveType::Dir => {
+            log::debug!("load file");
+
+            archive::dir::load_file(archive_path, page_pos).unwrap()
         }
 
         _ => {

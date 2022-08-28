@@ -1265,7 +1265,6 @@ name = "rmg"
 version = "0.0.10"
 dependencies = [
  "anyhow",
- "byteorder",
  "cfg-if",
  "criterion",
  "dirs-next",
@@ -1277,13 +1276,10 @@ dependencies = [
  "lexopt",
  "log",
  "minifb",
- "miniserde",
  "rgb",
  "simple_logger",
- "speedy",
  "syn",
  "tar",
- "tempfile",
  "thiserror",
  "tokio",
  "walkdir",

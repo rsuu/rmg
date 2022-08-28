@@ -27,10 +27,9 @@ pub enum MyError {
     ErrMulDivImage(fast_image_resize::MulDivImageError),
     ErrDifferentTypesOfPixels(fast_image_resize::DifferentTypesOfPixelsError), // resize imgae
 
-    ErrMiniserde(miniserde::Error), //
+    //    ErrMiniserde(miniserde::Error), //
 
-    ErrSpeedy(speedy::Error), // metadata
-
+    //  ErrSpeedy(speedy::Error), // metadata
     ErrLexopt(lexopt::Error), // args
 
     ErrNull(()),
@@ -54,10 +53,10 @@ crate::impl_from! {
       , MyError::ErrImage;
     lexopt::Error
       , MyError::ErrLexopt;
-    miniserde::Error
-      , MyError::ErrMiniserde;
-    speedy::Error
-      , MyError::ErrSpeedy;
+    //miniserde::Error
+    //  , MyError::ErrMiniserde;
+    //speedy::Error
+    //  , MyError::ErrSpeedy;
     std::array::TryFromSliceError
       , MyError::ErrTryFromSlice;
     std::boxed::Box<dyn std::error::Error>

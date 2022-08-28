@@ -1,7 +1,7 @@
 pub mod utils {
-    pub mod types;
-
+    pub mod err;
     pub mod macros;
+    pub mod types;
 }
 
 pub mod archive {
@@ -11,12 +11,10 @@ pub mod archive {
     #[cfg(feature = "ex_zip")]
     pub mod zip;
 
-    //#[cfg(feature = "ex_zstd")]
-    //pub mod zstd;
+    pub mod dir;
 }
 
 pub mod files {
-    pub mod dir;
     pub mod file;
     pub mod list;
 }

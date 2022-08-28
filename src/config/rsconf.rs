@@ -15,7 +15,6 @@ pub struct Base {
     pub size: Size<usize>,    // window size
     pub font: Option<String>, // font file
 
-    pub rename: bool,      // rename filename (default: true)
     pub rename_pad: usize, // pad (default: 6)
 
     pub format: format::PixelFormat, // [RGB / RGBA]
@@ -23,11 +22,12 @@ pub struct Base {
 
 #[derive(Debug)]
 pub struct Keymap<_Char> {
-    pub up: _Char, // page up
-    pub down: _Char, // page down
-                   //pub full_screen: _Char,
-                   //pub exit: _Char,
-                   //pub reset: _Char,
+    pub up: _Char,    // page up
+    pub down: _Char,  // page down
+    pub left: _Char,  // move to left
+    pub right: _Char, // move to right
+    pub exit: _Char,  // exit
+                      //pub fullscreen: _Char,
 }
 
 #[derive(Debug)]
@@ -105,7 +105,7 @@ pub fn match_struct_name(expr_struct: &syn::ExprStruct) -> ConfigType {
 
 // e.g.
 // BASE {
-//   rename,
+//   rename_pad,
 //   ..
 // }
 pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
@@ -114,22 +114,6 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
     for _fields in expr_struct.fields.iter() {
         if let syn::Member::Named(_name) = &_fields.member {
             match _name.to_string().as_str() {
-                "rename" => {
-                    //eprintln!("{:#?}", _fields);
-
-                    if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
-                        if let syn::Lit::Bool(_lit_bool) = &_expr_lit.lit {
-                            base.rename = if _lit_bool.token().to_string().as_str() == "true" {
-                                true
-                            } else if _lit_bool.token().to_string().as_str() == "false" {
-                                false
-                            } else {
-                                panic!("expect bool::[true | false]")
-                            };
-                        }
-                    }
-                }
-
                 "rename_pad" => {
                     // eprintln!("{:#?}", _fields);
 
@@ -251,6 +235,54 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                     }
                 }
 
+                "left" => {
+                    // eprintln!("{:#?}", _fields);
+
+                    if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
+                        if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
+                            keymap.left = _lit_char
+                                .token()
+                                .to_string()
+                                .as_str()
+                                .chars()
+                                .nth(1)
+                                .unwrap();
+                        }
+                    }
+                }
+
+                "right" => {
+                    // eprintln!("{:#?}", _fields);
+
+                    if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
+                        if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
+                            keymap.right = _lit_char
+                                .token()
+                                .to_string()
+                                .as_str()
+                                .chars()
+                                .nth(1)
+                                .unwrap();
+                        }
+                    }
+                }
+
+                "exit" => {
+                    // eprintln!("{:#?}", _fields);
+
+                    if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
+                        if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
+                            keymap.exit = _lit_char
+                                .token()
+                                .to_string()
+                                .as_str()
+                                .chars()
+                                .nth(1)
+                                .unwrap();
+                        }
+                    }
+                }
+
                 _ => {}
             }
         }
@@ -294,7 +326,13 @@ impl Default for Config {
 
 impl Default for Keymap<char> {
     fn default() -> Self {
-        Keymap { up: 'k', down: 'j' }
+        Keymap {
+            up: 'k',
+            down: 'j',
+            left: 'h',
+            right: 'l',
+            exit: 'q',
+        }
     }
 }
 
@@ -307,7 +345,6 @@ impl Default for Base {
             },
             font: None,
 
-            rename: true,
             rename_pad: 6,
 
             format: format::PixelFormat::Rgb8,

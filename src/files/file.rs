@@ -10,7 +10,7 @@ pub fn pad_names<T>(pad: usize, names: &[T]) -> Vec<String>
 where
     T: AsRef<str>,
 {
-    let mut new_names = Vec::with_capacity(names.as_ref().len());
+    let mut res = Vec::with_capacity(names.as_ref().len());
 
     for f in names.iter() {
         let full = Path::new(f.as_ref());
@@ -32,10 +32,10 @@ where
         }
 
         path.push_str(format!("{}.{}", filename, suffix).as_ref());
-        new_names.push(path);
+        res.push(path);
     }
 
-    new_names
+    res
 }
 
 pub fn pad_name(pad: usize, name: &str) -> String {

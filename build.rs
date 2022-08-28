@@ -2,6 +2,11 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    for_minifb();
+}
+
+fn for_minifb() {}
+fn for_sdl2() {
     let target = env::var("TARGET").unwrap();
 
     // for windows

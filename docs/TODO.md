@@ -1,10 +1,12 @@
-+ [] v0.1.0
++ [] v1.0.0
     + [] remove .unwrap()
-    + [] more useful help messages
     + [] more tests
-+ [] v0.0.12
-    + [] display a bit metadata
-    + [] bug fix
++ [] v0.0.13
+    + [] display metadata
++ [x] v0.0.12
+    + [x] bug fix
+    + [x] auto change config path
+    + [x] rgba8 to rgb8
 + [x] v0.0.11
     + [x] async support for move_down()
     + [x] async support for move_up()

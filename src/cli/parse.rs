@@ -1,11 +1,16 @@
 use crate::{
     color::format,
+    config::rsconf::Config,
     img::size::Size,
-    utils::types::{MyError, SelfResult},
+    utils::{
+        err::Res,
+        types::{MyError, SelfResult},
+    },
 };
+use dirs_next;
 use emeta::meta;
 use lexopt::{self, prelude::*};
-use std::process::exit;
+use std::{fs::File, io::Write, path::PathBuf, process::exit};
 
 #[derive(Debug)]
 pub struct Args {
@@ -43,8 +48,7 @@ impl Args {
         }
     }
 
-    pub fn get_args() -> SelfResult<Self> {
-        let mut args = Args::new();
+    pub fn parse(&mut self) -> SelfResult<()> {
         let mut parser = lexopt::Parser::from_env();
 
         while let Some(arg) = parser.next()? {
@@ -54,10 +58,7 @@ impl Args {
                 }
 
                 Long("config") | Short('c') => {
-                    if args.config_path.is_none() {
-                        args.config_path = Some(parser.value()?.into_string()?);
-                    } else {
-                    }
+                    self.config_path = Some(parser.value()?.into_string()?);
                 }
 
                 Long("size") | Short('s') => {
@@ -66,7 +67,7 @@ impl Args {
 
                     if let Ok(w) = size[0].parse::<usize>() {
                         if let Ok(h) = size[1].parse::<usize>() {
-                            args.size = Some(Size::new(w, h));
+                            self.size = Some(Size::new(w, h));
                         }
                     }
                 }
@@ -75,7 +76,7 @@ impl Args {
                     let is_rename = parser.value()?.into_string()?;
 
                     if is_rename.as_str() == "false" {
-                        args.rename = false
+                        self.rename = false
                     } else {
                         panic!("")
                     };
@@ -83,12 +84,12 @@ impl Args {
 
                 Long("pad") => {
                     let pad = parser.value()?.into_string()?;
-                    args.rename_pad = pad.parse::<usize>()?;
+                    self.rename_pad = pad.parse::<usize>()?;
                 }
 
                 Long("format") => {
                     let format = parser.value()?.into_string()?;
-                    args.format = match format.as_str() {
+                    self.format = match format.as_str() {
                         "rgb8" => Some(format::PixelFormat::Rgb8),
                         "rgba8" => Some(format::PixelFormat::Rgba8),
                         _ => None,
@@ -100,7 +101,7 @@ impl Args {
 
                     match sub.to_ascii_lowercase().as_str() {
                         "d" | "display" => {
-                            args.meta_display = true;
+                            self.meta_display = true;
                         }
 
                         "f" | "from" => {
@@ -119,7 +120,7 @@ impl Args {
                     }
                 }
 
-                Value(v) => args.file_path = Some(v.into_string()?),
+                Value(v) => self.file_path = Some(v.into_string()?),
 
                 _ => {
                     print_help();
@@ -127,10 +128,47 @@ impl Args {
             }
         }
 
-        Ok(args)
+        Ok(())
     }
 
-    pub fn parse(&self) {}
+    pub fn set_size(&mut self, config: &mut Config) {
+        if let Some(size) = self.size {
+            config.base.size = size;
+        } else {
+            // default
+        };
+    }
+
+    pub fn set_config_path(&mut self) {
+        if self.config_path.is_none() {
+            let mut config_path = PathBuf::new();
+
+            if let Some(path) = dirs_next::config_dir() {
+                config_path.push(path.as_path());
+
+                if config_path.as_path().is_dir() {
+                } else {
+                    std::fs::create_dir(config_path.as_path()).unwrap();
+                }
+
+                config_path.push("rmg/config.rs");
+
+                if config_path.as_path().is_file() {
+                } else {
+                    let mut f = File::create(config_path.as_path()).unwrap();
+
+                    f.write_all(include_bytes!("../config/default_config.rs"))
+                        .unwrap();
+                }
+
+                self.config_path = Some(config_path.to_str().unwrap().to_string());
+
+                log::debug!("config_path == {:?}", config_path.as_path());
+            } else {
+            }
+        } else {
+        }
+    }
 }
 
 impl Default for Args {
