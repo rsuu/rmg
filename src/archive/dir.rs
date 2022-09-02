@@ -21,7 +21,7 @@ pub fn load_file(path: &Path, pos: usize) -> Res<Vec<u8>> {
         }
     }
 
-    Err(MyErr::FoundNull)
+    Err(MyErr::Null(()))
 }
 
 pub fn get_file_list(path: &Path) -> Res<Vec<(String, usize)>> {

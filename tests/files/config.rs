@@ -1,9 +1,7 @@
 fn main() {
     Base {
         size: (900, 900),
-        font: "./tests/files/test.ttf",
-        format: "rgb8",
-        rename: true,
+        font: None,
         rename_pad: 6,
     };
 

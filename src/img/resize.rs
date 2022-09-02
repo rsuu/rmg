@@ -1,7 +1,7 @@
 use crate::{
     color::format::PixelFormat,
     img::size::{MetaSize, Size, TMetaSize},
-    utils::types::MyResult,
+    utils::err::Res,
 };
 use fast_image_resize as fir;
 use image;
@@ -39,7 +39,7 @@ pub fn resize_rgb8(
     buffer: &mut Vec<u8>,
     img: &image::DynamicImage,
     meta: &MetaSize<u32>,
-) -> MyResult {
+) -> Res<()> {
     let src_image = fir::Image::from_vec_u8(
         NonZeroU32::new(meta.image.width).ok_or(())?,
         NonZeroU32::new(meta.image.height).ok_or(())?,
@@ -65,7 +65,7 @@ pub fn resize_rgb8(
 //     buffer: &mut Vec<u8>,
 //     img: &image::DynamicImage,
 //     meta: &MetaSize<u32>,
-// ) -> MyResult {
+// ) ->Res {
 //     let mut src_image = fir::Image::from_vec_u8(
 //         NonZeroU32::new(meta.image.width).ok_or(())?,
 //         NonZeroU32::new(meta.image.height).ok_or(())?,

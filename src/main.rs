@@ -2,8 +2,7 @@ use cfg_if::cfg_if;
 use emeta::meta;
 use log;
 use rmg::{
-    archive::{self},
-    cli,
+    archive, cli,
     config::rsconf::Config,
     files::{self, list},
     img::size::{MetaSize, TMetaSize},
@@ -12,24 +11,13 @@ use rmg::{
         buffer::{push_front, PageInfo},
         display,
     },
-    utils::types::ArchiveType,
+    utils::{err::MyErr, types::ArchiveType},
 };
 use simple_logger;
 use std::path::{Path, PathBuf};
-use thiserror;
-
-#[derive(thiserror::Error, Debug)]
-pub enum DataStoreError {
-    #[error("I/O")]
-    Disconnect(#[from] std::io::Error),
-
-    #[error("unknown")]
-    Unknown,
-}
 
 #[tokio::main]
 async fn main() {
-    //env_logger::init();
     init();
 
     // parse config from file
@@ -40,15 +28,17 @@ async fn main() {
     args.parse().unwrap_or_else(|_| panic!());
     args.set_config_path();
 
-    let mut config: Config = if let Some(ref config_path) = args.config_path {
-        Config::parse_from(config_path)
-    } else {
-        panic!("");
-    };
+    let mut config: Config = Config::default();
+
+    match args.set_config_path() {
+        Some(c) => config = c,
+        None => {}
+    }
 
     args.set_size(&mut config);
 
-    log::debug!("config: {:#?}", args);
+    log::debug!("Args: {:#?}", args);
+    log::debug!("Config: {:#?}", config);
 
     if let Some(size) = args.size {
         config.base.size = size;
@@ -93,7 +83,6 @@ async fn main() {
             &config,
             page_list,
             meta_size,
-            config.base.format,
             &None,
             path.as_str(),
             archive_type,
@@ -104,7 +93,7 @@ async fn main() {
                 std::process::exit(0);
             }
             Err(e) => match e {
-                rmg::utils::types::MyError::ErrIo(e) => {
+                MyErr::Io(e) => {
                     panic!("{}", e);
                 }
                 _ => {}
@@ -113,7 +102,7 @@ async fn main() {
     }
 }
 
-fn init() {
+pub fn init() {
     simple_logger::SimpleLogger::new()
         .with_level(log::LevelFilter::Off)
         .with_colors(true)

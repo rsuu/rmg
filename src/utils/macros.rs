@@ -1,6 +1,8 @@
 // block | expr | ident | item | lifetime | literal
 // meta | pat | pat_param | path | stmt | tt | ty | vis
 
+use crate::utils::err::MyErr;
+
 // not need now
 #[macro_export]
 macro_rules! unwrap_or_return {
@@ -13,10 +15,10 @@ macro_rules! unwrap_or_return {
 }
 
 #[macro_export]
-macro_rules! impl_from {
+macro_rules! error_from {
     ( $($l:path, $r:path;)* ) => {
         $(
-            impl From<$l> for MyError {
+            impl From<$l> for MyErr {
                 fn from(e: $l) -> Self {
                     $r(e)
                 }

@@ -1,8 +1,8 @@
 // TODO
 // remove .unwrap()
 
-use crate::{color::format, img::size::Size};
-use std::{fs::File, io::Read};
+use crate::img::size::Size;
+use std::{fs::File, io::Read, path::Path};
 
 #[derive(Debug)]
 pub struct Config {
@@ -14,10 +14,7 @@ pub struct Config {
 pub struct Base {
     pub size: Size<usize>,    // window size
     pub font: Option<String>, // font file
-
-    pub rename_pad: usize, // pad (default: 6)
-
-    pub format: format::PixelFormat, // [RGB / RGBA]
+    pub rename_pad: usize,    // pad (default: 6)
 }
 
 #[derive(Debug)]
@@ -40,6 +37,63 @@ pub enum ConfigType {
             // struct Keymap {
             // ..
             // }
+}
+
+impl Config {
+    pub fn parse_from<_Path>(path: &_Path) -> Self
+    where
+        _Path: AsRef<Path> + ?Sized,
+    {
+        if let Ok(mut file) = File::open(path.as_ref()) {
+            let mut content = String::new();
+            file.read_to_string(&mut content).unwrap();
+
+            let ast = syn::parse_file(content.as_str()).unwrap();
+
+            //eprintln!("{:#?}", ast);
+
+            // not need now
+            // for item in ast.items.iter() {}
+
+            return parse_main(ast.items.first().unwrap()).unwrap();
+        } else {
+            Config::default()
+        }
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            base: Base::default(),
+            keymap: Keymap::default(),
+        }
+    }
+}
+
+impl Default for Keymap<char> {
+    fn default() -> Self {
+        Keymap {
+            up: 'k',
+            down: 'j',
+            left: 'h',
+            right: 'l',
+            exit: 'q',
+        }
+    }
+}
+
+impl Default for Base {
+    fn default() -> Self {
+        Base {
+            size: Size::<usize> {
+                width: 900,
+                height: 900,
+            },
+            font: None,
+            rename_pad: 6,
+        }
+    }
 }
 
 pub fn parse_main(item: &syn::Item) -> Option<Config> {
@@ -141,21 +195,6 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
                                 base.font = Some(font_path);
                             } else {
                                 base.font = None;
-                            }
-                        }
-                    }
-                }
-
-                "format" => {
-                    //eprintln!("{:#?}", _fields);
-
-                    if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
-                        if let syn::Lit::Str(_lit_str) = &_expr_lit.lit {
-                            let format = _lit_str.token().to_string().trim_matches('"').to_string();
-                            base.format = match format.as_str() {
-                                "rgb8" => format::PixelFormat::Rgb8,
-                                "rgba8" => format::PixelFormat::Rgba8,
-                                _ => format::PixelFormat::Rgb8,
                             }
                         }
                     }
@@ -290,64 +329,4 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
 
     //eprintln!("{:#?}", keymap);
     keymap
-}
-
-impl Config {
-    pub fn parse_from<_Path>(path: &_Path) -> Self
-    where
-        _Path: AsRef<str> + ?Sized,
-    {
-        if let Ok(mut file) = File::open(path.as_ref()) {
-            let mut content = String::new();
-            file.read_to_string(&mut content).unwrap();
-
-            let ast = syn::parse_file(content.as_str()).unwrap();
-
-            //eprintln!("{:#?}", ast);
-
-            // not need now
-            // for item in ast.items.iter() {}
-
-            return parse_main(ast.items.first().unwrap()).unwrap();
-        } else {
-            Config::default()
-        }
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            base: Base::default(),
-            keymap: Keymap::default(),
-        }
-    }
-}
-
-impl Default for Keymap<char> {
-    fn default() -> Self {
-        Keymap {
-            up: 'k',
-            down: 'j',
-            left: 'h',
-            right: 'l',
-            exit: 'q',
-        }
-    }
-}
-
-impl Default for Base {
-    fn default() -> Self {
-        Base {
-            size: Size::<usize> {
-                width: 400,
-                height: 400,
-            },
-            font: None,
-
-            rename_pad: 6,
-
-            format: format::PixelFormat::Rgb8,
-        }
-    }
 }

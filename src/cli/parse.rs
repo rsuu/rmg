@@ -2,10 +2,7 @@ use crate::{
     color::format,
     config::rsconf::Config,
     img::size::Size,
-    utils::{
-        err::Res,
-        types::{MyError, SelfResult},
-    },
+    utils::err::{MyErr, Res},
 };
 use dirs_next;
 use emeta::meta;
@@ -48,7 +45,7 @@ impl Args {
         }
     }
 
-    pub fn parse(&mut self) -> SelfResult<()> {
+    pub fn parse(&mut self) -> Res<()> {
         let mut parser = lexopt::Parser::from_env();
 
         while let Some(arg) = parser.next()? {
@@ -139,35 +136,33 @@ impl Args {
         };
     }
 
-    pub fn set_config_path(&mut self) {
-        if self.config_path.is_none() {
-            let mut config_path = PathBuf::new();
-
-            if let Some(path) = dirs_next::config_dir() {
-                config_path.push(path.as_path());
-
-                if config_path.as_path().is_dir() {
-                } else {
-                    std::fs::create_dir(config_path.as_path()).unwrap();
-                }
-
-                config_path.push("rmg/config.rs");
-
-                if config_path.as_path().is_file() {
-                } else {
-                    let mut f = File::create(config_path.as_path()).unwrap();
-
-                    f.write_all(include_bytes!("../config/default_config.rs"))
-                        .unwrap();
-                }
-
-                self.config_path = Some(config_path.to_str().unwrap().to_string());
-
-                log::debug!("config_path == {:?}", config_path.as_path());
-            } else {
-            }
+    pub fn set_config_path(&self) -> Option<Config> {
+        if let Some(config_file) = &self.config_path {
+            // e.g. rmg --config config.rs
+            return Some(Config::parse_from(config_file.as_str()));
         } else {
+            let mut config_file = PathBuf::new();
+
+            // e.g. ~/.config/rmg/config.rs
+            if let Some(path) = dirs_next::config_dir() {
+                if path.as_path().is_dir() {
+                    config_file.push(path.as_path());
+                    config_file.push("rmg/config.rs");
+
+                    if config_file.as_path().is_file() {
+                        return Some(Config::parse_from(config_file.as_path()));
+                    } else {
+                        // doing nothing
+                    }
+                } else {
+                    std::fs::create_dir(path.as_path()).unwrap();
+                }
+            } else {
+                // e.g. Config::default()
+            }
         }
+
+        None
     }
 }
 
@@ -189,14 +184,12 @@ OPTIONS:
     -h, --help       Prints help information
     -V, --version    Prints version information
 
-    -s, --size       Max width and height of buffer
+    -s, --size       Max width and height of the buffer
                      e.g. rmg --size 900,900
-    -c, --config     ...
+    -c, --config     Reset the config path
     -m, --meta       ...
 
-    --pad            ...
     --rename         ...
-    --format         ...
 "#
     );
     exit(127);

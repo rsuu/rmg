@@ -1,6 +1,6 @@
 [package]
 name = "rmg"
-version = "0.0.10"
+version = "0.0.13"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "[WIP] Manga Reader"
@@ -62,8 +62,8 @@ log = "0.4.17"
 simple_logger = { version = "2.3.0", features = ["colors", "threads"] }
 
 # error
-anyhow = "1.0.62"
-thiserror = "1.0.32"
+#anyhow = "1.0.62"
+#thiserror = "1.0.32"
 #memmap2 = "0.5.7"
 
 # font

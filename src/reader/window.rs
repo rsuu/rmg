@@ -1,11 +1,11 @@
 use minifb::{Key, Scale, ScaleMode, Window};
 
-pub struct Canvas2 {
+pub struct Canvas {
     pub window: Window,
     pub size: (usize, usize),
 }
 
-impl Canvas2 {
+impl Canvas {
     pub fn new(width: usize, height: usize) -> Self {
         let windowoptions = minifb::WindowOptions {
             borderless: false,

@@ -33,10 +33,9 @@ pub mod color {
 
 pub mod reader {
     pub mod buffer;
-    //pub mod canvas;
     pub mod display;
     pub mod keymap;
-    pub mod mini;
+    pub mod window;
 }
 
 pub mod cli {

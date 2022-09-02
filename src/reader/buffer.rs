@@ -1,11 +1,11 @@
 use crate::{
     archive,
-    color::{format::PixelFormat, rgb::TransRgb},
+    color::rgb::TransRgb,
     img::{
         resize::{self, resize_bytes},
         size::Size,
     },
-    reader::{keymap::Map, mini::Canvas2},
+    reader::{keymap::Map, window::Canvas},
     utils::types::ArchiveType,
 };
 use log;
@@ -58,11 +58,10 @@ pub struct Buffer {
     pub archive_path: PathBuf,
     pub archive_type: ArchiveType,
 
-    pub block: usize,
-    pub step: usize,
+    pub x_step: usize, // move_down AND move_up
+    pub y_step: usize, // move_left AND move_right
 
     pub mode: Map,
-    pub format: PixelFormat,
 
     pub window_size: Size<u32>,
     pub screen_size: Size<u32>,
@@ -73,6 +72,7 @@ pub struct Buffer {
 }
 
 impl Buffer {
+    ///
     pub fn init(&mut self) {
         if self.page_list.len() > 1 {
             self.range_start += 1;
@@ -103,12 +103,12 @@ impl Buffer {
     }
 
     /// goto next page
-    // HACK: async version
     pub fn move_down(
         &mut self,
         color_buffer_arc: &Arc<RwLock<Vec<u32>>>,
         state_arc: &Arc<RwLock<State>>,
     ) {
+        // HACK: async version
         log::debug!("start: {}", self.range_start);
 
         let cut_len = self.page_list[self.range_start].len;
@@ -132,7 +132,6 @@ impl Buffer {
             let screen_size = self.screen_size;
             let window_size = self.window_size;
 
-            // ready
             let join = tokio::spawn(async move {
                 let mut img_selffer = Vec::new();
 
@@ -155,9 +154,8 @@ impl Buffer {
                 log::debug!("DONE");
             });
 
-            // go
             // WARN: DO NOT use `join.await`
-            join;
+            drop(join);
         }
 
         // load next
@@ -188,9 +186,9 @@ impl Buffer {
         }
 
         // scrolling viewer
-        if self.bytes.len() >= self.end + self.block {
-            self.start += self.block;
-            self.end += self.block;
+        if self.bytes.len() >= self.end + self.y_step {
+            self.start += self.y_step;
+            self.end += self.y_step;
         } else if self.bytes.len() >= self.end {
             self.start += self.bytes.len() - self.end;
             self.end += self.bytes.len() - self.end;
@@ -229,7 +227,6 @@ impl Buffer {
             let screen_size = self.screen_size;
             let window_size = self.window_size;
 
-            // ready
             let join = tokio::spawn(async move {
                 let mut img_selffer = Vec::new();
 
@@ -252,13 +249,10 @@ impl Buffer {
                 log::debug!("DONE");
             });
 
-            // go
             // WARN: DO NOT use `join.await`
-            join;
+            drop(join);
 
             log::debug!("{}", self.range_start);
-
-            // free
         } else {
         }
 
@@ -278,7 +272,6 @@ impl Buffer {
             log::debug!("load prev");
 
             // HACK: try to free up the memory
-            // BUG:
             while self.bytes.len() >= self.end + cut_len
                 && self.bytes.len() > self.max_bytes * 2 + cut_len
                 && self.range_start < self.range_end
@@ -293,13 +286,13 @@ impl Buffer {
         } else {
         }
 
-        if self.start >= self.block {
-            self.start -= self.block;
-            self.end -= self.block;
-        } else if self.start >= 0 {
-            let s = self.start;
-            self.start -= s;
-            self.end -= s;
+        if self.start >= self.y_step {
+            self.start -= self.y_step;
+            self.end -= self.y_step;
+        // } else if self.start >= 0 {
+        //     let s = self.start;
+        //     self.start -= s;
+        //     self.end -= s;
         } else {
         }
 
@@ -309,10 +302,11 @@ impl Buffer {
     }
 
     pub fn move_left(&mut self) {
-        // NOTE: overflow
-        if self.bytes.len() > self.end + 100 {
-            self.start += 100;
-            self.end += 100;
+        // HACK: overflow
+        // ??? How it works
+        if self.bytes.len() > self.end + self.x_step {
+            self.start += self.x_step;
+            self.end += self.x_step;
 
             log::debug!("start: {}", self.start);
             log::debug!("end: {}", self.end);
@@ -323,14 +317,10 @@ impl Buffer {
     }
 
     pub fn move_right(&mut self) {
-        // MAYBE BUG:
-        if self.start >= 100 {
-            self.start -= 100;
-            self.end -= 100;
-        } else if self.start >= 0 {
-            let s = self.start;
-            self.start -= s;
-            self.end -= s;
+        // HACK: overflow
+        if self.start >= self.x_step {
+            self.start -= self.x_step;
+            self.end -= self.x_step;
         } else {
         }
 
@@ -338,7 +328,7 @@ impl Buffer {
     }
 
     #[inline(always)]
-    pub fn flush(&self, canvas: &mut Canvas2) {
+    pub fn flush(&self, canvas: &mut Canvas) {
         canvas.flush(&self.bytes[self.start..self.end]);
 
         //log::debug!("self.bytes.len() == {}", self.bytes.len());
@@ -358,10 +348,6 @@ impl Buffer {
 
     pub fn at_block_tail(&self) -> bool {
         self.end == self.bytes.len()
-    }
-
-    pub fn not_page_head(&self) -> bool {
-        self.range_start >= 0
     }
 
     pub fn not_page_tail(&self) -> bool {
