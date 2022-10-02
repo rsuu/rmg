@@ -28,9 +28,9 @@ pub enum State {
 
 #[derive(Debug, Clone)]
 pub struct PageInfo {
-    pub path: PathBuf, // ? maybe not need
+    pub path: PathBuf, // drop
     pub name: String,  // name of image
-    pub len: usize,    // ? maybe not need
+    pub len: usize,    // drop
     pub pos: usize,    // index of the image in the archive file
 }
 
@@ -113,7 +113,7 @@ impl Buffer {
 
         let cut_len = self.page_list[self.range_start].len;
 
-        // try to load next page
+        // load image
         if (self.at_block_tail() || self.need_pad_next())
             && self.range_end + 1 < self.page_end
             && (*state_arc.read().unwrap() == State::NextLoad
@@ -152,9 +152,8 @@ impl Buffer {
                 *state.write().unwrap() = State::NextDone;
 
                 log::debug!("DONE");
-            });
+            }); // NOTE: DO NOT use `join.await`
 
-            // WARN: DO NOT use `join.await`
             drop(join);
         }
 
@@ -209,7 +208,7 @@ impl Buffer {
     ) {
         let cut_len = self.page_list[self.range_end].len;
 
-        // try to load prev page
+        // load image
         if (self.at_block_head() || self.need_pad_prev())
             && self.range_start > 1
             && (*state_arc.read().unwrap() == State::PrevLoad
@@ -273,7 +272,7 @@ impl Buffer {
 
             // HACK: try to free up the memory
             while self.bytes.len() >= self.end + cut_len
-                && self.bytes.len() > self.max_bytes * 2 + cut_len
+                && self.bytes.len() >= self.max_bytes * 2 + cut_len
                 && self.range_start < self.range_end
                 && self.range_end > 1
             {
@@ -335,11 +334,11 @@ impl Buffer {
     }
 
     pub fn need_pad_next(&self) -> bool {
-        self.bytes.len() < self.max_bytes * 6
+        self.bytes.len() <= self.max_bytes * 6
     }
 
     pub fn need_pad_prev(&self) -> bool {
-        self.bytes.len() < self.max_bytes * 8
+        self.bytes.len() <= self.max_bytes * 8
     }
 
     pub fn at_block_head(&self) -> bool {
@@ -359,6 +358,7 @@ impl Buffer {
     }
 }
 
+#[inline]
 pub fn push_front<T>(vec: &mut Vec<T>, slice: &[T])
 where
     T: ?Copy + Clone,
@@ -376,6 +376,7 @@ where
     }
 }
 
+#[inline]
 pub fn free_head<T>(buffer: &mut Vec<T>, range: usize)
 where
     T: Sized + Clone,
@@ -383,6 +384,7 @@ where
     buffer.drain(..range);
 }
 
+#[inline]
 pub fn free_tail<T>(buffer: &mut Vec<T>, range: usize)
 where
     T: Sized,

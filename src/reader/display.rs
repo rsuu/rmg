@@ -57,8 +57,9 @@ pub async fn cat_img(
         range_end: 0,
     };
 
-    let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
     let keymaps = keymap::KeyMap::new();
+
+    let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
 
     for_minifb(&mut buf, &mut canvas, &keymaps).await;
 
@@ -68,13 +69,8 @@ pub async fn cat_img(
 }
 
 pub async fn for_minifb(buf: &mut Buffer, canvas: &mut Canvas, keymaps: &[keymap::KeyMap]) {
-    let color_buffer_arc: Arc<RwLock<Vec<u32>>> = Arc::new(RwLock::new(Vec::new()));
     let state_arc = Arc::new(RwLock::new(State::NextLoad));
-
-    // Limit to max ~60 fps update rate
-    canvas
-        .window
-        .limit_update_rate(Some(std::time::Duration::from_micros(16600)));
+    let color_buffer_arc: Arc<RwLock<Vec<u32>>> = Arc::new(RwLock::new(Vec::new()));
 
     buf.init();
 
@@ -116,14 +112,28 @@ pub async fn for_minifb(buf: &mut Buffer, canvas: &mut Canvas, keymaps: &[keymap
 
             _ => {
                 // input from mouse
-                if let Some((x, y)) = canvas.window.get_scroll_wheel() {
-                    if y > 0.0 {
-                        buf.move_down(&color_buffer_arc, &state_arc);
-                    } else if y < 0.0 {
-                        buf.move_up(&color_buffer_arc, &state_arc);
-                    } else {
+
+                if cfg!(windows) {
+                    // for windows only
+                    if let Some((x, y)) = canvas.window.get_scroll_wheel() {
+                        if y > 0.0 {
+                            buf.move_up(&color_buffer_arc, &state_arc);
+                        } else if y < 0.0 {
+                            buf.move_down(&color_buffer_arc, &state_arc);
+                        } else {
+                        }
+                        log::debug!("mouse_y == {}", y);
                     }
-                    log::debug!("mouse_y == {}", y);
+                } else {
+                    if let Some((x, y)) = canvas.window.get_scroll_wheel() {
+                        if y > 0.0 {
+                            buf.move_down(&color_buffer_arc, &state_arc);
+                        } else if y < 0.0 {
+                            buf.move_up(&color_buffer_arc, &state_arc);
+                        } else {
+                        }
+                        log::debug!("mouse_y == {}", y);
+                    }
                 }
             }
         }

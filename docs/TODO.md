@@ -1,8 +1,10 @@
 + [] v1.0.0
-    + [] remove .unwrap()
-    + [] more tests
+    + [] code: remove .unwrap()
+    + [] test: more tests
 + [] v0.0.13
-    + [] display metadata
+    + [] cli: metadata
+    + [x] gui: window size
+    + [x] bug fix
 + [x] v0.0.12
     + [x] bug fix
     + [x] auto change config path

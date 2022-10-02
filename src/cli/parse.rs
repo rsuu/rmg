@@ -173,8 +173,10 @@ impl Default for Args {
 }
 
 fn print_help() -> ! {
-    eprintln!(
-        r#"rmg: 0.0.11
+    use crate::VERSION;
+
+    println!(
+        r#"rmg: {version}
 Manga Reader
 
 USAGE:
@@ -190,7 +192,8 @@ OPTIONS:
     -m, --meta       ...
 
     --rename         ...
-"#
+"#,
+        version = VERSION
     );
     exit(127);
 }

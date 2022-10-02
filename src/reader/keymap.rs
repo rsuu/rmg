@@ -29,11 +29,11 @@ pub enum Map {
 impl KeyMap {
     pub fn new() -> Vec<Self> {
         vec![
-            KeyMap::add('f', Map::FullScreen),
-            KeyMap::add('h', Map::Left),
-            KeyMap::add('j', Map::Down),
             KeyMap::add('k', Map::Up),
+            KeyMap::add('j', Map::Down),
+            KeyMap::add('h', Map::Left),
             KeyMap::add('l', Map::Right),
+            KeyMap::add('f', Map::FullScreen),
             KeyMap::add('p', Map::DisplayMeta),
             KeyMap::add('q', Map::Exit),
             KeyMap::add('r', Map::Reset),

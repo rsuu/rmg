@@ -13,36 +13,29 @@ Mnaga Reader
   + zip
 
 ```bash
+# cargo
 cargo install rmg
 
-# OR
-
+# git
 git clone --depth 1 https://github.com/rsuu/rmg
 cd rmg
 cargo build --release
 
-# OR
+# github
 Downlaod here: https://github.com/rsuu/rmg/releases/
 ```
-
 
 ## Usage
 
 ```bash
+# with cargo
 cargo run -- --config ./tests/files/config.rs --size 600,600 ./tests/files/1.tar
 
 # OR
-
-rmg --config ./tests/files/config.rs --size 600,600 ./tests/files/1.tar
-
-# OR
-
-rmg --config ./tests/files/config.rs ./tests/files/1.tar
+rmg --size 600,600 ./tests/files/1.tar
 
 # OR
-
 rmg ./tests/files/1.tar
-
 
 ```
 
@@ -83,7 +76,7 @@ fn main() {
   + Windows: `C:\Users\Alice\AppData\<USER>\rmg\config.rs`
   + Mac: `$HOME/Library/Application Support/rmg/config.rs`
 
-note: You should create the file by yourself.
+note: You have to create the file by yourself.
 
 ## Demo
 
