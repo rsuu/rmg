@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{path::Path};
 
 /// ```text
 /// if pad == 6

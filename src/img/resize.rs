@@ -1,10 +1,10 @@
 use crate::{
-    color::format::PixelFormat,
     img::size::{MetaSize, Size, TMetaSize},
     utils::err::Res,
 };
+use cfg_if::cfg_if;
 use fast_image_resize as fir;
-use image;
+use image::{self, EncodableLayout};
 use log;
 use std::num::NonZeroU32;
 
@@ -14,36 +14,53 @@ pub fn resize_bytes(
     screen_size: Size<u32>,
     window_size: Size<u32>,
 ) {
-    match image::load_from_memory(&bytes) {
+    let mut meta = MetaSize::<u32>::new(
+        screen_size.width,
+        screen_size.height,
+        window_size.width,
+        window_size.height,
+        0,
+        0,
+    );
+
+    match image::load_from_memory(bytes) {
         Ok(ref img) => {
-            let mut meta = MetaSize::<u32>::new(
-                screen_size.width,
-                screen_size.height,
-                window_size.width,
-                window_size.height,
-                img.width(),
-                img.height(),
-            );
+            meta.image.width = img.width();
+            meta.image.height = img.height();
 
             meta.resize();
 
-            resize_rgb8(buffer, img, &meta).unwrap();
+            resize_rgb8(buffer, img.to_rgb8().into_raw(), &meta).unwrap();
         }
+
         Err(_) => {
-            log::error!("Can not resize image");
+            cfg_if! {
+                // decode heic
+                if #[cfg(feature="de_heic")] {
+                    use crate::img::heic;
+
+                    if let Some(res) = heic::load_heic(bytes) {
+                        meta.image.width = res.0;
+                        meta.image.height = res.1;
+
+                        meta.resize();
+
+                        log::debug!("{:?}",(res.0,res.1));
+                        log::debug!("{:?}",&meta);
+                        resize_rgb8(buffer, res.2, &meta).unwrap();
+                    }else{
+                    }
+                } else {}
+            }
         }
     }
 }
 
-pub fn resize_rgb8(
-    buffer: &mut Vec<u8>,
-    img: &image::DynamicImage,
-    meta: &MetaSize<u32>,
-) -> Res<()> {
+pub fn resize_rgb8(buffer: &mut Vec<u8>, bytes: Vec<u8>, meta: &MetaSize<u32>) -> Res<()> {
     let src_image = fir::Image::from_vec_u8(
         NonZeroU32::new(meta.image.width).ok_or(())?,
         NonZeroU32::new(meta.image.height).ok_or(())?,
-        img.to_rgb8().into_raw(),
+        bytes,
         fir::PixelType::U8x3,
     )?;
     let dst_width = NonZeroU32::new(meta.fix.width).ok_or(())?;

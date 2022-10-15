@@ -1,4 +1,4 @@
-use minifb::{Key, Scale, ScaleMode, Window};
+use minifb::{Scale, ScaleMode, Window};
 
 pub struct Canvas {
     pub window: Window,

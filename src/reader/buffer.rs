@@ -2,7 +2,7 @@ use crate::{
     archive,
     color::rgb::TransRgb,
     img::{
-        resize::{self, resize_bytes},
+        resize::{self},
         size::Size,
     },
     reader::{keymap::Map, window::Canvas},
@@ -454,7 +454,7 @@ pub fn resize_img(
 }
 
 mod test {
-    use super::*;
+    
 
     #[test]
     fn _push_front() {

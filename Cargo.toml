@@ -1,6 +1,6 @@
 [package]
 name = "rmg"
-version = "0.0.13"
+version = "0.0.14"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "[WIP] Manga Reader"
@@ -33,18 +33,18 @@ dirs-next = "2.0.0"
 # archive
 tar = "0.4.38"
 #zstd = "0.11.2"
-zip = { version = "0.6.2", default-features = false, features = ["aes-crypto","bzip2","deflate", ] }
+zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","bzip2","deflate", ] }
 
 # filetype
 infer = "0.9.0"
 
 # color
-rgb = "0.8.33"
+rgb = "0.8.34"
 
 # image
 #sdl2 = { version = "0.35.2", features = ["image", "ttf"] }
 minifb = { version = "0.23.0", features = ["x11", "wayland"] }
-image = "0.24.3"
+image = "0.24.4"
 fast_image_resize = "1.0.0"
 
 # args
@@ -55,7 +55,7 @@ emeta = "0.1.1"
 #emeta = {version="*",path="../emeta"}
 
 # config
-syn = { version = "1.0.99", features = ["full", "extra-traits"] }
+syn = { version = "1.0.102", features = ["full", "extra-traits"] }
 
 # debug
 log = "0.4.17"
@@ -70,15 +70,17 @@ simple_logger = { version = "2.3.0", features = ["colors", "threads"] }
 fontdue = "0.7.2"
 
 # async
-tokio = { version = "1.21.0", features = ["full"] }
+tokio = { version = "1.21.2", features = ["full"] }
 
 # other
 #rayon = "1.5.3"
 cfg-if = "1.0.0"
 
+libheif-rs = { version = "0.15.0", optional = true }
+
 [dev-dependencies]
 # benchmark
-criterion = "0.3.6"
+criterion = "0.4.0"
 
 [[bench]]
 name = "bench_main"
@@ -88,3 +90,4 @@ harness = false
 default = ["ex_zip", "ex_tar"]
 ex_zip = []
 ex_tar = []
+de_heic = ["dep:libheif-rs"]

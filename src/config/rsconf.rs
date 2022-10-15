@@ -1,6 +1,27 @@
 // TODO
 // remove .unwrap()
 
+/* default
+
+fn main() {
+    Base {
+        size: (900, 900),
+        font: None,
+        rename_pad: 0,
+        invert_mouse: false,
+    };
+
+    Keymap {
+        up: 'k',
+        down: 'j',
+        left: 'h',
+        right: 'l',
+        exit: 'q',
+    };
+}
+
+*/
+
 use crate::img::size::Size;
 use std::{fs::File, io::Read, path::Path};
 
@@ -14,7 +35,8 @@ pub struct Config {
 pub struct Base {
     pub size: Size<usize>,    // window size
     pub font: Option<String>, // font file
-    pub rename_pad: usize,    // pad (default: 6)
+    pub rename_pad: usize,    // pad (default: 0)
+    pub invert_mouse: bool,   // (default: false)
 }
 
 #[derive(Debug)]
@@ -29,14 +51,8 @@ pub struct Keymap<_Char> {
 
 #[derive(Debug)]
 pub enum ConfigType {
-    Base, // e.g.
-    // struct Base {
-    // ..
-    // }
-    Keymap, // e.g.
-            // struct Keymap {
-            // ..
-            // }
+    Base,
+    Keymap,
 }
 
 impl Config {
@@ -91,7 +107,8 @@ impl Default for Base {
                 height: 900,
             },
             font: None,
-            rename_pad: 6,
+            rename_pad: 0,
+            invert_mouse: false,
         }
     }
 }
@@ -144,7 +161,10 @@ pub fn parse_struct(block: &Box<syn::Block>) -> Option<Config> {
     Some(config)
 }
 
-// e.g. struct NAME {}
+// e.g.
+// struct NAME {
+//   ...
+// }
 pub fn match_struct_name(expr_struct: &syn::ExprStruct) -> ConfigType {
     let name = expr_struct.path.segments.first().unwrap().ident.to_string();
 
@@ -172,13 +192,28 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
                     // eprintln!("{:#?}", _fields);
 
                     if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
-                        if let syn::Lit::Int(_lit_int) = &_expr_lit.lit {
-                            base.rename_pad = _lit_int
+                        if let syn::Lit::Int(_lit) = &_expr_lit.lit {
+                            base.rename_pad = _lit
                                 .token()
                                 .to_string()
                                 .as_str()
                                 .parse::<usize>()
-                                .unwrap_or_default(); // default is 6
+                                .unwrap_or_default(); // default is false
+                        }
+                    }
+                }
+
+                "invert_mouse" => {
+                    // eprintln!("{:#?}", _fields);
+
+                    if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
+                        if let syn::Lit::Bool(_lit) = &_expr_lit.lit {
+                            base.invert_mouse = _lit
+                                .token()
+                                .to_string()
+                                .as_str()
+                                .parse::<bool>()
+                                .unwrap_or_default(); // default is false
                         }
                     }
                 }

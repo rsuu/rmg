@@ -1,7 +1,6 @@
 use infer;
 use std::{
-    fs,
-    path::{Path, PathBuf},
+    path::{Path},
 };
 
 pub fn get_filetype<T>(path: &T) -> String

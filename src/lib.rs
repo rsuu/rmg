@@ -1,3 +1,5 @@
+use cfg_if;
+
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod utils {
@@ -25,6 +27,9 @@ pub mod img {
     pub mod covert;
     pub mod resize;
     pub mod size;
+
+    #[cfg(feature = "de_heic")]
+    pub mod heic;
 }
 
 pub mod color {

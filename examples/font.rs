@@ -1,9 +1,10 @@
+use std::fs::File;
+use std::io::Write;
+
 fn main() {
     save_to_img();
 }
 
-use std::fs::File;
-use std::io::Write;
 fn save_to_img() {
     let font = include_bytes!("../tests/files/test.ttf") as &[u8];
     let font = fontdue::Font::from_bytes(font, fontdue::FontSettings::default()).unwrap();

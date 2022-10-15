@@ -1,13 +1,8 @@
-use crate::{
-    color::format,
-    config::rsconf::Config,
-    img::size::Size,
-    utils::err::{MyErr, Res},
-};
+use crate::{color::format, config::rsconf::Config, img::size::Size, utils::err::Res};
 use dirs_next;
 use emeta::meta;
 use lexopt::{self, prelude::*};
-use std::{fs::File, io::Write, path::PathBuf, process::exit};
+use std::{path::PathBuf, process::exit};
 
 #[derive(Debug)]
 pub struct Args {
@@ -37,7 +32,7 @@ impl Args {
             size: None,
 
             rename: true,
-            rename_pad: 6,
+            rename_pad: 0,
 
             format: None,
 
@@ -136,33 +131,38 @@ impl Args {
         };
     }
 
-    pub fn set_config_path(&self) -> Option<Config> {
+    pub fn init_config(&self) -> Config {
+        // parse from input
+        let mut res = Config::default();
+
         if let Some(config_file) = &self.config_path {
             // e.g. rmg --config config.rs
-            return Some(Config::parse_from(config_file.as_str()));
+            res = Config::parse_from(config_file.as_str());
         } else {
-            let mut config_file = PathBuf::new();
+            // parse from file
+            let mut config_path = PathBuf::new();
 
             // e.g. ~/.config/rmg/config.rs
             if let Some(path) = dirs_next::config_dir() {
                 if path.as_path().is_dir() {
-                    config_file.push(path.as_path());
-                    config_file.push("rmg/config.rs");
+                    config_path.push(path.as_path());
+                    config_path.push("rmg/config.rs");
 
-                    if config_file.as_path().is_file() {
-                        return Some(Config::parse_from(config_file.as_path()));
+                    if config_path.as_path().is_file() {
+                        res = Config::parse_from(config_path.as_path());
                     } else {
                         // doing nothing
                     }
                 } else {
-                    std::fs::create_dir(path.as_path()).unwrap();
+
+                    // doing nothing
                 }
             } else {
-                // e.g. Config::default()
+                // default
             }
-        }
+        };
 
-        None
+        res
     }
 }
 
