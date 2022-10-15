@@ -25,6 +25,12 @@ cargo build --release
 Downlaod here: https://github.com/rsuu/rmg/releases/
 ```
 
+## Build
+
+```bash
+cargo build --release -F "de_heic"
+```
+
 ## Usage
 
 ```bash

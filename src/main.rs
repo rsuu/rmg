@@ -20,31 +20,14 @@ use std::path::{Path, PathBuf};
 async fn main() {
     init();
 
-    // parse config from file
-    // OR
-    // use default config
     let mut args = cli::parse::Args::new();
-
     args.parse().unwrap_or_else(|_| panic!());
-    args.set_config_path();
 
-    let mut config: Config = Config::default();
-
-    match args.set_config_path() {
-        Some(c) => config = c,
-        None => {}
-    }
-
+    let mut config: Config = args.init_config();
     args.set_size(&mut config);
 
     log::debug!("Args: {:#?}", args);
     log::debug!("Config: {:#?}", config);
-
-    if let Some(size) = args.size {
-        config.base.size = size;
-    } else {
-        // default
-    };
 
     let meta_size = MetaSize::new(
         0,
@@ -54,18 +37,15 @@ async fn main() {
         0,
         0,
     );
+
     log::debug!("meta_size: {:#?}", &meta_size);
 
     if let Some(path) = args.file_path {
         println!("Open: {}", path.as_str());
 
         let file_list = get_file_list(path.as_str()).unwrap();
-        let mut page_list = if args.rename_pad == 0 {
-            get_page_list(&file_list, 0)
-        } else {
-            get_page_list(&file_list, args.rename_pad)
-        };
         let archive_type = get_archive_type(path.as_str()).unwrap();
+        let mut page_list = get_page_list(&file_list, args.rename_pad);
 
         push_front(
             &mut page_list,
@@ -77,7 +57,7 @@ async fn main() {
             }],
         );
 
-        log::debug!("page_list: {:?}", page_list);
+        log::debug!("page_list: {:#?}", page_list);
 
         match display::cat_img(
             &config,
@@ -137,11 +117,14 @@ where
 pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<PageInfo> {
     let mut page_list = Vec::new();
 
-    // Only allow [.jpg || .jpeg || .png]
+    // Only allow [.jpg || .jpeg || .png || .avif]
     for (path, idx) in file_list.iter() {
         if !path.ends_with('/') && path.ends_with(".jpg")
             || path.ends_with(".png")
             || path.ends_with(".jpeg")
+            || path.ends_with(".avif")
+            || path.ends_with(".heic")
+            || path.ends_with(".heif")
         {
             let info = if rename_pad == 0 {
                 PageInfo::new(PathBuf::from(path.as_str()), path.clone(), 0, *idx)

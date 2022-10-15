@@ -1,10 +1,6 @@
 use crate::{
-    color::format::PixelFormat,
     config::rsconf::Config,
-    img::{
-        resize,
-        size::{MetaSize, Size},
-    },
+    img::size::MetaSize,
     reader::{
         buffer::{Buffer, PageInfo, State},
         keymap::{self, Map},
@@ -13,26 +9,24 @@ use crate::{
     utils::{err::Res, types::ArchiveType},
 };
 use emeta::meta;
-use log::log_enabled;
+
 use std::{
-    fmt::format,
     path::PathBuf,
     sync::{Arc, RwLock},
 };
-use tokio::sync::Notify;
 
 /// display images
 pub async fn cat_img(
     config: &Config,
     page_list: Vec<PageInfo>,
     meta_size: MetaSize<u32>,
-    metadata: &Option<meta::MetaData>,
+    _metadata: &Option<meta::MetaData>,
     path: &str,
     archive_type: ArchiveType,
 ) -> Res<()> {
     let screen_size = meta_size.screen;
     let window_size = meta_size.window;
-    let max_bytes = (window_size.width as usize * window_size.height as usize);
+    let max_bytes = window_size.width as usize * window_size.height as usize;
 
     let mut buf = Buffer {
         bytes: vec![], // buffer
@@ -61,14 +55,19 @@ pub async fn cat_img(
 
     let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
 
-    for_minifb(&mut buf, &mut canvas, &keymaps).await;
+    for_minifb(config, &mut buf, &mut canvas, &keymaps).await;
 
     println!("CLOSE");
 
     Ok(())
 }
 
-pub async fn for_minifb(buf: &mut Buffer, canvas: &mut Canvas, keymaps: &[keymap::KeyMap]) {
+pub async fn for_minifb(
+    config: &Config,
+    buf: &mut Buffer,
+    canvas: &mut Canvas,
+    keymaps: &[keymap::KeyMap],
+) {
     let state_arc = Arc::new(RwLock::new(State::NextLoad));
     let color_buffer_arc: Arc<RwLock<Vec<u32>>> = Arc::new(RwLock::new(Vec::new()));
 
@@ -112,26 +111,26 @@ pub async fn for_minifb(buf: &mut Buffer, canvas: &mut Canvas, keymaps: &[keymap
 
             _ => {
                 // input from mouse
-
-                if cfg!(windows) {
-                    // for windows only
-                    if let Some((x, y)) = canvas.window.get_scroll_wheel() {
+                if config.base.invert_mouse {
+                    if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
                         if y > 0.0 {
                             buf.move_up(&color_buffer_arc, &state_arc);
                         } else if y < 0.0 {
                             buf.move_down(&color_buffer_arc, &state_arc);
                         } else {
                         }
+
                         log::debug!("mouse_y == {}", y);
                     }
                 } else {
-                    if let Some((x, y)) = canvas.window.get_scroll_wheel() {
+                    if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
                         if y > 0.0 {
                             buf.move_down(&color_buffer_arc, &state_arc);
                         } else if y < 0.0 {
                             buf.move_up(&color_buffer_arc, &state_arc);
                         } else {
                         }
+
                         log::debug!("mouse_y == {}", y);
                     }
                 }

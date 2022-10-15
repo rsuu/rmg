@@ -1,5 +1,5 @@
 use crate::utils::err::{MyErr, Res};
-use log;
+
 use std::{fs::OpenOptions, io::Read, path::Path};
 use walkdir;
 

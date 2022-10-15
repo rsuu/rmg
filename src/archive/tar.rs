@@ -1,5 +1,5 @@
-use log::debug;
-use std::io::{prelude, Read, Seek};
+
+use std::io::{Read};
 use std::{
     fs::{File, OpenOptions},
     path::Path,
