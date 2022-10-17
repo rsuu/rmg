@@ -1,0 +1,61 @@
+name: build
+
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-build:
+    name: build-build
+    strategy:
+      matrix:
+        build: [linux, linux-arm, macos, win-msvc, win-gnu, win32-msvc]
+        include:
+        - build: linux
+          os: ubuntu-22.04
+          rust: nightly
+          target: x86_64-unknown-linux-musl
+        - build: linux-arm
+          os: ubuntu-22.04
+          rust: nightly
+          target: arm-unknown-linux-gnueabihf
+        - build: macos
+          os: macos-12
+          rust: nightly
+          target: x86_64-apple-darwin
+        - build: win-msvc
+          os: windows-2022
+          rust: nightly
+          target: x86_64-pc-windows-msvc
+        - build: win-gnu
+          os: windows-2022
+          rust: nightly-x86_64-gnu
+          target: x86_64-pc-windows-gnu
+        - build: win32-msvc
+          os: windows-2022
+          rust: nightly
+          target: i686-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}-test
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+      - name: Add mingw64 to path for x86_64-gnu
+        run: echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
+        if: matrix.rust == 'nightly'
+        shell: bash
+      - name: Build and Test
+        shell: bash
+        run: |
+          export RUSTFLAGS="-Awarnings"
+          cargo test
+          cargo build

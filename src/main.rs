@@ -1,30 +1,21 @@
-use cfg_if::cfg_if;
-use emeta::meta;
 use log;
 use rmg::{
-    archive, cli,
+    archive::{self, ArchiveType},
     config::rsconf::Config,
-    files::{self, list},
     img::size::{MetaSize, TMetaSize},
-    reader::{
-        self,
-        buffer::{push_front, PageInfo},
-        display,
-    },
-    utils::{err::MyErr, types::ArchiveType},
+    reader::{display, view::Page},
+    utils::{cli, err::MyErr, file},
 };
 use simple_logger;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-#[tokio::main]
-async fn main() {
-    init();
+fn main() {
+    init_log();
 
-    let mut args = cli::parse::Args::new();
-    args.parse().unwrap_or_else(|_| panic!());
-
+    let mut args = cli::Args::new();
     let mut config: Config = args.init_config();
-    args.set_size(&mut config);
+
+    args.parse(&mut config).unwrap_or_else(|_| panic!());
 
     log::debug!("Args: {:#?}", args);
     log::debug!("Config: {:#?}", config);
@@ -40,35 +31,16 @@ async fn main() {
 
     log::debug!("meta_size: {:#?}", &meta_size);
 
-    if let Some(path) = args.file_path {
+    if let Some(path) = &config.cli.file_path {
         println!("Open: {}", path.as_str());
 
         let file_list = get_file_list(path.as_str()).unwrap();
         let archive_type = get_archive_type(path.as_str()).unwrap();
-        let mut page_list = get_page_list(&file_list, args.rename_pad);
-
-        push_front(
-            &mut page_list,
-            &[PageInfo {
-                path: PathBuf::new(),
-                name: "".to_string(),
-                len: 0,
-                pos: 0,
-            }],
-        );
+        let page_list = get_page_list(&file_list, config.base.rename_pad as usize);
 
         log::debug!("page_list: {:#?}", page_list);
 
-        match display::cat_img(
-            &config,
-            page_list,
-            meta_size,
-            &None,
-            path.as_str(),
-            archive_type,
-        )
-        .await
-        {
+        match display::cat_img(&config, page_list, meta_size, path.as_str(), archive_type) {
             Ok(_) => {
                 std::process::exit(0);
             }
@@ -82,7 +54,7 @@ async fn main() {
     }
 }
 
-pub fn init() {
+pub fn init_log() {
     simple_logger::SimpleLogger::new()
         .with_level(log::LevelFilter::Off)
         .with_colors(true)
@@ -99,7 +71,7 @@ where
     let res: ArchiveType = if path.as_ref().is_dir() {
         ArchiveType::Dir
     } else {
-        let inline_res: ArchiveType = match list::get_filetype(path.as_ref()).as_str() {
+        let inline_res: ArchiveType = match file::get_filetype(path.as_ref()).as_str() {
             "tar" => ArchiveType::Tar,
             "zip" => ArchiveType::Zip,
 
@@ -114,35 +86,27 @@ where
     Ok(res)
 }
 
-pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<PageInfo> {
+pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Page> {
     let mut page_list = Vec::new();
+    let mut number = 0;
 
     // Only allow [.jpg || .jpeg || .png || .avif]
-    for (path, idx) in file_list.iter() {
-        if !path.ends_with('/') && path.ends_with(".jpg")
-            || path.ends_with(".png")
-            || path.ends_with(".jpeg")
-            || path.ends_with(".avif")
-            || path.ends_with(".heic")
-            || path.ends_with(".heif")
-        {
+    for (path, pos) in file_list.iter() {
+        if rmg::has_supported(path.as_str()) {
             let info = if rename_pad == 0 {
-                PageInfo::new(PathBuf::from(path.as_str()), path.clone(), 0, *idx)
+                Page::new(path.clone(), number, *pos)
             } else {
-                PageInfo::new(
-                    PathBuf::from(path.as_str()),
-                    files::file::pad_name(rename_pad, path.as_str()),
-                    0,
-                    *idx,
-                )
+                Page::new(file::pad_name(rename_pad, path.as_str()), number, *pos)
             };
 
             page_list.push(info);
+            number += 1;
         } else {
         }
     }
 
     page_list.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
+
     log::debug!("sort: page_list: {:#?}", page_list.as_slice());
 
     page_list
@@ -156,31 +120,20 @@ where
         let file_list = archive::dir::get_file_list(from.as_ref()).unwrap();
         return Ok(file_list);
     } else {
-        match list::get_filetype(from.as_ref()).as_str() {
+        match file::get_filetype(from.as_ref()).as_str() {
             "tar" => {
-                cfg_if! {
-                    if #[cfg(feature="ex_tar")] {
-                        let file_list = archive::tar::get_file_list(from.as_ref()).unwrap();
-                        return Ok(file_list);
-
-                    } else {
-                        eprintln!("Not Support FileType: tar");
-                        return Err(());
-
-                    }
+                if let Ok(file_list) = archive::tar::get_file_list(from.as_ref()) {
+                    return Ok(file_list);
+                } else {
+                    return Err(());
                 }
             }
 
             "zip" => {
-                cfg_if! {
-                    if #[cfg(feature="ex_zip")] {
-                        let file_list = archive::zip::get_file_list(from.as_ref()).unwrap();
-                        return Ok(file_list);
-
-                    }else {
-                        eprintln!("Not Support FileType: zip");
-                        return Err(());
-                    }
+                if let Ok(file_list) = archive::zip::get_file_list(from.as_ref()) {
+                    return Ok(file_list);
+                } else {
+                    return Err(());
                 }
             }
 
@@ -190,84 +143,3 @@ where
         };
     };
 }
-
-/*
-pub fn load_meta<_Path>(from: &_Path, to: &_Path) -> Result<Vec<PathBuf>, std::io::Error>
-where
-    _Path: AsRef<Path> + ?Sized,
-{
-    if from.as_ref().is_dir() {
-        files::dir::rec_copy_dir(from, to)?;
-    } else {
-        match list::get_filetype(from.as_ref()).as_str() {
-            "tar" => {
-                cfg_if! {
-                    if #[cfg(feature="ex_tar")] {
-                        //archive::tar::extract(from.as_ref(), to.as_ref())?;
-                    } else {
-                        eprintln!("Not Support FileType: tar");
-                    }
-                }
-            }
-
-            "zip" => {
-                cfg_if! {
-                    if #[cfg(feature="ex_zip")] {
-                        println!("Open zip");
-                        zip::extract(from.as_ref(), to.as_ref())?;
-                    }else {
-                        eprintln!("Not Support FileType: zip");
-                    }
-                }
-            }
-
-            "zst" => {
-                cfg_if! {
-                    if #[cfg(feature="ex_zstd")] {
-                        let _to = format!("{}/zstd.tar", to.as_ref().display());
-                        zstd::extract(from.as_ref(), _to.as_ref()).unwrap();
-
-                        let _from = _to;
-                       archive::tar::extract(_from.as_ref(), to.as_ref())?;
-
-                        fs::remove_file(_from)?;
-                    }else {
-                        eprintln!("Not Support FileType: zstd");
-                    }
-                }
-            }
-
-            _ => panic!(),
-        };
-    }
-    Ok(list::get_file_list(to.as_ref()))
-}
-
-
-           // Copy files to temp_dir
-           if let Ok(_) = open::<Path>(Path::new(path.as_str())) {
-               // Check if has ".rmg" file
-               let mut rmg_file: Option<String> = None;
-               let mut metadata: Option<meta::MetaData> = None;
-
-               for f in walkdir::WalkDir::new(tmp_dir.as_path()).into_iter() {
-                   if f.as_ref().expect("").path().ends_with(".rmg") {
-                       rmg_file = Some(f.as_ref().expect("").path().display().to_string());
-                       break;
-                   } else {
-                   }
-               }
-
-               if let Some(rmg_path) = rmg_file {
-                   metadata = Some(meta::MetaData::from_file(rmg_path.as_str()).unwrap());
-
-                   // e.g. rmg xxx.tar --meta d
-                   if args.meta_display {
-                       metadata.as_ref().unwrap().display();
-                       std::process::exit(0); // EXIT
-                   } else {
-                   }
-               } else {
-               }
-
-*/

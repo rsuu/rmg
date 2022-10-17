@@ -1,6 +1,12 @@
 # rmg
 
-Mnaga Reader
+> Rust: Tiny Manga Reader
+
+## Demo
+
+![](./assets/2022-07-12.png)
+
+https://github.com/rsuu/rmg/blob/main/assets/2022-06-29.mp4
 
 ## Install
 
@@ -11,8 +17,12 @@ Mnaga Reader
 + Optional Dependency
   + tar
   + zip
+  + libheif
 
 ```bash
+# github
+Check here: https://github.com/rsuu/rmg/releases/
+
 # cargo
 cargo install rmg
 
@@ -20,72 +30,73 @@ cargo install rmg
 git clone --depth 1 https://github.com/rsuu/rmg
 cd rmg
 cargo build --release
-
-# github
-Downlaod here: https://github.com/rsuu/rmg/releases/
-```
-
-## Build
-
-```bash
-cargo build --release -F "de_heic"
 ```
 
 ## Usage
 
 ```bash
-# with cargo
-cargo run -- --config ./tests/files/config.rs --size 600,600 ./tests/files/1.tar
+rmg ./tests/files/img.tar
 
 # OR
-rmg --size 600,600 ./tests/files/1.tar
+rmg --size 600,600 ./tests/files/img.tar
 
 # OR
-rmg ./tests/files/1.tar
-
+rmg --size 600,600 --config ./tests/files/config.rs ./tests/files/img.tar
 ```
 
 ### KeyMap
 
 |#|#|
 |:-|:-|
-j | down
-k | up
-r | ? reset
-f | ? fullscreen
-q | exit
+k/Up | up
+j/Down | down
+h/Left | left
+r/Right | right
+q | quit
 
 ### Configuration
 
-> default configuration
+> config file: https://raw.githubusercontent.com/rsuu/rmg/main/tests/files/config.rs
 
-```text
-fn main() {
-    Base {
-        size: (900, 900),
-        font: None,
-        rename_pad: 6,
-    };
-
-    Keymap {
-        up: 'k',
-        down: 'j',
-        left: 'h',
-        right: 'l',
-        exit: 'q',
-    };
-}
-```
+WARN: You have to create the file by yourself.
 
 + configuration file path
   + Linux: `$HOME/.config/rmg/config.rs`
-  + Windows: `C:\Users\Alice\AppData\<USER>\rmg\config.rs`
   + Mac: `$HOME/Library/Application Support/rmg/config.rs`
+  + Windows: `C:\Users\<USER>\AppData\<USER>\rmg\config.rs`
 
-note: You have to create the file by yourself.
+## Supported formats
 
-## Demo
+| Format | Supported | Default
+|:-|:-|:-|
+.jpg |✅ | ✅
+.png|✅| ✅
+.heic / .avif|🔬|❌
+.gif|🚧|✅
+.aseprite|🔬|❌
 
-![](./assets/2022-07-12.png)
+## Features
 
-https://github.com/rsuu/rmg/blob/main/assets/2022-06-29.mp4
+```bash
+# Add support for heic
+cargo run --release -F "de_heic"
+
+
+# for heic AND aseprite
+cargo run --release -F "de_heic" -F "de_ase"
+
+# [CpuExtensions](https://docs.rs/fast_image_resize/latest/fast_image_resize/index.html#resize-rgb8-image-u8x3-4928x3279--852x567)
+cargo run --release -F "avx2"
+    # for avx2
+cargo run --release -F "sse4_1"
+    # for sse4_1
+```
+
+## License
+
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
+[MIT license](LICENSE-MIT) at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall
+be dual licensed as above, without any additional terms or conditions.

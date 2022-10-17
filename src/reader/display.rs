@@ -1,92 +1,138 @@
 use crate::{
+    archive::ArchiveType,
     config::rsconf::Config,
     img::size::MetaSize,
     reader::{
-        buffer::{Buffer, PageInfo, State},
         keymap::{self, Map},
+        scroll::{Render, State},
+        view::{Buffer, Page, ViewMode},
         window::Canvas,
     },
-    utils::{err::Res, types::ArchiveType},
+    utils::err::Res,
 };
-use emeta::meta;
-
+use log::{debug, info};
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
 };
 
 /// display images
-pub async fn cat_img(
+pub fn cat_img(
     config: &Config,
-    page_list: Vec<PageInfo>,
+    page_list: Vec<Page>,
     meta_size: MetaSize<u32>,
-    _metadata: &Option<meta::MetaData>,
+    //_metadata: &Option<meta::MetaData>,
     path: &str,
     archive_type: ArchiveType,
 ) -> Res<()> {
     let screen_size = meta_size.screen;
     let window_size = meta_size.window;
-    let max_bytes = window_size.width as usize * window_size.height as usize;
+    let buffer_max = window_size.width as usize * window_size.height as usize;
 
-    let mut buf = Buffer {
-        bytes: vec![], // buffer
-        max_bytes,
+    let step = config.base.step as usize;
+    let filter = config.base.filter;
+    let keymaps = keymap::KeyMap::new();
 
-        start: 0,
-        end: max_bytes,
+    let mut buf = Render {
+        buffer: Buffer::new(), // buffer
+        buffer_max,
+        mem_limit: buffer_max * 10,
+
+        head: 0,
+        tail: 0,
+        rng: 0,
+
+        len: 0,
 
         archive_path: PathBuf::from(path),
         archive_type,
 
-        mode: Map::Stop, // keymap
-        page_end: page_list.len(),
-        page_list,
-        screen_size,
-        y_step: max_bytes / 10,                  // drop 1/n part of image once
-        x_step: window_size.width as usize / 10, //
-        window_position: (0, 0),
-        window_size,
+        mode: Map::Stop,                           // keymap
+        page_end: page_list.len(),                 //
+        page_list,                                 //
+        screen_size,                               //
+        y_step: buffer_max / step,                 // drop 1/step part of image once
+        x_step: window_size.width as usize / step, //
+        window_position: (0, 0),                   //
+        window_size,                               //
 
-        range_start: 0,
-        range_end: 0,
+        page_load_list: Vec::new(),
+        filter, //
+        view_mode: config.base.view_mode,
+
+        page_number: 0,
     };
-
-    let keymaps = keymap::KeyMap::new();
-
     let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
 
-    for_minifb(config, &mut buf, &mut canvas, &keymaps).await;
+    buf.init(); // init
 
-    println!("CLOSE");
+    match buf.view_mode {
+        ViewMode::Scroll => {
+            for_minifb_scroll(config, &mut buf, &mut canvas, &keymaps);
+        }
+        ViewMode::Image => {
+            for_minifb_image(config, &mut buf, &mut canvas, &keymaps);
+        }
+
+        ViewMode::Manga | ViewMode::Comic => {
+            for_minifb_page(config, &mut buf, &mut canvas, &keymaps);
+        }
+    }
+
+    info!("*** EXIT ***");
 
     Ok(())
 }
 
-pub async fn for_minifb(
+pub fn for_minifb_page(
     config: &Config,
-    buf: &mut Buffer,
+    buf: &mut Render,
     canvas: &mut Canvas,
     keymaps: &[keymap::KeyMap],
 ) {
-    let state_arc = Arc::new(RwLock::new(State::NextLoad));
-    let color_buffer_arc: Arc<RwLock<Vec<u32>>> = Arc::new(RwLock::new(Vec::new()));
+}
 
-    buf.init();
+pub fn for_minifb_image(
+    config: &Config,
+    buf: &mut Render,
+    canvas: &mut Canvas,
+    keymaps: &[keymap::KeyMap],
+) {
+    'l1: while canvas.window.is_open() {
+        match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
+            Map::Exit => {
+                println!("EXIT");
+
+                // BUG: Miss Key::Escape
+                break 'l1;
+            }
+
+            _ => {}
+        }
+
+        canvas.flush(&buf.buffer.data[buf.rng..buf.rng + buf.buffer_max]);
+
+        std::thread::sleep(std::time::Duration::from_millis(40));
+    }
+}
+
+pub fn for_minifb_scroll(
+    config: &Config,
+    buf: &mut Render,
+    canvas: &mut Canvas,
+    keymaps: &[keymap::KeyMap],
+) {
+    let arc_state = Arc::new(RwLock::new(State::Nothing));
+    let arc_page: Arc<RwLock<Page>> = Arc::new(RwLock::new(Page::null()));
 
     'l1: while canvas.window.is_open() {
-        // input from keymap
         match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
             Map::Down => {
-                buf.move_down(&color_buffer_arc, &state_arc);
+                buf.move_down(&arc_page, &arc_state);
             }
 
             Map::Up => {
-                buf.move_up(&color_buffer_arc, &state_arc);
-                //buf.move_up();
-            }
-
-            Map::DisplayMeta => {
-                todo!()
+                buf.move_up(&arc_page, &arc_state);
             }
 
             Map::Reset => {
@@ -106,6 +152,9 @@ pub async fn for_minifb(
             }
 
             Map::Exit => {
+                println!("EXIT");
+
+                // BUG: Miss Key::Escape
                 break 'l1;
             }
 
@@ -114,30 +163,28 @@ pub async fn for_minifb(
                 if config.base.invert_mouse {
                     if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
                         if y > 0.0 {
-                            buf.move_up(&color_buffer_arc, &state_arc);
+                            buf.move_up(&arc_page, &arc_state);
                         } else if y < 0.0 {
-                            buf.move_down(&color_buffer_arc, &state_arc);
+                            buf.move_down(&arc_page, &arc_state);
                         } else {
                         }
 
-                        log::debug!("mouse_y == {}", y);
+                        debug!("mouse_y == {}", y);
                     }
-                } else {
-                    if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
-                        if y > 0.0 {
-                            buf.move_down(&color_buffer_arc, &state_arc);
-                        } else if y < 0.0 {
-                            buf.move_up(&color_buffer_arc, &state_arc);
-                        } else {
-                        }
+                } else if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
+                    if y > 0.0 {
+                        buf.move_down(&arc_page, &arc_state);
+                    } else if y < 0.0 {
+                        buf.move_up(&arc_page, &arc_state);
+                    } else {
+                    }
 
-                        log::debug!("mouse_y == {}", y);
-                    }
+                    debug!("mouse_y == {}", y);
                 }
             }
         }
 
-        buf.flush(canvas);
+        buf.flush(canvas, &arc_state);
 
         std::thread::sleep(std::time::Duration::from_millis(40));
     }

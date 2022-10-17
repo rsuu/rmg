@@ -1,9 +1,9 @@
 [package]
 name = "rmg"
-version = "0.0.14"
+version = "0.2.1"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
-description = "[WIP] Manga Reader"
+description = "Rust: Tiny Manga Reader"
 readme = "README.md"
 homepage = "https://crates.io/crates/rmg"
 repository = "https://github.com/rsuu/rmg"
@@ -31,52 +31,40 @@ walkdir = "2.3.2"
 dirs-next = "2.0.0"
 
 # archive
-tar = "0.4.38"
+tar = {version="0.4.38", optional = true }
 #zstd = "0.11.2"
-zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","bzip2","deflate", ] }
+zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","bzip2","deflate", ], optional = true  }
 
 # filetype
 infer = "0.9.0"
 
-# color
-rgb = "0.8.34"
-
-# image
+# window
 #sdl2 = { version = "0.35.2", features = ["image", "ttf"] }
 minifb = { version = "0.23.0", features = ["x11", "wayland"] }
-image = "0.24.4"
-fast_image_resize = "1.0.0"
+
+# image
+image = { version = "0.24.4" }
+fir = {package="fast_image_resize"  ,version="1.0.0"}
+libheif-rs = { version = "0.15.0", optional = true }
+asefile ={ version = "0.3.5", optional = true }
 
 # args
 lexopt = "0.2.1"
 
-# metadata
-emeta = "0.1.1"
-#emeta = {version="*",path="../emeta"}
-
 # config
 syn = { version = "1.0.102", features = ["full", "extra-traits"] }
+
+# async
+#pollster = "0.2.5"
+
+# other
+cfg-if = "1.0.0"
 
 # debug
 log = "0.4.17"
 simple_logger = { version = "2.3.0", features = ["colors", "threads"] }
 
-# error
-#anyhow = "1.0.62"
-#thiserror = "1.0.32"
-#memmap2 = "0.5.7"
 
-# font
-fontdue = "0.7.2"
-
-# async
-tokio = { version = "1.21.2", features = ["full"] }
-
-# other
-#rayon = "1.5.3"
-cfg-if = "1.0.0"
-
-libheif-rs = { version = "0.15.0", optional = true }
 
 [dev-dependencies]
 # benchmark
@@ -88,6 +76,16 @@ harness = false
 
 [features]
 default = ["ex_zip", "ex_tar"]
-ex_zip = []
-ex_tar = []
+all = ["ex_zip", "ex_tar", "de_heic"]
+
+# archive
+ex_zip = ["dep:tar"]
+ex_tar = ["dep:zip"]
+
+# resize
+sse4_1 = []
+avx2 = []
+
+# image
 de_heic = ["dep:libheif-rs"]
+de_ase = ["dep:asefile"]
