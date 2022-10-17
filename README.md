@@ -1,6 +1,6 @@
 # rmg
 
-Mnaga Reader
+Rust: Tiny Manga Reader
 
 ## Install
 
@@ -11,6 +11,7 @@ Mnaga Reader
 + Optional Dependency
   + tar
   + zip
+  + libheif
 
 ```bash
 # cargo
@@ -22,40 +23,34 @@ cd rmg
 cargo build --release
 
 # github
-Downlaod here: https://github.com/rsuu/rmg/releases/
-```
-
-## Build
-
-```bash
-cargo build --release -F "de_heic"
+Check here: https://github.com/rsuu/rmg/releases/
 ```
 
 ## Usage
 
 ```bash
-# with cargo
-cargo run -- --config ./tests/files/config.rs --size 600,600 ./tests/files/1.tar
+rmg ./tests/files/1.tar
 
 # OR
 rmg --size 600,600 ./tests/files/1.tar
 
 # OR
-rmg ./tests/files/1.tar
-
+rmg --config ./tests/files/config.rs --size 600,600 ./tests/files/1.tar
 ```
 
 ### KeyMap
 
 |#|#|
 |:-|:-|
-j | down
-k | up
-r | ? reset
-f | ? fullscreen
-q | exit
+j/Down | down
+k/Up | up
+h/Left | left
+r/Right | right
+q | quit
 
 ### Configuration
+
+Note: You have to create the file by yourself.
 
 > default configuration
 
@@ -64,7 +59,10 @@ fn main() {
     Base {
         size: (900, 900),
         font: None,
-        rename_pad: 6,
+        rename_pad: 0,
+        invert_mouse: false,
+        filter: "Hamming",
+
     };
 
     Keymap {
@@ -82,7 +80,14 @@ fn main() {
   + Windows: `C:\Users\Alice\AppData\<USER>\rmg\config.rs`
   + Mac: `$HOME/Library/Application Support/rmg/config.rs`
 
-note: You have to create the file by yourself.
+
+
+## Features
+
+```bash
+# Add support for heic
+cargo build --release -F "de_heic"
+```
 
 ## Demo
 

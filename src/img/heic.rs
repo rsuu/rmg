@@ -33,7 +33,7 @@ pub fn load_heic(bytes: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
         // rgb
         for y in 0..height {
             let mut step = y as usize * src_img.planes().interleaved.unwrap().stride;
-            for x in 0..width {
+            for _x in 0..width {
                 res.extend_from_slice(&[bytes[step], bytes[step + 1], bytes[step + 2]]);
                 step += 3;
             }

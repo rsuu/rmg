@@ -1,5 +1,5 @@
 use cfg_if::cfg_if;
-use emeta::meta;
+
 use log;
 use rmg::{
     archive, cli,
@@ -7,7 +7,6 @@ use rmg::{
     files::{self, list},
     img::size::{MetaSize, TMetaSize},
     reader::{
-        self,
         buffer::{push_front, PageInfo},
         display,
     },
@@ -66,6 +65,7 @@ async fn main() {
             &None,
             path.as_str(),
             archive_type,
+            config.base.filter,
         )
         .await
         {
@@ -143,6 +143,7 @@ pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Pa
     }
 
     page_list.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
+
     log::debug!("sort: page_list: {:#?}", page_list.as_slice());
 
     page_list

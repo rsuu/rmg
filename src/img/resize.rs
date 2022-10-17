@@ -4,8 +4,6 @@ use crate::{
 };
 use cfg_if::cfg_if;
 use fast_image_resize as fir;
-use image::{self, EncodableLayout};
-use log;
 use std::num::NonZeroU32;
 
 pub fn resize_bytes(
@@ -13,6 +11,7 @@ pub fn resize_bytes(
     buffer: &mut Vec<u8>,
     screen_size: Size<u32>,
     window_size: Size<u32>,
+    filter: &fir::FilterType,
 ) {
     let mut meta = MetaSize::<u32>::new(
         screen_size.width,
@@ -30,7 +29,7 @@ pub fn resize_bytes(
 
             meta.resize();
 
-            resize_rgb8(buffer, img.to_rgb8().into_raw(), &meta).unwrap();
+            resize_rgb8(buffer, img.to_rgb8().into_raw(), &meta, filter).unwrap();
         }
 
         Err(_) => {
@@ -47,7 +46,7 @@ pub fn resize_bytes(
 
                         log::debug!("{:?}",(res.0,res.1));
                         log::debug!("{:?}",&meta);
-                        resize_rgb8(buffer, res.2, &meta).unwrap();
+                        resize_rgb8(buffer, res.2, &meta,filter).unwrap();
                     }else{
                     }
                 } else {}
@@ -56,7 +55,12 @@ pub fn resize_bytes(
     }
 }
 
-pub fn resize_rgb8(buffer: &mut Vec<u8>, bytes: Vec<u8>, meta: &MetaSize<u32>) -> Res<()> {
+pub fn resize_rgb8(
+    buffer: &mut Vec<u8>,
+    bytes: Vec<u8>,
+    meta: &MetaSize<u32>,
+    filter: &fir::FilterType,
+) -> Res<()> {
     let src_image = fir::Image::from_vec_u8(
         NonZeroU32::new(meta.image.width).ok_or(())?,
         NonZeroU32::new(meta.image.height).ok_or(())?,
@@ -69,7 +73,7 @@ pub fn resize_rgb8(buffer: &mut Vec<u8>, bytes: Vec<u8>, meta: &MetaSize<u32>) -
     // FIXED: https://github.com/Cykooz/fast_image_resize/issues/9
     let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
     let mut dst_view = dst_image.view_mut();
-    let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Box));
+    let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(*filter));
 
     resizer.resize(&src_image.view(), &mut dst_view)?;
 

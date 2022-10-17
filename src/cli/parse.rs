@@ -7,17 +7,11 @@ use std::{path::PathBuf, process::exit};
 #[derive(Debug)]
 pub struct Args {
     pub config_path: Option<String>,
-
     pub file_path: Option<String>,
     pub dir_path: Option<String>,
-
     pub size: Option<Size<usize>>,
-
-    pub rename: bool,
-    pub rename_pad: usize,
-
     pub format: Option<format::PixelFormat>,
-
+    pub rename_pad: usize,
     pub meta_display: bool,
 }
 
@@ -31,8 +25,7 @@ impl Args {
 
             size: None,
 
-            rename: true,
-            rename_pad: 0,
+            rename_pad: 6,
 
             format: None,
 
@@ -62,16 +55,6 @@ impl Args {
                             self.size = Some(Size::new(w, h));
                         }
                     }
-                }
-
-                Long("rename") => {
-                    let is_rename = parser.value()?.into_string()?;
-
-                    if is_rename.as_str() == "false" {
-                        self.rename = false
-                    } else {
-                        panic!("")
-                    };
                 }
 
                 Long("pad") => {
@@ -148,6 +131,8 @@ impl Args {
                     config_path.push(path.as_path());
                     config_path.push("rmg/config.rs");
 
+                    log::debug!("config_path: {:?}", config_path);
+
                     if config_path.as_path().is_file() {
                         res = Config::parse_from(config_path.as_path());
                     } else {
@@ -191,7 +176,7 @@ OPTIONS:
     -c, --config     Reset the config path
     -m, --meta       ...
 
-    --rename         ...
+    --pad         ...
 "#,
         version = VERSION
     );

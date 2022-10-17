@@ -1,5 +1,8 @@
-// TODO
+// TODO:
 // remove .unwrap()
+
+use fast_image_resize as fir;
+use log;
 
 /* default
 
@@ -9,6 +12,8 @@ fn main() {
         font: None,
         rename_pad: 0,
         invert_mouse: false,
+        filter: "Hamming",
+
     };
 
     Keymap {
@@ -35,18 +40,19 @@ pub struct Config {
 pub struct Base {
     pub size: Size<usize>,    // window size
     pub font: Option<String>, // font file
-    pub rename_pad: usize,    // pad (default: 0)
+    pub rename_pad: u8,       // pad (default: 0)
     pub invert_mouse: bool,   // (default: false)
+    pub filter: fir::FilterType,
 }
 
 #[derive(Debug)]
-pub struct Keymap<_Char> {
-    pub up: _Char,    // page up
-    pub down: _Char,  // page down
-    pub left: _Char,  // move to left
-    pub right: _Char, // move to right
-    pub exit: _Char,  // exit
-                      //pub fullscreen: _Char,
+pub struct Keymap<Char_> {
+    pub up: Char_,    // page up
+    pub down: Char_,  // page down
+    pub left: Char_,  // move to left
+    pub right: Char_, // move to right
+    pub exit: Char_,  // exit
+                      //pub fullscreen: Char_,
 }
 
 #[derive(Debug)]
@@ -109,13 +115,14 @@ impl Default for Base {
             font: None,
             rename_pad: 0,
             invert_mouse: false,
+            filter: fir::FilterType::Hamming,
         }
     }
 }
 
 pub fn parse_main(item: &syn::Item) -> Option<Config> {
     // fn main() {
-    // ..
+    // ...
     // }
 
     if let syn::Item::Fn(f) = item {
@@ -134,26 +141,23 @@ pub fn parse_struct(block: &Box<syn::Block>) -> Option<Config> {
 
     for stmt in block.stmts.iter() {
         match stmt {
-            syn::Stmt::Semi(expr, _token) => {
-                match expr {
-                    syn::Expr::Struct(expr_struct) => {
-                        // TODO
-                        //println!("{:#?}", expr_struct);
+            syn::Stmt::Semi(expr, _token) => match expr {
+                syn::Expr::Struct(expr_struct) => {
+                    log::debug!("{:#?}", expr_struct);
 
-                        match match_struct_name(expr_struct) {
-                            ConfigType::Base => {
-                                config.base = parse_base(expr_struct);
-                            }
-                            ConfigType::Keymap => {
-                                config.keymap = parse_keymap(expr_struct);
-                            }
-
-                            _ => {}
+                    match match_struct_name(expr_struct) {
+                        ConfigType::Base => {
+                            config.base = parse_base(expr_struct);
                         }
+                        ConfigType::Keymap => {
+                            config.keymap = parse_keymap(expr_struct);
+                        }
+
+                        _ => {}
                     }
-                    _ => {}
                 }
-            }
+                _ => {}
+            },
             _ => {}
         }
     }
@@ -161,7 +165,6 @@ pub fn parse_struct(block: &Box<syn::Block>) -> Option<Config> {
     Some(config)
 }
 
-// e.g.
 // struct NAME {
 //   ...
 // }
@@ -177,10 +180,9 @@ pub fn match_struct_name(expr_struct: &syn::ExprStruct) -> ConfigType {
     }
 }
 
-// e.g.
 // BASE {
 //   rename_pad,
-//   ..
+//   ...
 // }
 pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
     let mut base = Base::default();
@@ -188,27 +190,51 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
     for _fields in expr_struct.fields.iter() {
         if let syn::Member::Named(_name) = &_fields.member {
             match _name.to_string().as_str() {
+                // u8
                 "rename_pad" => {
                     // eprintln!("{:#?}", _fields);
 
                     if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
-                        if let syn::Lit::Int(_lit) = &_expr_lit.lit {
-                            base.rename_pad = _lit
+                        if let syn::Lit::Int(lit) = &_expr_lit.lit {
+                            base.rename_pad = lit
                                 .token()
                                 .to_string()
                                 .as_str()
-                                .parse::<usize>()
-                                .unwrap_or_default(); // default is false
+                                .parse::<u8>()
+                                .unwrap_or_default(); // default: false
                         }
                     }
                 }
 
+                // fir::FilterType
+                "filter" => {
+                    // eprintln!("{:#?}", _fields);
+
+                    if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
+                        if let syn::Lit::Str(lit) = &_expr_lit.lit {
+                            let ty = lit.token().to_string().trim_matches('"').to_string();
+
+                            log::debug!("ty: {}", ty);
+
+                            base.filter = match ty.as_str() {
+                                "Box" => fir::FilterType::Box,
+                                "Hamming" => fir::FilterType::Hamming,
+                                "CatmullRom" => fir::FilterType::CatmullRom,
+                                "Mitchell" => fir::FilterType::Mitchell,
+                                "Lanczos3" => fir::FilterType::Lanczos3,
+                                _ => fir::FilterType::Hamming,
+                            };
+                        }
+                    }
+                }
+
+                // bool
                 "invert_mouse" => {
                     // eprintln!("{:#?}", _fields);
 
                     if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
-                        if let syn::Lit::Bool(_lit) = &_expr_lit.lit {
-                            base.invert_mouse = _lit
+                        if let syn::Lit::Bool(lit) = &_expr_lit.lit {
+                            base.invert_mouse = lit
                                 .token()
                                 .to_string()
                                 .as_str()
@@ -222,9 +248,8 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
                     //eprintln!("{:#?}", _fields);
 
                     if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
-                        if let syn::Lit::Str(_lit_str) = &_expr_lit.lit {
-                            let font_path =
-                                _lit_str.token().to_string().trim_matches('"').to_string();
+                        if let syn::Lit::Str(lit) = &_expr_lit.lit {
+                            let font_path = lit.token().to_string().trim_matches('"').to_string();
 
                             if std::path::Path::new(font_path.as_str()).is_file() {
                                 base.font = Some(font_path);
@@ -240,22 +265,16 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
 
                     if let syn::Expr::Tuple(tuple_) = &_fields.expr {
                         if let syn::Expr::Lit(_expr) = &tuple_.elems[0] {
-                            if let syn::Lit::Int(width) = &_expr.lit {
-                                base.size.width = width
-                                    .token()
-                                    .to_string()
-                                    .parse::<usize>()
-                                    .unwrap_or_default();
+                            if let syn::Lit::Int(lit) = &_expr.lit {
+                                base.size.width =
+                                    lit.token().to_string().parse::<usize>().unwrap_or_default();
                             }
                         }
 
                         if let syn::Expr::Lit(_expr) = &tuple_.elems[1] {
-                            if let syn::Lit::Int(width) = &_expr.lit {
-                                base.size.height = width
-                                    .token()
-                                    .to_string()
-                                    .parse::<usize>()
-                                    .unwrap_or_default();
+                            if let syn::Lit::Int(lit) = &_expr.lit {
+                                base.size.height =
+                                    lit.token().to_string().parse::<usize>().unwrap_or_default();
                             }
                         }
                     }
@@ -270,7 +289,10 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
     base
 }
 
-// e.g. Keymap { up, ..}
+// Keymap {
+//   up,
+//   ...
+// }
 pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
     let mut keymap = Keymap::default();
 

@@ -8,6 +8,8 @@ use crate::{
     reader::{keymap::Map, window::Canvas},
     utils::types::ArchiveType,
 };
+
+use fast_image_resize as fir;
 use log;
 use std::{
     path::{Path, PathBuf},
@@ -45,7 +47,7 @@ impl PageInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Buffer {
     pub bytes: Vec<u32>,
     pub max_bytes: usize,
@@ -69,6 +71,7 @@ pub struct Buffer {
 
     pub range_start: usize,
     pub range_end: usize,
+    pub filter: fir::FilterType,
 }
 
 impl Buffer {
@@ -92,6 +95,7 @@ impl Buffer {
                     page_pos,
                     self.screen_size,
                     self.window_size,
+                    self.filter,
                 );
 
                 self.bytes.extend_from_slice(img_buf.as_slice());
@@ -131,6 +135,7 @@ impl Buffer {
             let page_pos = self.page_list[self.range_end].pos;
             let screen_size = self.screen_size;
             let window_size = self.window_size;
+            let filter = self.filter;
 
             let join = tokio::spawn(async move {
                 let mut img_selffer = Vec::new();
@@ -142,6 +147,7 @@ impl Buffer {
                     page_pos,
                     screen_size,
                     window_size,
+                    filter,
                 );
 
                 color_buf
@@ -225,6 +231,7 @@ impl Buffer {
             let page_pos = self.page_list[self.range_start].pos;
             let screen_size = self.screen_size;
             let window_size = self.window_size;
+            let filter = self.filter;
 
             let join = tokio::spawn(async move {
                 let mut img_selffer = Vec::new();
@@ -236,6 +243,7 @@ impl Buffer {
                     page_pos,
                     screen_size,
                     window_size,
+                    filter,
                 );
 
                 color_buf
@@ -334,7 +342,7 @@ impl Buffer {
     }
 
     pub fn need_pad_next(&self) -> bool {
-        self.bytes.len() <= self.max_bytes * 6
+        self.bytes.len() <= self.max_bytes * 8
     }
 
     pub fn need_pad_prev(&self) -> bool {
@@ -399,6 +407,7 @@ pub fn get_rgb_buffer(
     page_pos: usize,
     screen_size: Size<u32>,
     window_size: Size<u32>,
+    filter: fir::FilterType,
 ) {
     let mut img = Vec::new();
 
@@ -409,6 +418,7 @@ pub fn get_rgb_buffer(
         page_pos,
         screen_size,
         window_size,
+        &filter,
     );
 
     for f in (0..img.len()).step_by(3) {
@@ -423,6 +433,7 @@ pub fn resize_img(
     page_pos: usize,
     screen_size: Size<u32>,
     window_size: Size<u32>,
+    filter: &fir::FilterType,
 ) {
     log::debug!("archive_type == {:?}", archive_type);
 
@@ -450,14 +461,14 @@ pub fn resize_img(
         }
     };
 
-    resize::resize_bytes(bytes.as_slice(), buffer, screen_size, window_size);
+    resize::resize_bytes(bytes.as_slice(), buffer, screen_size, window_size, filter);
 }
 
 mod test {
-    
 
     #[test]
     fn _push_front() {
+        use super::*;
         let mut a = vec![4, 5, 6];
         push_front(&mut a, [1, 2, 3].as_slice());
 

@@ -1,5 +1,3 @@
-use cfg_if;
-
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod utils {

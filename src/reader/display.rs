@@ -9,7 +9,7 @@ use crate::{
     utils::{err::Res, types::ArchiveType},
 };
 use emeta::meta;
-
+use fast_image_resize as fir;
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
@@ -23,11 +23,12 @@ pub async fn cat_img(
     _metadata: &Option<meta::MetaData>,
     path: &str,
     archive_type: ArchiveType,
+    filter: fir::FilterType,
 ) -> Res<()> {
     let screen_size = meta_size.screen;
     let window_size = meta_size.window;
     let max_bytes = window_size.width as usize * window_size.height as usize;
-
+    let keymaps = keymap::KeyMap::new();
     let mut buf = Buffer {
         bytes: vec![], // buffer
         max_bytes,
@@ -49,10 +50,9 @@ pub async fn cat_img(
 
         range_start: 0,
         range_end: 0,
+
+        filter,
     };
-
-    let keymaps = keymap::KeyMap::new();
-
     let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
 
     for_minifb(config, &mut buf, &mut canvas, &keymaps).await;
@@ -82,11 +82,6 @@ pub async fn for_minifb(
 
             Map::Up => {
                 buf.move_up(&color_buffer_arc, &state_arc);
-                //buf.move_up();
-            }
-
-            Map::DisplayMeta => {
-                todo!()
             }
 
             Map::Reset => {
@@ -106,6 +101,7 @@ pub async fn for_minifb(
             }
 
             Map::Exit => {
+                // BUG: Miss Key::Escape
                 break 'l1;
             }
 
@@ -122,21 +118,20 @@ pub async fn for_minifb(
 
                         log::debug!("mouse_y == {}", y);
                     }
-                } else {
-                    if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
-                        if y > 0.0 {
-                            buf.move_down(&color_buffer_arc, &state_arc);
-                        } else if y < 0.0 {
-                            buf.move_up(&color_buffer_arc, &state_arc);
-                        } else {
-                        }
-
-                        log::debug!("mouse_y == {}", y);
+                } else if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
+                    if y > 0.0 {
+                        buf.move_down(&color_buffer_arc, &state_arc);
+                    } else if y < 0.0 {
+                        buf.move_up(&color_buffer_arc, &state_arc);
+                    } else {
                     }
+
+                    log::debug!("mouse_y == {}", y);
                 }
             }
         }
 
+        log::debug!("Key: {:?}", canvas.window.get_keys().iter().as_slice());
         buf.flush(canvas);
 
         std::thread::sleep(std::time::Duration::from_millis(40));
