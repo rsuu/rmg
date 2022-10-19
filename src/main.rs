@@ -7,13 +7,13 @@ use rmg::{
     files::{self, list},
     img::size::{MetaSize, TMetaSize},
     reader::{
-        buffer::{push_front, PageInfo},
+        buffer::{PageInfo},
         display,
     },
     utils::{err::MyErr, types::ArchiveType},
 };
 use simple_logger;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 
 #[tokio::main]
 async fn main() {
@@ -44,17 +44,7 @@ async fn main() {
 
         let file_list = get_file_list(path.as_str()).unwrap();
         let archive_type = get_archive_type(path.as_str()).unwrap();
-        let mut page_list = get_page_list(&file_list, args.rename_pad);
-
-        push_front(
-            &mut page_list,
-            &[PageInfo {
-                path: PathBuf::new(),
-                name: "".to_string(),
-                len: 0,
-                pos: 0,
-            }],
-        );
+        let page_list = get_page_list(&file_list, args.rename_pad);
 
         log::debug!("page_list: {:#?}", page_list);
 
@@ -127,14 +117,9 @@ pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Pa
             || path.ends_with(".heif")
         {
             let info = if rename_pad == 0 {
-                PageInfo::new(PathBuf::from(path.as_str()), path.clone(), 0, *idx)
+                PageInfo::new(path.clone(), *idx)
             } else {
-                PageInfo::new(
-                    PathBuf::from(path.as_str()),
-                    files::file::pad_name(rename_pad, path.as_str()),
-                    0,
-                    *idx,
-                )
+                PageInfo::new(files::file::pad_name(rename_pad, path.as_str()), *idx)
             };
 
             page_list.push(info);

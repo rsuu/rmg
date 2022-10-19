@@ -12,9 +12,9 @@ pub enum MyErr {
 
     Image(image::error::ImageError), // image
 
-    BufferImage(fast_image_resize::ImageBufferError), // resize image
-    MulDivImage(fast_image_resize::MulDivImageError),
-    DifferentTypesOfPixels(fast_image_resize::DifferentTypesOfPixelsError), // resize imgae
+    BufferImage(fir::ImageBufferError), // resize image
+    MulDivImage(fir::MulDivImageError),
+    DifferentTypesOfPixels(fir::DifferentTypesOfPixelsError), // resize imgae
 
     //   Miniserde(miniserde::Error), //
 
@@ -33,11 +33,11 @@ impl From<()> for MyErr {
 }
 
 crate::error_from! {
-    fast_image_resize::DifferentTypesOfPixelsError
+    fir::DifferentTypesOfPixelsError
       , MyErr::DifferentTypesOfPixels;
-    fast_image_resize::ImageBufferError
+    fir::ImageBufferError
       , MyErr::BufferImage;
-    fast_image_resize::MulDivImageError
+    fir::MulDivImageError
       , MyErr::MulDivImage;
     image::error::ImageError
       , MyErr::Image;

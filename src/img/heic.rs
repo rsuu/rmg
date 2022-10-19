@@ -10,7 +10,7 @@ pub fn load_heic(bytes: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
         // Decode the image
         let src_img = handle
             .decode(
-                libheif_rs::ColorSpace::Rgb(libheif_rs::RgbChroma::Rgb),
+                libheif_rs::ColorSpace::Rgb(libheif_rs::RgbChroma::Rgba),
                 false,
             )
             .unwrap();
@@ -33,9 +33,15 @@ pub fn load_heic(bytes: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
         // rgb
         for y in 0..height {
             let mut step = y as usize * src_img.planes().interleaved.unwrap().stride;
-            for _x in 0..width {
-                res.extend_from_slice(&[bytes[step], bytes[step + 1], bytes[step + 2]]);
-                step += 3;
+
+            for _ in 0..width {
+                res.extend_from_slice(&[
+                    bytes[step + 0],
+                    bytes[step + 1],
+                    bytes[step + 2],
+                    bytes[step + 3],
+                ]);
+                step += 4;
             }
         }
 

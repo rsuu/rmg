@@ -1,6 +1,6 @@
 [package]
 name = "rmg"
-version = "0.0.15"
+version = "0.1.0"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Rust: Tiny Manga Reader"
@@ -9,7 +9,7 @@ homepage = "https://crates.io/crates/rmg"
 repository = "https://github.com/rsuu/rmg"
 license = "MIT OR Apache-2.0"
 keywords = ["manga","comic"]
-categories = ["gui"]
+#categories = []
 autobenches = true
 build = "build.rs"
 
@@ -45,7 +45,7 @@ rgb = "0.8.34"
 #sdl2 = { version = "0.35.2", features = ["image", "ttf"] }
 minifb = { version = "0.23.0", features = ["x11", "wayland"] }
 image = "0.24.4"
-fast_image_resize = { version="1.0.0"}
+fir = {package="fast_image_resize"  ,version="1.0.0"}
 
 # args
 lexopt = "0.2.1"

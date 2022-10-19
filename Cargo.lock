@@ -1311,7 +1311,7 @@ dependencies = [
 
 [[package]]
 name = "rmg"
-version = "0.0.15"
+version = "0.1.0"
 dependencies = [
  "cfg-if",
  "criterion",

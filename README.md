@@ -2,6 +2,12 @@
 
 Rust: Tiny Manga Reader
 
+## Demo
+
+![](./assets/2022-07-12.png)
+
+https://github.com/rsuu/rmg/blob/main/assets/2022-06-29.mp4
+
 ## Install
 
 + Dependency
@@ -86,11 +92,5 @@ fn main() {
 
 ```bash
 # Add support for heic
-cargo build --release -F "de_heic"
+cargo run --release -F "de_heic"
 ```
-
-## Demo
-
-![](./assets/2022-07-12.png)
-
-https://github.com/rsuu/rmg/blob/main/assets/2022-06-29.mp4

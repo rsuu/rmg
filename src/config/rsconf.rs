@@ -1,7 +1,7 @@
 // TODO:
 // remove .unwrap()
 
-use fast_image_resize as fir;
+use fir as fir;
 use log;
 
 /* default

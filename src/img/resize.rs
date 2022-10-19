@@ -3,7 +3,7 @@ use crate::{
     utils::err::Res,
 };
 use cfg_if::cfg_if;
-use fast_image_resize as fir;
+use fir;
 use std::num::NonZeroU32;
 
 pub fn resize_bytes(
@@ -26,10 +26,9 @@ pub fn resize_bytes(
         Ok(ref img) => {
             meta.image.width = img.width();
             meta.image.height = img.height();
-
             meta.resize();
 
-            resize_rgb8(buffer, img.to_rgb8().into_raw(), &meta, filter).unwrap();
+            resize_rgba8(buffer, img.to_rgba8().into_vec(), &meta, filter).unwrap();
         }
 
         Err(_) => {
@@ -41,12 +40,12 @@ pub fn resize_bytes(
                     if let Some(res) = heic::load_heic(bytes) {
                         meta.image.width = res.0;
                         meta.image.height = res.1;
-
                         meta.resize();
+
+                        resize_rgba8(buffer, res.2, &meta,filter).unwrap();
 
                         log::debug!("{:?}",(res.0,res.1));
                         log::debug!("{:?}",&meta);
-                        resize_rgb8(buffer, res.2, &meta,filter).unwrap();
                     }else{
                     }
                 } else {}
@@ -55,17 +54,17 @@ pub fn resize_bytes(
     }
 }
 
-pub fn resize_rgb8(
+pub fn resize_rgba8(
     buffer: &mut Vec<u8>,
     bytes: Vec<u8>,
     meta: &MetaSize<u32>,
     filter: &fir::FilterType,
 ) -> Res<()> {
-    let src_image = fir::Image::from_vec_u8(
+    let mut src_image = fir::Image::from_vec_u8(
         NonZeroU32::new(meta.image.width).ok_or(())?,
         NonZeroU32::new(meta.image.height).ok_or(())?,
         bytes,
-        fir::PixelType::U8x3,
+        fir::PixelType::U8x4,
     )?;
     let dst_width = NonZeroU32::new(meta.fix.width).ok_or(())?;
     let dst_height = NonZeroU32::new(meta.fix.height).ok_or(())?;
@@ -77,35 +76,12 @@ pub fn resize_rgb8(
 
     resizer.resize(&src_image.view(), &mut dst_view)?;
 
+    // rgba
+    let alpha_mul_div = fir::MulDiv::default();
+    alpha_mul_div.multiply_alpha_inplace(&mut src_image.view_mut())?;
+    alpha_mul_div.divide_alpha_inplace(&mut dst_view)?;
+
     (*buffer).extend_from_slice(dst_image.buffer()); // update buffer
 
     Ok(())
 }
-
-// pub fn resize_rgba8(
-//     buffer: &mut Vec<u8>,
-//     img: &image::DynamicImage,
-//     meta: &MetaSize<u32>,
-// ) ->Res {
-//     let mut src_image = fir::Image::from_vec_u8(
-//         NonZeroU32::new(meta.image.width).ok_or(())?,
-//         NonZeroU32::new(meta.image.height).ok_or(())?,
-//         img.to_rgba8().into_raw(),
-//         fir::PixelType::U8x4,
-//     )?;
-//     let dst_width = NonZeroU32::new(meta.fix.width).ok_or(())?;
-//     let dst_height = NonZeroU32::new(meta.fix.height).ok_or(())?;
-//     let alpha_mul_div = fir::MulDiv::default();
-//
-//     let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
-//     let mut dst_view = dst_image.view_mut();
-//     let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(fir::FilterType::Box));
-//
-//     resizer.resize(&src_image.view(), &mut dst_view)?;
-//     alpha_mul_div.multiply_alpha_inplace(&mut src_image.view_mut())?;
-//     alpha_mul_div.divide_alpha_inplace(&mut dst_view)?;
-//
-//     (*buffer).extend_from_slice(dst_image.buffer()); // update buffer
-//
-//     Ok(())
-// }

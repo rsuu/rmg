@@ -9,7 +9,7 @@ use crate::{
     utils::{err::Res, types::ArchiveType},
 };
 use emeta::meta;
-use fast_image_resize as fir;
+use fir;
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
@@ -30,28 +30,27 @@ pub async fn cat_img(
     let max_bytes = window_size.width as usize * window_size.height as usize;
     let keymaps = keymap::KeyMap::new();
     let mut buf = Buffer {
-        bytes: vec![], // buffer
+        bytes: Vec::with_capacity(max_bytes * 4), // buffer
         max_bytes,
 
+        head: 0,
+        tail: 0,
         start: 0,
         end: max_bytes,
 
         archive_path: PathBuf::from(path),
         archive_type,
 
-        mode: Map::Stop, // keymap
-        page_end: page_list.len(),
-        page_list,
-        screen_size,
+        mode: Map::Stop,                         // keymap
+        page_end: page_list.len(),               //
+        page_list,                               //
+        screen_size,                             //
         y_step: max_bytes / 10,                  // drop 1/n part of image once
         x_step: window_size.width as usize / 10, //
-        window_position: (0, 0),
-        window_size,
+        window_position: (0, 0),                 //
+        window_size,                             //
 
-        range_start: 0,
-        range_end: 0,
-
-        filter,
+        filter, //
     };
     let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
 
@@ -68,7 +67,7 @@ pub async fn for_minifb(
     canvas: &mut Canvas,
     keymaps: &[keymap::KeyMap],
 ) {
-    let state_arc = Arc::new(RwLock::new(State::NextLoad));
+    let state_arc = Arc::new(RwLock::new(State::Nothing));
     let color_buffer_arc: Arc<RwLock<Vec<u32>>> = Arc::new(RwLock::new(Vec::new()));
 
     buf.init();
@@ -131,7 +130,7 @@ pub async fn for_minifb(
             }
         }
 
-        log::debug!("Key: {:?}", canvas.window.get_keys().iter().as_slice());
+        //log::debug!("Key: {:?}", canvas.window.get_keys().iter().as_slice());
         buf.flush(canvas);
 
         std::thread::sleep(std::time::Duration::from_millis(40));

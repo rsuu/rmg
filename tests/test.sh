@@ -13,6 +13,7 @@ way3() {
     perf record --call-graph dwarf -p $(pidof rmg)
     perf report -g graph --no-children
 }
+
 #https://www.brendangregg.com/perf.html
 
 #   4.88%  [kernel]                     [k] copy_user_generic_string
