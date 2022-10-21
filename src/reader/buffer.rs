@@ -5,7 +5,6 @@ use crate::{
     reader::{keymap::Map, window::Canvas},
     utils::types::ArchiveType,
 };
-
 use fir;
 use log;
 use std::{

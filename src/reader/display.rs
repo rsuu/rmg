@@ -8,8 +8,8 @@ use crate::{
     },
     utils::{err::Res, types::ArchiveType},
 };
-use emeta::meta;
-use fir;
+//use emeta::meta;
+
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
@@ -20,15 +20,18 @@ pub async fn cat_img(
     config: &Config,
     page_list: Vec<PageInfo>,
     meta_size: MetaSize<u32>,
-    _metadata: &Option<meta::MetaData>,
+    //_metadata: &Option<meta::MetaData>,
     path: &str,
     archive_type: ArchiveType,
-    filter: fir::FilterType,
 ) -> Res<()> {
     let screen_size = meta_size.screen;
     let window_size = meta_size.window;
     let max_bytes = window_size.width as usize * window_size.height as usize;
+
+    let step = config.base.step as usize;
+    let filter = config.base.filter;
     let keymaps = keymap::KeyMap::new();
+
     let mut buf = Buffer {
         bytes: Vec::with_capacity(max_bytes * 4), // buffer
         max_bytes,
@@ -41,14 +44,14 @@ pub async fn cat_img(
         archive_path: PathBuf::from(path),
         archive_type,
 
-        mode: Map::Stop,                         // keymap
-        page_end: page_list.len(),               //
-        page_list,                               //
-        screen_size,                             //
-        y_step: max_bytes / 10,                  // drop 1/n part of image once
-        x_step: window_size.width as usize / 10, //
-        window_position: (0, 0),                 //
-        window_size,                             //
+        mode: Map::Stop,                           // keymap
+        page_end: page_list.len(),                 //
+        page_list,                                 //
+        screen_size,                               //
+        y_step: max_bytes / step,                  // drop 1/step part of image once
+        x_step: window_size.width as usize / step, //
+        window_position: (0, 0),                   //
+        window_size,                               //
 
         filter, //
     };

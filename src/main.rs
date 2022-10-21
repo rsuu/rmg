@@ -6,14 +6,11 @@ use rmg::{
     config::rsconf::Config,
     files::{self, list},
     img::size::{MetaSize, TMetaSize},
-    reader::{
-        buffer::{PageInfo},
-        display,
-    },
+    reader::{buffer::PageInfo, display},
     utils::{err::MyErr, types::ArchiveType},
 };
 use simple_logger;
-use std::path::{Path};
+use std::path::Path;
 
 #[tokio::main]
 async fn main() {
@@ -52,10 +49,9 @@ async fn main() {
             &config,
             page_list,
             meta_size,
-            &None,
+            //&None,
             path.as_str(),
             archive_type,
-            config.base.filter,
         )
         .await
         {
@@ -176,84 +172,3 @@ where
         };
     };
 }
-
-/*
-pub fn load_meta<_Path>(from: &_Path, to: &_Path) -> Result<Vec<PathBuf>, std::io::Error>
-where
-    _Path: AsRef<Path> + ?Sized,
-{
-    if from.as_ref().is_dir() {
-        files::dir::rec_copy_dir(from, to)?;
-    } else {
-        match list::get_filetype(from.as_ref()).as_str() {
-            "tar" => {
-                cfg_if! {
-                    if #[cfg(feature="ex_tar")] {
-                        //archive::tar::extract(from.as_ref(), to.as_ref())?;
-                    } else {
-                        eprintln!("Not Support FileType: tar");
-                    }
-                }
-            }
-
-            "zip" => {
-                cfg_if! {
-                    if #[cfg(feature="ex_zip")] {
-                        println!("Open zip");
-                        zip::extract(from.as_ref(), to.as_ref())?;
-                    }else {
-                        eprintln!("Not Support FileType: zip");
-                    }
-                }
-            }
-
-            "zst" => {
-                cfg_if! {
-                    if #[cfg(feature="ex_zstd")] {
-                        let _to = format!("{}/zstd.tar", to.as_ref().display());
-                        zstd::extract(from.as_ref(), _to.as_ref()).unwrap();
-
-                        let _from = _to;
-                       archive::tar::extract(_from.as_ref(), to.as_ref())?;
-
-                        fs::remove_file(_from)?;
-                    }else {
-                        eprintln!("Not Support FileType: zstd");
-                    }
-                }
-            }
-
-            _ => panic!(),
-        };
-    }
-    Ok(list::get_file_list(to.as_ref()))
-}
-
-
-           // Copy files to temp_dir
-           if let Ok(_) = open::<Path>(Path::new(path.as_str())) {
-               // Check if has ".rmg" file
-               let mut rmg_file: Option<String> = None;
-               let mut metadata: Option<meta::MetaData> = None;
-
-               for f in walkdir::WalkDir::new(tmp_dir.as_path()).into_iter() {
-                   if f.as_ref().expect("").path().ends_with(".rmg") {
-                       rmg_file = Some(f.as_ref().expect("").path().display().to_string());
-                       break;
-                   } else {
-                   }
-               }
-
-               if let Some(rmg_path) = rmg_file {
-                   metadata = Some(meta::MetaData::from_file(rmg_path.as_str()).unwrap());
-
-                   // e.g. rmg xxx.tar --meta d
-                   if args.meta_display {
-                       metadata.as_ref().unwrap().display();
-                       std::process::exit(0); // EXIT
-                   } else {
-                   }
-               } else {
-               }
-
-*/

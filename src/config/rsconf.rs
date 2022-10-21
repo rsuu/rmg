@@ -1,7 +1,7 @@
 // TODO:
 // remove .unwrap()
 
-use fir as fir;
+use fir;
 use log;
 
 /* default
@@ -13,7 +13,7 @@ fn main() {
         rename_pad: 0,
         invert_mouse: false,
         filter: "Hamming",
-
+        step: 10,
     };
 
     Keymap {
@@ -43,6 +43,7 @@ pub struct Base {
     pub rename_pad: u8,       // pad (default: 0)
     pub invert_mouse: bool,   // (default: false)
     pub filter: fir::FilterType,
+    pub step: u8,
 }
 
 #[derive(Debug)]
@@ -116,6 +117,7 @@ impl Default for Base {
             rename_pad: 0,
             invert_mouse: false,
             filter: fir::FilterType::Hamming,
+            step: 10,
         }
     }
 }
@@ -193,10 +195,24 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
                 // u8
                 "rename_pad" => {
                     // eprintln!("{:#?}", _fields);
-
                     if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
                         if let syn::Lit::Int(lit) = &_expr_lit.lit {
                             base.rename_pad = lit
+                                .token()
+                                .to_string()
+                                .as_str()
+                                .parse::<u8>()
+                                .unwrap_or_default(); // default: false
+                        }
+                    }
+                }
+
+                // u8
+                "step" => {
+                    // eprintln!("{:#?}", _fields);
+                    if let syn::Expr::Lit(_expr_lit) = &_fields.expr {
+                        if let syn::Lit::Int(lit) = &_expr_lit.lit {
+                            base.step = lit
                                 .token()
                                 .to_string()
                                 .as_str()

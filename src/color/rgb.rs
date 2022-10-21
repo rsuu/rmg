@@ -1,19 +1,19 @@
-use rgb;
-
-trait ExtRgb {
-    fn as_u32(&self) -> u32;
-}
-
-impl ExtRgb for rgb::RGB8 {
-    #[inline(always)]
-    fn as_u32(&self) -> u32 {
-        let r = (self.r as u32) << 16;
-        let g = (self.g as u32) << 8;
-        let b = self.b as u32;
-
-        r + g + b
-    }
-}
+// use rgb;
+//
+// trait ExtRgb {
+//     fn as_u32(&self) -> u32;
+// }
+//
+// impl ExtRgb for rgb::RGB8 {
+//     #[inline(always)]
+//     fn as_u32(&self) -> u32 {
+//         let r = (self.r as u32) << 16;
+//         let g = (self.g as u32) << 8;
+//         let b = self.b as u32;
+//
+//         r + g + b
+//     }
+// }
 
 pub struct TransRgb {}
 

@@ -31,18 +31,18 @@ impl TransRgba {
     }
 }
 
-trait ExtRgba {
-    fn as_u32(&self) -> u32;
-}
-
-impl ExtRgba for rgb::RGBA8 {
-    #[inline(always)]
-    fn as_u32(&self) -> u32 {
-        let r = (self.r as u32) << 24;
-        let g = (self.g as u32) << 16;
-        let b = (self.b as u32) << 8;
-        let a = self.a as u32;
-
-        r + g + b + a
-    }
-}
+// trait ExtRgba {
+//     fn as_u32(&self) -> u32;
+// }
+//
+// impl ExtRgba for rgb::RGBA8 {
+//     #[inline(always)]
+//     fn as_u32(&self) -> u32 {
+//         let r = (self.r as u32) << 24;
+//         let g = (self.g as u32) << 16;
+//         let b = (self.b as u32) << 8;
+//         let a = self.a as u32;
+//
+//         r + g + b + a
+//     }
+// }

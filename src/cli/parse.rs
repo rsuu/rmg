@@ -1,8 +1,8 @@
 use crate::{color::format, config::rsconf::Config, img::size::Size, utils::err::Res};
 use dirs_next;
-use emeta::meta;
 use lexopt::{self, prelude::*};
 use std::{path::PathBuf, process::exit};
+//use emeta::meta;
 
 #[derive(Debug)]
 pub struct Args {
@@ -71,30 +71,29 @@ impl Args {
                     };
                 }
 
-                Short('m') | Long("meta") => {
-                    let sub = parser.value()?.into_string()?;
-
-                    match sub.to_ascii_lowercase().as_str() {
-                        "d" | "display" => {
-                            self.meta_display = true;
-                        }
-
-                        "f" | "from" => {
-                            let file_path = parser.value()?.into_string()?;
-
-                            // echo xxx | rmg -m f -
-                            match file_path.as_str() {
-                                "-" => {
-                                    let meta = meta::MetaData::from_pipe().unwrap();
-                                    meta.display();
-                                }
-                                _ => {}
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-
+                //                Short('m') | Long("meta") => {
+                //                    let sub = parser.value()?.into_string()?;
+                //
+                //                    match sub.to_ascii_lowercase().as_str() {
+                //                        "d" | "display" => {
+                //                            self.meta_display = true;
+                //                        }
+                //
+                //                        "f" | "from" => {
+                //                            let file_path = parser.value()?.into_string()?;
+                //
+                //                            // echo xxx | rmg -m f -
+                //                            match file_path.as_str() {
+                //                                "-" => {
+                //                                    let meta = meta::MetaData::from_pipe().unwrap();
+                //                                    meta.display();
+                //                                }
+                //                                _ => {}
+                //                            }
+                //                        }
+                //                        _ => {}
+                //                    }
+                //                }
                 Value(v) => self.file_path = Some(v.into_string()?),
 
                 _ => {
