@@ -1,4 +1,5 @@
-name: test
+name: build
+
 
 on:
   push:
@@ -7,9 +8,8 @@ on:
   pull_request:
 
 jobs:
-  build-test:
-    name: build-test
-    needs: ['create-test']
+  build-build:
+    name: build-build
     strategy:
       matrix:
         build: [linux-x86_64, macos-x86_64, windows-x86_64-gnu, windows-x86_64-msvc]
@@ -34,6 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+        # Run build
       - name: install rustup
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup-init.sh
