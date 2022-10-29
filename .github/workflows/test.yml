@@ -7,10 +7,6 @@ on:
   pull_request:
 
 jobs:
-  create-test:
-    name: create-test
-    runs-on: ubuntu-latest
-
   build-test:
     name: build-test
     needs: ['create-test']
