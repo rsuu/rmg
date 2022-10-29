@@ -1,4 +1,5 @@
 use crate::{
+    archive::ArchiveType,
     config::rsconf::Config,
     img::size::MetaSize,
     reader::{
@@ -6,7 +7,7 @@ use crate::{
         keymap::{self, Map},
         window::Canvas,
     },
-    utils::{err::Res, types::ArchiveType},
+    utils::err::Res,
 };
 //use emeta::meta;
 

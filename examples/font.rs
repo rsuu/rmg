@@ -1,9 +1,9 @@
 // use std::fs::File;
 // use std::io::Write;
 //
-// fn main() {
-//     save_to_img();
-// }
+fn main() {
+    //     save_to_img();
+}
 //
 // fn save_to_img() {
 //     let font = include_bytes!("../tests/files/test.ttf") as &[u8];

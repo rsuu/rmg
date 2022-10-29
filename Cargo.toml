@@ -1,6 +1,6 @@
 [package]
 name = "rmg"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Rust: Tiny Manga Reader"
@@ -31,9 +31,9 @@ walkdir = "2.3.2"
 dirs-next = "2.0.0"
 
 # archive
-tar = "0.4.38"
+tar = {version="0.4.38", optional = true }
 #zstd = "0.11.2"
-zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","bzip2","deflate", ] }
+zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","bzip2","deflate", ], optional = true  }
 
 # filetype
 infer = "0.9.0"
@@ -76,6 +76,14 @@ harness = false
 [features]
 default = ["ex_zip", "ex_tar"]
 all = ["ex_zip", "ex_tar", "de_heic"]
-ex_zip = []
-ex_tar = []
+
+# archive
+ex_zip = ["dep:tar"]
+ex_tar = ["dep:zip"]
+
+# resize
+sse4_1 = []
+avx2 = []
+
+# image
 de_heic = ["dep:libheif-rs"]

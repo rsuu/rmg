@@ -93,4 +93,10 @@ fn main() {
 ```bash
 # Add support for heic
 cargo run --release -F "de_heic"
+
+# set [CpuExtensions](https://docs.rs/fast_image_resize/latest/fast_image_resize/index.html#resize-rgb8-image-u8x3-4928x3279--852x567)
+cargo run --release -F "avx2"
+    # for avx2
+cargo run --release -F "sse4_1"
+    # for sse4_1
 ```

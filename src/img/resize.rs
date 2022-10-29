@@ -74,6 +74,14 @@ pub fn resize_rgba8(
     let mut dst_view = dst_image.view_mut();
     let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(*filter));
 
+    cfg_if! {
+        if #[cfg(feature="sse4_1")] {
+            unsafe { resizer.set_cpu_extensions(fir::CpuExtensions::Sse4_1); }
+        } else if #[cfg(feature="avx2")]{
+            unsafe { resizer.set_cpu_extensions(fir::CpuExtensions::Avx2); }
+        } else {}
+    }
+
     resizer.resize(&src_image.view(), &mut dst_view)?;
 
     // rgba

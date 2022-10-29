@@ -2,12 +2,13 @@ use cfg_if::cfg_if;
 
 use log;
 use rmg::{
-    archive, cli,
+    archive::{self, ArchiveType},
+    cli,
     config::rsconf::Config,
     files::{self, list},
     img::size::{MetaSize, TMetaSize},
     reader::{buffer::PageInfo, display},
-    utils::{err::MyErr, types::ArchiveType},
+    utils::err::MyErr,
 };
 use simple_logger;
 use std::path::Path;

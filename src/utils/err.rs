@@ -16,7 +16,7 @@ pub enum MyErr {
     MulDivImage(fir::MulDivImageError),
     DifferentTypesOfPixels(fir::DifferentTypesOfPixelsError), // resize imgae
 
-    //   Miniserde(miniserde::Error), //
+    // Miniserde(miniserde::Error), //
 
     // Speedy(speedy::Error), // metadata
     Lexopt(lexopt::Error), // args

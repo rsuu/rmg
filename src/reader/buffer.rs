@@ -1,9 +1,8 @@
 use crate::{
-    archive,
+    archive::{self, ArchiveType},
     color::rgba::TransRgba,
     img::{resize, size::Size},
     reader::{keymap::Map, window::Canvas},
-    utils::types::ArchiveType,
 };
 use fir;
 use log;
@@ -406,10 +405,7 @@ tail: {}
 }
 
 #[inline]
-pub fn push_front<T>(vec: &mut Vec<T>, slice: &[T])
-where
-    T: ?Copy + Clone + Sized,
-{
+pub fn push_front<T>(vec: &mut Vec<T>, slice: &[T]) {
     let amt = slice.len(); // [1, 2, 3]
     let len = vec.len(); // [4, 5, 6]
 
