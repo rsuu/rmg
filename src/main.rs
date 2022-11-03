@@ -3,21 +3,19 @@ use cfg_if::cfg_if;
 use log;
 use rmg::{
     archive::{self, ArchiveType},
-    cli,
     config::rsconf::Config,
-    files::{self, list},
     img::size::{MetaSize, TMetaSize},
-    reader::{buffer::PageInfo, display},
-    utils::err::MyErr,
+    reader::{display, scroll::PageInfo},
+    utils::{cli, err::MyErr, file},
 };
 use simple_logger;
 use std::path::Path;
 
 #[tokio::main]
 async fn main() {
-    init();
+    init_log();
 
-    let mut args = cli::parse::Args::new();
+    let mut args = cli::Args::new();
     args.parse().unwrap_or_else(|_| panic!());
 
     let mut config: Config = args.init_config();
@@ -69,7 +67,7 @@ async fn main() {
     }
 }
 
-pub fn init() {
+pub fn init_log() {
     simple_logger::SimpleLogger::new()
         .with_level(log::LevelFilter::Off)
         .with_colors(true)
@@ -86,7 +84,7 @@ where
     let res: ArchiveType = if path.as_ref().is_dir() {
         ArchiveType::Dir
     } else {
-        let inline_res: ArchiveType = match list::get_filetype(path.as_ref()).as_str() {
+        let inline_res: ArchiveType = match file::get_filetype(path.as_ref()).as_str() {
             "tar" => ArchiveType::Tar,
             "zip" => ArchiveType::Zip,
 
@@ -116,7 +114,7 @@ pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Pa
             let info = if rename_pad == 0 {
                 PageInfo::new(path.clone(), *idx)
             } else {
-                PageInfo::new(files::file::pad_name(rename_pad, path.as_str()), *idx)
+                PageInfo::new(file::pad_name(rename_pad, path.as_str()), *idx)
             };
 
             page_list.push(info);
@@ -139,7 +137,7 @@ where
         let file_list = archive::dir::get_file_list(from.as_ref()).unwrap();
         return Ok(file_list);
     } else {
-        match list::get_filetype(from.as_ref()).as_str() {
+        match file::get_filetype(from.as_ref()).as_str() {
             "tar" => {
                 cfg_if! {
                     if #[cfg(feature="ex_tar")] {

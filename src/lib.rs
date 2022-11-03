@@ -1,6 +1,10 @@
-pub use cfg_if::cfg_if;
-
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub enum OsType {
+    Linux,
+    Windows,
+    Mac,
+}
 
 // block | expr | ident | item | lifetime | literal
 // meta | pat | pat_param | path | stmt | tt | ty | vis
@@ -27,9 +31,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 //    }
 // }
 
-pub mod utils {
-    #[macro_export]
-    macro_rules! error_from {
+#[macro_export]
+macro_rules! error_from {
     ( $($l:path, $r:path ;)* ) => {
         $(
             impl From<$l> for MyErr {
@@ -41,7 +44,10 @@ pub mod utils {
     }
 }
 
+pub mod utils {
+    pub mod cli;
     pub mod err;
+    pub mod file;
 }
 
 pub mod archive {
@@ -62,11 +68,6 @@ pub mod archive {
     pub mod dir;
 }
 
-pub mod files {
-    pub mod file;
-    pub mod list;
-}
-
 pub mod img {
     pub mod covert;
     pub mod resize;
@@ -83,16 +84,16 @@ pub mod color {
 }
 
 pub mod reader {
-    pub mod buffer;
     pub mod display;
     pub mod keymap;
+    pub mod view;
     pub mod window;
-}
 
-pub mod cli {
-    pub mod parse;
+    pub mod scroll;
+    pub mod turn;
 }
 
 pub mod config {
+    pub mod history;
     pub mod rsconf;
 }

@@ -1,12 +1,11 @@
 fn main() {
     Base {
-        size: (900, 900),
-        font: None,
-        rename_pad: 6,
-
-        image_filter_type: "box",
-        auto_resize: true,
-        auto_topmost: false, // NOTE: only works on windows
+        size: (900, 900),    // width AND height
+        font: None,          //
+        rename_pad: 0,       //
+        invert_mouse: false, //
+        filter: "Hamming",   // ["Box", "Hamming", ]
+        step: 10,            //
     };
 
     Keymap {

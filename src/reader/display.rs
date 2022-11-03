@@ -3,18 +3,18 @@ use crate::{
     config::rsconf::Config,
     img::size::MetaSize,
     reader::{
-        buffer::{Buffer, PageInfo, State},
         keymap::{self, Map},
+        scroll::{PageInfo, Scroll, State},
         window::Canvas,
     },
     utils::err::Res,
 };
 //use emeta::meta;
 
-use std::{
-    path::PathBuf,
-    sync::{Arc, RwLock},
-};
+use log::{debug, info};
+use std::{path::PathBuf, sync::Arc};
+
+use parking_lot::RwLock;
 
 /// display images
 pub async fn cat_img(
@@ -33,7 +33,7 @@ pub async fn cat_img(
     let filter = config.base.filter;
     let keymaps = keymap::KeyMap::new();
 
-    let mut buf = Buffer {
+    let mut buf = Scroll {
         bytes: Vec::with_capacity(max_bytes * 4), // buffer
         max_bytes,
 
@@ -60,14 +60,14 @@ pub async fn cat_img(
 
     for_minifb(config, &mut buf, &mut canvas, &keymaps).await;
 
-    println!("CLOSE");
+    info!("---EXIT---");
 
     Ok(())
 }
 
 pub async fn for_minifb(
     config: &Config,
-    buf: &mut Buffer,
+    buf: &mut Scroll,
     canvas: &mut Canvas,
     keymaps: &[keymap::KeyMap],
 ) {
@@ -119,7 +119,7 @@ pub async fn for_minifb(
                         } else {
                         }
 
-                        log::debug!("mouse_y == {}", y);
+                        debug!("mouse_y == {}", y);
                     }
                 } else if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
                     if y > 0.0 {
@@ -129,12 +129,12 @@ pub async fn for_minifb(
                     } else {
                     }
 
-                    log::debug!("mouse_y == {}", y);
+                    debug!("mouse_y == {}", y);
                 }
             }
         }
 
-        //log::debug!("Key: {:?}", canvas.window.get_keys().iter().as_slice());
+        //debug!("Key: {:?}", canvas.window.get_keys().iter().as_slice());
         buf.flush(canvas);
 
         std::thread::sleep(std::time::Duration::from_millis(40));

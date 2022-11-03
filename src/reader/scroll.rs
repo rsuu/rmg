@@ -5,10 +5,11 @@ use crate::{
     reader::{keymap::Map, window::Canvas},
 };
 use fir;
-use log;
+use log::{debug, info};
+use parking_lot::RwLock;
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 use tokio;
 
@@ -35,7 +36,7 @@ pub struct PageInfo {
 }
 
 #[derive(Debug, Clone)]
-pub struct Buffer {
+pub struct Scroll {
     pub bytes: Vec<u32>,
     pub max_bytes: usize,
 
@@ -69,7 +70,7 @@ impl PageInfo {
     }
 }
 
-impl Buffer {
+impl Scroll {
     /// init
     pub fn init(&mut self) {
         // only works when page count >= 1
@@ -89,11 +90,11 @@ impl Buffer {
     pub fn flush(&self, canvas: &mut Canvas) {
         canvas.flush(&self.bytes[self.start..self.end]);
 
-        // log::debug!("self.bytes.len() == {}", self.bytes.len());
+        // debug!("self.bytes.len() == {}", self.bytes.len());
     }
 
     pub fn load_next(&mut self) {
-        log::info!("load next");
+        info!("load next");
 
         let file_pos = self.page_list[self.tail].pos;
 
@@ -114,12 +115,13 @@ impl Buffer {
 
     /// goto next page
     // HACK: async version
+    #[inline]
     pub fn move_down(
         &mut self,
         color_buffer_arc: &Arc<RwLock<Vec<u32>>>,
         state_arc: &Arc<RwLock<State>>,
     ) {
-        log::debug!(
+        debug!(
             "
 state: {:?}
 start: {}
@@ -128,7 +130,7 @@ len: {}
 head: {}
 tail: {}
 ",
-            *state_arc.read().unwrap(),
+            *state_arc.read(),
             self.start,
             self.end,
             self.bytes.len(),
@@ -141,13 +143,13 @@ tail: {}
         // try to load next page
         if self.end >= self.bytes.len() / 8
             && self.tail + 1 < self.page_end
-            && *state_arc.read().unwrap() == State::Nothing
+            && *state_arc.read() == State::Nothing
         {
             self.tail += 1;
 
             let color_buf = color_buffer_arc.clone();
             let state = state_arc.clone();
-            *state.write().unwrap() = State::NextReady;
+            *state.write() = State::NextReady;
 
             let archive_type = self.archive_type;
             let archive_path = self.archive_path.clone();
@@ -169,36 +171,33 @@ tail: {}
                     filter,
                 );
 
-                color_buf
-                    .write()
-                    .unwrap()
-                    .extend_from_slice(img_selffer.as_slice());
+                color_buf.write().extend_from_slice(img_selffer.as_slice());
 
-                *state.write().unwrap() = State::NextDone;
+                *state.write() = State::NextDone;
 
-                log::debug!("DONE");
+                debug!("DONE");
             });
 
             drop(join);
         }
 
         // load next
-        if *state_arc.read().unwrap() == State::NextDone {
-            self.page_list[self.tail].len = color_buffer_arc.read().unwrap().len();
+        if *state_arc.read() == State::NextDone {
+            self.page_list[self.tail].len = color_buffer_arc.read().len();
             self.bytes
-                .extend_from_slice(color_buffer_arc.read().unwrap().as_slice());
+                .extend_from_slice(color_buffer_arc.read().as_slice());
 
-            color_buffer_arc.write().unwrap().clear();
+            color_buffer_arc.write().clear();
 
-            log::debug!("state == {:?}", state_arc.read().unwrap());
-            log::debug!("load next");
+            debug!("state == {:?}", state_arc.read());
+            debug!("load next");
 
-            *state_arc.write().unwrap() = State::Nothing;
+            *state_arc.write() = State::Nothing;
         } else {
         }
 
         // try to free up the memory
-        if *state_arc.write().unwrap() == State::Nothing
+        if *state_arc.write() == State::Nothing
             && self.start > cut_len
             && self.bytes.len() >= self.max_bytes * 8 + cut_len
             && self.head + 1 < self.tail
@@ -223,16 +222,17 @@ tail: {}
         // change the state
         self.mode = Map::Down;
 
-        log::info!("move_down()");
+        info!("move_down()");
     }
 
     /// goto prev page
+    #[inline]
     pub fn move_up(
         &mut self,
         color_buffer_arc: &Arc<RwLock<Vec<u32>>>,
         state_arc: &Arc<RwLock<State>>,
     ) {
-        log::debug!(
+        debug!(
             "
 state: {:?}
 start: {}
@@ -241,7 +241,7 @@ len: {}
 head: {}
 tail: {}
 ",
-            *state_arc.read().unwrap(),
+            *state_arc.read(),
             self.start,
             self.end,
             self.bytes.len(),
@@ -254,14 +254,13 @@ tail: {}
         // try to load prev page
         if self.head >= 1
             && (self.start <= self.max_bytes * 2)
-            && (*state_arc.read().unwrap() == State::Nothing
-                || *state_arc.read().unwrap() == State::NextDone)
+            && (*state_arc.read() == State::Nothing || *state_arc.read() == State::NextDone)
         {
             self.head -= 1;
 
             let color_buf = color_buffer_arc.clone();
             let state = state_arc.clone();
-            *state.write().unwrap() = State::PrevReady;
+            *state.write() = State::PrevReady;
 
             let archive_type = self.archive_type;
             let archive_path = self.archive_path.clone();
@@ -283,14 +282,11 @@ tail: {}
                     filter,
                 );
 
-                color_buf
-                    .write()
-                    .unwrap()
-                    .extend_from_slice(img_selffer.as_slice());
+                color_buf.write().extend_from_slice(img_selffer.as_slice());
 
-                *state.write().unwrap() = State::PrevDone;
+                *state.write() = State::PrevDone;
 
-                log::debug!("DONE");
+                debug!("DONE");
             });
 
             drop(join);
@@ -298,24 +294,24 @@ tail: {}
         }
 
         // load prev
-        if *state_arc.read().unwrap() == State::PrevDone {
-            push_front(&mut self.bytes, color_buffer_arc.read().unwrap().as_slice());
+        if *state_arc.read() == State::PrevDone {
+            push_front(&mut self.bytes, color_buffer_arc.read().as_slice());
 
-            let len = color_buffer_arc.read().unwrap().len();
+            let len = color_buffer_arc.read().len();
 
             self.start += len;
             self.end += len;
 
-            color_buffer_arc.write().unwrap().clear();
-            *state_arc.write().unwrap() = State::Nothing;
+            color_buffer_arc.write().clear();
+            *state_arc.write() = State::Nothing;
 
-            log::debug!("state == {:?}", state_arc.read().unwrap());
-            log::debug!("load prev");
+            debug!("state == {:?}", state_arc.read());
+            debug!("load prev");
         } else {
         }
 
         // HACK: try to free up the memory
-        if *state_arc.write().unwrap() == State::Nothing
+        if *state_arc.write() == State::Nothing
             && self.bytes.len() >= self.end + cut_len
             && self.bytes.len() >= self.max_bytes * 8 + cut_len
             && self.tail > self.head + 1
@@ -323,7 +319,7 @@ tail: {}
             self.tail -= 1;
             free_tail(&mut self.bytes, cut_len);
 
-            log::debug!("move_up: free()");
+            debug!("move_up: free()");
         }
 
         if self.start >= self.y_step {
@@ -338,7 +334,7 @@ tail: {}
 
         self.mode = Map::Up;
 
-        log::info!("move_up()");
+        info!("move_up()");
     }
 
     pub fn move_left(&mut self) {
@@ -348,8 +344,8 @@ tail: {}
             self.start += self.x_step;
             self.end += self.x_step;
 
-            log::debug!("start: {}", self.start);
-            log::debug!("end: {}", self.end);
+            debug!("start: {}", self.start);
+            debug!("end: {}", self.end);
         } else {
         }
 
@@ -436,6 +432,7 @@ where
 }
 
 ///
+#[inline]
 pub fn get_buffer(
     buffer: &mut Vec<u32>,
     archive_type: ArchiveType,
@@ -462,6 +459,7 @@ pub fn get_buffer(
     }
 }
 
+#[inline]
 pub fn resize_img(
     buffer: &mut Vec<u8>,
     archive_type: ArchiveType,
@@ -471,23 +469,23 @@ pub fn resize_img(
     window_size: Size<u32>,
     filter: &fir::FilterType,
 ) {
-    log::debug!("archive_type == {:?}", archive_type);
+    debug!("archive_type == {:?}", archive_type);
 
     let bytes = match archive_type {
         ArchiveType::Tar => {
-            log::debug!("ex_tar()");
+            debug!("ex_tar()");
 
             archive::tar::load_file(archive_path, page_pos).unwrap()
         }
 
         ArchiveType::Zip => {
-            log::debug!("ex_zip()");
+            debug!("ex_zip()");
 
             archive::zip::load_file(archive_path, page_pos).unwrap()
         }
 
         ArchiveType::Dir => {
-            log::debug!("load file");
+            debug!("load file");
 
             archive::dir::load_file(archive_path, page_pos).unwrap()
         }
