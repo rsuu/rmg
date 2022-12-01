@@ -7,8 +7,8 @@ use fir;
 use std::num::NonZeroU32;
 
 pub fn resize_bytes(
-    bytes: &[u8],
     buffer: &mut Vec<u8>,
+    bytes: &[u8],
     screen_size: Size<u32>,
     window_size: Size<u32>,
     filter: &fir::FilterType,

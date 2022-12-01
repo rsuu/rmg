@@ -54,7 +54,6 @@ syn = { version = "1.0.102", features = ["full", "extra-traits"] }
 
 # async
 tokio = { version = "1.21.2", features = ["rt", "macros", "rt-multi-thread"] }
-parking_lot = { version = "0.12.1", features = ["arc_lock"] }
 
 # other
 cfg-if = "1.0.0"

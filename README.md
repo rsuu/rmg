@@ -62,7 +62,7 @@ WARN: You have to create the file by yourself.
 
 + configuration file path
   + Linux: `$HOME/.config/rmg/config.rs`
-  + Windows: `C:\Users\Alice\AppData\<USER>\rmg\config.rs`
+  + Windows: `C:\Users\<USER>\AppData\<USER>\rmg\config.rs`
   + Mac: `$HOME/Library/Application Support/rmg/config.rs`
 
 ## Features

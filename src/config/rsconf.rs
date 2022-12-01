@@ -34,6 +34,12 @@ use std::{fs::File, io::Read, path::Path};
 pub struct Config {
     pub base: Base,
     pub keymap: Keymap<char>,
+    pub cli: Cli,
+}
+
+#[derive(Debug)]
+pub struct Cli {
+    pub file_path: Option<String>,
 }
 
 #[derive(Debug)]
@@ -90,6 +96,7 @@ impl Default for Config {
         Config {
             base: Base::default(),
             keymap: Keymap::default(),
+            cli: Cli { file_path: None },
         }
     }
 }

@@ -41,18 +41,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}-test
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
           target: ${{ matrix.target }}
-
       - name: Add mingw64 to path for x86_64-gnu
         run: echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
         if: matrix.rust == 'nightly'
         shell: bash
-
       - name: Build and Test
         shell: bash
         run: |

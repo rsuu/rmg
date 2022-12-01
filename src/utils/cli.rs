@@ -1,39 +1,19 @@
-use crate::{color::format, config::rsconf::Config, img::size::Size, utils::err::Res};
+use crate::{config::rsconf::Config, img::size::Size, utils::err::Res};
 use dirs_next;
 use lexopt::{self, prelude::*};
 use std::{path::PathBuf, process::exit};
-//use emeta::meta;
 
 #[derive(Debug)]
 pub struct Args {
     pub config_path: Option<String>,
-    pub file_path: Option<String>,
-    pub dir_path: Option<String>,
-    pub size: Option<Size<usize>>,
-    pub format: Option<format::PixelFormat>,
-    pub rename_pad: usize,
-    pub meta_display: bool,
 }
 
 impl Args {
     pub fn new() -> Self {
-        Args {
-            config_path: None,
-
-            file_path: None,
-            dir_path: None,
-
-            size: None,
-
-            rename_pad: 6,
-
-            format: None,
-
-            meta_display: false,
-        }
+        Args { config_path: None }
     }
 
-    pub fn parse(&mut self) -> Res<()> {
+    pub fn parse(&mut self, config: &mut Config) -> Res<()> {
         let mut parser = lexopt::Parser::from_env();
 
         while let Some(arg) = parser.next()? {
@@ -50,51 +30,22 @@ impl Args {
                     let size = parser.value()?.into_string()?;
                     let size = size.as_str().split(',').collect::<Vec<&str>>();
 
-                    if let Ok(w) = size[0].parse::<usize>() {
-                        if let Ok(h) = size[1].parse::<usize>() {
-                            self.size = Some(Size::new(w, h));
-                        }
-                    }
+                    let (w, h) = (
+                        size[0].parse::<usize>().unwrap_or_default(),
+                        size[1].parse::<usize>().unwrap_or_default(),
+                    );
+
+                    config.base.size = Size::new(w, h);
                 }
 
                 Long("pad") => {
                     let pad = parser.value()?.into_string()?;
-                    self.rename_pad = pad.parse::<usize>()?;
+                    config.base.rename_pad = pad.parse::<u8>()?;
                 }
 
-                Long("format") => {
-                    let format = parser.value()?.into_string()?;
-                    self.format = match format.as_str() {
-                        "rgb8" => Some(format::PixelFormat::Rgb8),
-                        "rgba8" => Some(format::PixelFormat::Rgba8),
-                        _ => None,
-                    };
+                Value(v) => {
+                    config.cli.file_path = Some(v.into_string()?);
                 }
-
-                //                Short('m') | Long("meta") => {
-                //                    let sub = parser.value()?.into_string()?;
-                //
-                //                    match sub.to_ascii_lowercase().as_str() {
-                //                        "d" | "display" => {
-                //                            self.meta_display = true;
-                //                        }
-                //
-                //                        "f" | "from" => {
-                //                            let file_path = parser.value()?.into_string()?;
-                //
-                //                            // echo xxx | rmg -m f -
-                //                            match file_path.as_str() {
-                //                                "-" => {
-                //                                    let meta = meta::MetaData::from_pipe().unwrap();
-                //                                    meta.display();
-                //                                }
-                //                                _ => {}
-                //                            }
-                //                        }
-                //                        _ => {}
-                //                    }
-                //                }
-                Value(v) => self.file_path = Some(v.into_string()?),
 
                 _ => {
                     print_help();
@@ -103,14 +54,6 @@ impl Args {
         }
 
         Ok(())
-    }
-
-    pub fn set_size(&mut self, config: &mut Config) {
-        if let Some(size) = self.size {
-            config.base.size = size;
-        } else {
-            // default
-        };
     }
 
     pub fn init_config(&self) -> Config {
@@ -138,7 +81,6 @@ impl Args {
                         // doing nothing
                     }
                 } else {
-
                     // doing nothing
                 }
             } else {
@@ -173,9 +115,8 @@ OPTIONS:
     -s, --size       Max width and height of the buffer
                      e.g. rmg --size 900,900
     -c, --config     Reset the config path
-    -m, --meta       ...
 
-    --pad         ...
+    --pad            ...
 "#,
         version = VERSION
     );

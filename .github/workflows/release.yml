@@ -15,6 +15,9 @@ jobs:
       upload_url: ${{ steps.release.outputs.upload_url }}
       bin_version: ${{ env.BIN_VERSION }}
     steps:
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}-release
       - name: Get the release version from the tag
         shell: bash
         if: env.BIN_VERSION == ''

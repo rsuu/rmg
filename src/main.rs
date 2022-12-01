@@ -1,11 +1,13 @@
 use cfg_if::cfg_if;
-
 use log;
 use rmg::{
     archive::{self, ArchiveType},
     config::rsconf::Config,
     img::size::{MetaSize, TMetaSize},
-    reader::{display, scroll::PageInfo},
+    reader::{
+        display,
+        view::{Img, Page},
+    },
     utils::{cli, err::MyErr, file},
 };
 use simple_logger;
@@ -16,10 +18,9 @@ async fn main() {
     init_log();
 
     let mut args = cli::Args::new();
-    args.parse().unwrap_or_else(|_| panic!());
-
     let mut config: Config = args.init_config();
-    args.set_size(&mut config);
+
+    args.parse(&mut config).unwrap_or_else(|_| panic!());
 
     log::debug!("Args: {:#?}", args);
     log::debug!("Config: {:#?}", config);
@@ -35,12 +36,12 @@ async fn main() {
 
     log::debug!("meta_size: {:#?}", &meta_size);
 
-    if let Some(path) = args.file_path {
+    if let Some(path) = &config.cli.file_path {
         println!("Open: {}", path.as_str());
 
         let file_list = get_file_list(path.as_str()).unwrap();
         let archive_type = get_archive_type(path.as_str()).unwrap();
-        let page_list = get_page_list(&file_list, args.rename_pad);
+        let page_list = get_page_list(&file_list, config.base.rename_pad as usize);
 
         log::debug!("page_list: {:#?}", page_list);
 
@@ -99,11 +100,12 @@ where
     Ok(res)
 }
 
-pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<PageInfo> {
+pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Page> {
     let mut page_list = Vec::new();
+    let mut number = 0;
 
     // Only allow [.jpg || .jpeg || .png || .avif]
-    for (path, idx) in file_list.iter() {
+    for (path, pos) in file_list.iter() {
         if !path.ends_with('/') && path.ends_with(".jpg")
             || path.ends_with(".png")
             || path.ends_with(".jpeg")
@@ -112,12 +114,13 @@ pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Pa
             || path.ends_with(".heif")
         {
             let info = if rename_pad == 0 {
-                PageInfo::new(path.clone(), *idx)
+                Page::new(path.clone(), number, *pos)
             } else {
-                PageInfo::new(file::pad_name(rename_pad, path.as_str()), *idx)
+                Page::new(file::pad_name(rename_pad, path.as_str()), number, *pos)
             };
 
             page_list.push(info);
+            number += 1;
         } else {
         }
     }

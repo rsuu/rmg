@@ -1,3 +1,5 @@
+use crate::reader::scroll::State;
+
 pub type Res<T> = Result<T, MyErr>;
 
 #[derive(Debug)]
@@ -23,7 +25,6 @@ pub enum MyErr {
     WalkDir(walkdir::Error),
 
     Null(()),
-    MagickNumber,
 }
 
 impl From<()> for MyErr {
