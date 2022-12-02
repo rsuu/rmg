@@ -4,10 +4,11 @@ use crate::{
     img::{resize, size::Size},
     reader::{
         keymap::Map,
-        view::{Img, Page},
+        view::{Buffer, Img, Page},
         window::Canvas,
     },
     utils::err::{MyErr, Res},
+    TIMER,
 };
 use fir;
 use log::{debug, info};
@@ -33,21 +34,17 @@ pub enum State {
     PrevDone,
 }
 
-//use crate::reader::view::Page;
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Scroll {
-    pub buffer: Vec<u32>,
+    pub buffer: Buffer,
     pub max_ram: usize,
 
     pub head: usize, // =0
     pub tail: usize, // =0
 
-    pub start: usize,
-    pub end: usize,
+    pub rng: usize, //
 
     pub page_list: Vec<Page>,
-    //pub page_list: Vec<Page>,
     pub page_end: usize,
 
     pub archive_path: PathBuf,
@@ -63,18 +60,39 @@ pub struct Scroll {
     pub window_position: (i32, i32),
 
     pub filter: fir::FilterType,
+
+    pub len: usize,
+    pub page_load_list: Vec<usize>,
 }
 
 impl Scroll {
+    pub fn page_list_len(&mut self) -> usize {
+        let mut res = 0;
+
+        self.page_load_list.clear();
+
+        for (idx, page) in self.page_list.iter().enumerate() {
+            if page.len() > 0 {
+                res += page.len();
+                self.page_load_list.push(idx);
+            } else {
+            }
+        }
+
+        res
+    }
+
     /// init
     pub fn init(&mut self) {
-        // only works when page count >= 1
-        if self.page_end >= 1 {
-            self.load_next();
+        // only works when page count > 0
+        if self.page_end > 0 {
+            let mut len = 0;
 
-            'l1: while self.buffer.len() <= self.max_ram * 2 && self.tail + 1 < self.page_end {
+            len += self.load_next();
+
+            'l1: while len <= self.max_ram * 2 && self.tail + 1 < self.page_end {
                 self.tail += 1;
-                self.load_next();
+                len += self.load_next();
             }
         } else {
             panic!()
@@ -82,40 +100,60 @@ impl Scroll {
     }
 
     #[inline(always)]
-    pub fn flush(&self, canvas: &mut Canvas) {
-        canvas.flush(&self.buffer[self.start..self.end]);
+    pub fn flush(&mut self, canvas: &mut Canvas, arc_state: &Arc<RwLock<State>>) {
+        unsafe {
+            if TIMER >= 60 {
+                TIMER = 0;
+            } else {
+                TIMER += 1;
+            }
+        }
 
-        // debug!("self.buffer.len() == {}", self.buffer.len());
+        if *arc_state.read().unwrap() == State::Nothing {
+            // update
+
+            unsafe {
+                if TIMER == 0 {
+                    // TODO: gif next frame
+                    for idx in self.page_load_list.iter() {
+                        self.page_list[*idx].to_next_frame();
+                    }
+                } else {
+                }
+            }
+
+            self.buffer.clear();
+            self.len = self.page_list_len();
+
+            for idx in self.page_load_list.iter() {
+                self.buffer.flush(&self.page_list[*idx]);
+            }
+        } else {
+        }
+
+        canvas.flush(&self.buffer.data[self.rng..self.rng + self.max_ram]);
     }
 
-    pub fn load_next(&mut self) {
-        info!("load next");
-
-        let pos = self.page_list[self.tail].pos;
-
+    #[inline(always)]
+    pub fn load_next(&mut self) -> usize {
         if let Some(img) = load_img(
             self.archive_type,
             self.archive_path.as_path(),
-            pos,
+            self.page_list[self.tail].pos,
             self.screen_size,
             self.window_size,
             self.filter,
         ) {
-            self.buffer.extend_from_slice(img.data().unwrap());
-            self.page_list[self.tail].len = img.len();
+            self.page_list[self.tail].flush(img)
         } else {
-            todo!()
+            panic!()
         }
     }
 
     /// goto next page
     // HACK: async version
     #[inline]
-    pub fn move_down(
-        &mut self,
-        color_buffer_arc: &Arc<RwLock<Vec<u32>>>,
-        state_arc: &Arc<RwLock<State>>,
-    ) {
+    pub fn move_down(&mut self, arc_page: &Arc<RwLock<Page>>, arc_state: &Arc<RwLock<State>>) {
         debug!(
             "
 state: {:?}
@@ -125,25 +163,36 @@ len: {}
 head: {}
 tail: {}
 ",
-            *state_arc.read().unwrap(),
-            self.start,
-            self.end,
-            self.buffer.len(),
+            *arc_state.read().unwrap(),
+            self.rng,
+            self.end(),
+            self.len,
             self.head,
             self.tail,
         );
 
-        let cut_len = self.page_list[self.head].len;
+        // scrolling viewer
+        if self.len >= self.end() + self.y_step {
+            self.rng += self.y_step;
+        } else if self.len >= self.end() {
+            self.rng += self.len - self.end();
+        } else {
+        }
+
+        // change the state
+        self.mode = Map::Down;
+
+        info!("move_down()");
 
         // try to load next page
-        if self.end >= self.buffer.len() / 8
+        if self.end() >= self.len / 8
             && self.tail + 1 < self.page_end
-            && *state_arc.read().unwrap() == State::Nothing
+            && *arc_state.read().unwrap() == State::Nothing
         {
             self.tail += 1;
 
-            let color_buf = color_buffer_arc.clone();
-            let state = state_arc.clone();
+            let page = arc_page.clone();
+            let state = arc_state.clone();
             *state.write().unwrap() = State::NextReady;
 
             let archive_type = self.archive_type;
@@ -152,8 +201,9 @@ tail: {}
             let screen_size = self.screen_size;
             let window_size = self.window_size;
             let filter = self.filter;
+            let mut tail = self.page_list[self.tail].clone();
 
-            let join = tokio::spawn(async move {
+            tokio::spawn(async move {
                 if let Some(img) = load_img(
                     archive_type,
                     archive_path.as_path(),
@@ -162,71 +212,43 @@ tail: {}
                     window_size,
                     filter,
                 ) {
-                    color_buf
-                        .write()
-                        .unwrap()
-                        .extend_from_slice(img.data().unwrap());
-
+                    tail.flush(img);
+                    *page.write().unwrap() = tail;
                     *state.write().unwrap() = State::NextDone;
 
                     debug!("DONE");
                 }
             });
-
-            drop(join);
         }
 
         // load next
-        if *state_arc.read().unwrap() == State::NextDone {
-            self.page_list[self.tail].len = color_buffer_arc.read().unwrap().len();
-            self.buffer
-                .extend_from_slice(color_buffer_arc.read().unwrap().as_slice());
+        if *arc_state.read().unwrap() == State::NextDone {
+            self.page_list[self.tail] = arc_page.read().unwrap().clone();
 
-            color_buffer_arc.write().unwrap().clear();
-
-            debug!("state == {:?}", state_arc.read().unwrap());
+            debug!("state == {:?}", arc_state.read().unwrap());
             debug!("load next");
 
-            *state_arc.write().unwrap() = State::Nothing;
+            *arc_state.write().unwrap() = State::Nothing;
         } else {
         }
+
+        let head_len = self.page_list[self.head].len();
 
         // try to free up the memory
-        if *state_arc.write().unwrap() == State::Nothing
-            && self.start > cut_len
-            && self.buffer.len() >= self.max_ram * 8 + cut_len
+        if *arc_state.write().unwrap() == State::Nothing
+            && self.len >= self.max_ram * 8 + head_len
             && self.head + 1 < self.tail
+            && self.rng > head_len
         {
+            self.rng -= self.page_list[self.head].len();
+            self.page_list[self.head].clear();
             self.head += 1;
-            free_head(&mut self.buffer, cut_len);
-
-            self.start -= cut_len;
-            self.end -= cut_len;
         }
-
-        // scrolling viewer
-        if self.buffer.len() >= self.end + self.y_step {
-            self.start += self.y_step;
-            self.end += self.y_step;
-        } else if self.buffer.len() >= self.end {
-            self.start += self.buffer.len() - self.end;
-            self.end += self.buffer.len() - self.end;
-        } else {
-        }
-
-        // change the state
-        self.mode = Map::Down;
-
-        info!("move_down()");
     }
 
     /// goto prev page
     #[inline]
-    pub fn move_up(
-        &mut self,
-        color_buffer_arc: &Arc<RwLock<Vec<u32>>>,
-        state_arc: &Arc<RwLock<State>>,
-    ) {
+    pub fn move_up(&mut self, arc_page: &Arc<RwLock<Page>>, arc_state: &Arc<RwLock<State>>) {
         debug!(
             "
 state: {:?}
@@ -236,26 +258,35 @@ len: {}
 head: {}
 tail: {}
 ",
-            *state_arc.read().unwrap(),
-            self.start,
-            self.end,
-            self.buffer.len(),
+            *arc_state.read().unwrap(),
+            self.rng,
+            self.end(),
+            self.len,
             self.head,
             self.tail,
         );
 
-        let cut_len = self.page_list[self.tail].len;
+        if self.rng >= self.y_step {
+            self.rng -= self.y_step;
+        } else if self.rng >= 0 {
+            self.rng = 0;
+        } else {
+        }
+
+        self.mode = Map::Up;
+
+        info!("move_up()");
 
         // try to load prev page
         if self.head >= 1
-            && (self.start <= self.max_ram * 2)
-            && (*state_arc.read().unwrap() == State::Nothing
-                || *state_arc.read().unwrap() == State::NextDone)
+            && (self.rng <= self.max_ram * 2)
+            && (*arc_state.read().unwrap() == State::Nothing
+                || *arc_state.read().unwrap() == State::NextDone)
         {
             self.head -= 1;
 
-            let color_buf = color_buffer_arc.clone();
-            let state = state_arc.clone();
+            let page = arc_page.clone();
+            let state = arc_state.clone();
             *state.write().unwrap() = State::PrevReady;
 
             let archive_type = self.archive_type;
@@ -264,8 +295,9 @@ tail: {}
             let screen_size = self.screen_size;
             let window_size = self.window_size;
             let filter = self.filter;
+            let mut head = self.page_list[self.head].clone();
 
-            let join = tokio::spawn(async move {
+            tokio::spawn(async move {
                 if let Some(img) = load_img(
                     archive_type,
                     archive_path.as_path(),
@@ -274,77 +306,51 @@ tail: {}
                     window_size,
                     filter,
                 ) {
-                    color_buf
-                        .write()
-                        .unwrap()
-                        .extend_from_slice(img.data().unwrap());
-
+                    head.flush(img);
+                    *page.write().unwrap() = head;
                     *state.write().unwrap() = State::PrevDone;
 
                     debug!("DONE");
                 }
             });
-
-            drop(join);
         } else {
         }
 
         // load prev
-        if *state_arc.read().unwrap() == State::PrevDone {
-            push_front(
-                &mut self.buffer,
-                color_buffer_arc.read().unwrap().as_slice(),
-            );
+        if *arc_state.read().unwrap() == State::PrevDone {
+            self.page_list[self.head] = arc_page.read().unwrap().clone();
+            self.rng += self.page_list[self.head].len();
 
-            let len = color_buffer_arc.read().unwrap().len();
+            *arc_state.write().unwrap() = State::Nothing;
 
-            self.start += len;
-            self.end += len;
-
-            color_buffer_arc.write().unwrap().clear();
-            *state_arc.write().unwrap() = State::Nothing;
-
-            debug!("state == {:?}", state_arc.read().unwrap());
+            debug!("state == {:?}", arc_state.read().unwrap());
             debug!("load prev");
         } else {
         }
 
+        let tail_len = self.page_list[self.tail].len();
+
         // HACK: try to free up the memory
-        if *state_arc.write().unwrap() == State::Nothing
-            && self.buffer.len() >= self.end + cut_len
-            && self.buffer.len() >= self.max_ram * 8 + cut_len
+        if *arc_state.write().unwrap() == State::Nothing
+            && self.len >= self.end() + tail_len
+            && self.len >= self.max_ram * 8 + tail_len
             && self.tail > self.head + 1
         {
+            self.page_list[self.tail].clear();
             self.tail -= 1;
-            free_tail(&mut self.buffer, cut_len);
 
             debug!("move_up: free()");
         }
-
-        if self.start >= self.y_step {
-            self.start -= self.y_step;
-            self.end -= self.y_step;
-        } else if self.start >= 0 {
-            let s = self.start;
-            self.start -= s;
-            self.end -= s;
-        } else {
-        }
-
-        self.mode = Map::Up;
-
-        info!("move_up()");
     }
 
     pub fn move_left(&mut self) {
         // HACK: overflow
         // ??? How it works
-        if self.buffer.len() > self.end + self.x_step {
-            self.start += self.x_step;
-            self.end += self.x_step;
+        if self.len > self.end() + self.x_step {
+            self.rng += self.x_step;
 
-            debug!("start: {}", self.start);
-            debug!("end: {}", self.end);
+            debug!("start: {}", self.rng);
+            debug!("end: {}", self.end());
         } else {
         }
 
@@ -354,48 +360,16 @@ tail: {}
     ///
     pub fn move_right(&mut self) {
         // HACK: overflow
-        if self.start >= self.x_step {
-            self.start -= self.x_step;
-            self.end -= self.x_step;
+        if self.rng >= self.x_step {
+            self.rng -= self.x_step;
         } else {
         }
 
         self.mode = Map::Right;
     }
 
-    ///
-    pub fn need_pad_tail(&self) -> bool {
-        self.buffer.len() <= self.max_ram * LOAD_MAX
-    }
-
-    ///
-    pub fn need_pad_head(&self) -> bool {
-        self.buffer.len() <= self.max_ram * LOAD_MAX
-    }
-
-    ///
-    pub fn at_block_head(&self) -> bool {
-        self.start == 0
-    }
-
-    ///
-    pub fn at_block_tail(&self) -> bool {
-        self.end == self.buffer.len()
-    }
-
-    ///
-    pub fn not_page_tail(&self) -> bool {
-        self.tail < self.page_end
-    }
-
-    ///
-    pub fn not_next_page_tail(&self) -> bool {
-        self.tail + 1 < self.page_end
-    }
-
-    ///
-    pub fn to_prev_page(&mut self) {
-        self.head -= 1;
+    pub fn end(&self) -> usize {
+        self.rng + self.max_ram
     }
 }
 
@@ -431,7 +405,7 @@ where
 }
 
 ///
-#[inline]
+#[inline(always)]
 pub fn load_img(
     archive_type: ArchiveType,
     archive_path: &Path,

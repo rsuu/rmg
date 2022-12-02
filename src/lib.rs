@@ -1,4 +1,6 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const BITMAP_LIST: &[&str] = &["jpg", "png", "heic", "avif"];
+pub static mut TIMER: usize = 0;
 
 pub enum OsType {
     Linux,
@@ -48,6 +50,7 @@ pub mod utils {
     pub mod cli;
     pub mod err;
     pub mod file;
+    pub mod traits;
 }
 
 pub mod archive {

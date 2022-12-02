@@ -65,6 +65,16 @@ WARN: You have to create the file by yourself.
   + Windows: `C:\Users\<USER>\AppData\<USER>\rmg\config.rs`
   + Mac: `$HOME/Library/Application Support/rmg/config.rs`
 
+## Supported formats
+
+| Format | Supported | Default
+|:-|:-|:-|
+.jpg |✅ | ✅
+.png|✅| ✅
+.heic / .avif|🔬|❌
+.gif|🔬|✅
+.aseprite|🚧|❌
+
 ## Features
 
 ```bash

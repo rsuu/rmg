@@ -5,7 +5,7 @@ use crate::{
     reader::{
         keymap::{self, Map},
         scroll::{Scroll, State},
-        view::Page,
+        view::{Buffer, Page},
         window::Canvas,
     },
     utils::err::Res,
@@ -30,21 +30,22 @@ pub async fn cat_img(
     let screen_size = meta_size.screen;
     let window_size = meta_size.window;
     let max_ram = window_size.width as usize * window_size.height as usize;
-    let ram_max = max_ram * 8;
-    let ram_min = max_ram * 2;
+    let limit_next = max_ram * 8;
+    let limit_prev = max_ram * 2;
 
     let step = config.base.step as usize;
     let filter = config.base.filter;
     let keymaps = keymap::KeyMap::new();
 
     let mut buf = Scroll {
-        buffer: Vec::with_capacity(max_ram * 4), // buffer
+        buffer: Buffer::new(), // buffer
         max_ram,
 
         head: 0,
         tail: 0,
-        start: 0,
-        end: max_ram,
+        rng: 0,
+
+        len: 0,
 
         archive_path: PathBuf::from(path),
         archive_type,
@@ -58,6 +59,7 @@ pub async fn cat_img(
         window_position: (0, 0),                   //
         window_size,                               //
 
+        page_load_list: Vec::new(),
         filter, //
     };
     let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
@@ -76,18 +78,18 @@ pub async fn for_minifb(
     keymaps: &[keymap::KeyMap],
 ) {
     let arc_state = Arc::new(RwLock::new(State::Nothing));
-    let arc_color_buffer: Arc<RwLock<Vec<u32>>> = Arc::new(RwLock::new(Vec::new()));
+    let arc_page: Arc<RwLock<Page>> = Arc::new(RwLock::new(Page::null()));
 
     buf.init();
 
     'l1: while canvas.window.is_open() {
         match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
             Map::Down => {
-                buf.move_down(&arc_color_buffer, &arc_state);
+                buf.move_down(&arc_page, &arc_state);
             }
 
             Map::Up => {
-                buf.move_up(&arc_color_buffer, &arc_state);
+                buf.move_up(&arc_page, &arc_state);
             }
 
             Map::Reset => {
@@ -118,9 +120,9 @@ pub async fn for_minifb(
                 if config.base.invert_mouse {
                     if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
                         if y > 0.0 {
-                            buf.move_up(&arc_color_buffer, &arc_state);
+                            buf.move_up(&arc_page, &arc_state);
                         } else if y < 0.0 {
-                            buf.move_down(&arc_color_buffer, &arc_state);
+                            buf.move_down(&arc_page, &arc_state);
                         } else {
                         }
 
@@ -128,9 +130,9 @@ pub async fn for_minifb(
                     }
                 } else if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
                     if y > 0.0 {
-                        buf.move_down(&arc_color_buffer, &arc_state);
+                        buf.move_down(&arc_page, &arc_state);
                     } else if y < 0.0 {
-                        buf.move_up(&arc_color_buffer, &arc_state);
+                        buf.move_up(&arc_page, &arc_state);
                     } else {
                     }
 
@@ -139,7 +141,7 @@ pub async fn for_minifb(
             }
         }
 
-        buf.flush(canvas);
+        buf.flush(canvas, &arc_state);
 
         std::thread::sleep(std::time::Duration::from_millis(40));
     }

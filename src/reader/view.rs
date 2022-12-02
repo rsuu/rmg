@@ -1,3 +1,35 @@
+#[derive(Debug)]
+pub struct Buffer {
+    pub nums: usize,
+    pub data: Vec<u32>,
+    //scale:Scale,
+}
+
+impl Buffer {
+    pub fn new() -> Self {
+        Self {
+            nums: 0,
+            data: Vec::new(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn clear(&mut self) {
+        self.data.clear();
+    }
+
+    pub fn pad(&mut self, page: Page) {
+        self.data.extend_from_slice(page.data().unwrap());
+    }
+
+    pub fn flush(&mut self, page: &Page) {
+        self.data.extend_from_slice(page.data().unwrap());
+    }
+}
+
 #[derive(Debug, Default)]
 pub enum ReaderMode {
     #[default]
@@ -33,10 +65,8 @@ pub struct Page {
     pub name: String,
     pub number: usize,          // page number
     pub pos: usize,             // index of image in the archive file
-    pub len: usize,             // width * heigth
     pub resize: (usize, usize), // (width, height)
     pub img: Img,
-    //scale:Scale,
     //meta:MetaData
 }
 
@@ -45,7 +75,7 @@ pub enum Img {
     Bit(ImgBit),
 
     //Svg()
-    Gif(ImgGif),
+    Gif(ImgGif), // TODO: image::code
     Unknown,
 }
 
@@ -72,9 +102,38 @@ impl Page {
             name,
             number,
             pos,
-            len: 0,
             resize: (0, 0),
             img: Img::Unknown,
+        }
+    }
+
+    pub fn flush(&mut self, img: Img) -> usize {
+        self.img = img;
+        self.img.len()
+    }
+
+    pub fn clear(&mut self) {
+        self.img.clear();
+    }
+
+    pub fn null() -> Self {
+        Self::new("".to_string(), 0, 0)
+    }
+
+    pub fn len(&self) -> usize {
+        self.img.len()
+    }
+
+    pub fn data(&self) -> Option<&[u32]> {
+        self.img.data()
+    }
+
+    pub fn to_next_frame(&mut self) {
+        match self.img {
+            Img::Gif(ref mut gif) => {
+                gif.to_next_frame();
+            }
+            _ => {}
         }
     }
 }
@@ -89,18 +148,46 @@ impl Img {
     pub fn data(&self) -> Option<&[u32]> {
         match self {
             Img::Bit(img) => Some(img.data.as_slice()),
+            Img::Gif(gif) => Some(gif.data[gif.pos].as_slice()),
             _ => {
-                todo!()
+                panic!()
             }
+        }
+    }
+
+    pub fn clear(&mut self) {
+        match self {
+            Img::Bit(img) => img.data.clear(),
+            Img::Gif(gif) => gif.data.clear(),
+            _ => {}
         }
     }
 
     pub fn len(&self) -> usize {
         match self {
             Img::Bit(img) => img.data.len(),
-            _ => {
-                todo!()
-            }
+            Img::Gif(gif) => gif.data[gif.pos].len(),
+            _ => 0,
+        }
+    }
+}
+
+impl ImgGif {
+    pub fn new(nums: usize) -> Self {
+        Self {
+            data: Vec::new(),
+            nums,
+            pos: 0,
+            fps: 60,
+            timer: 0,
+        }
+    }
+
+    pub fn to_next_frame(&mut self) {
+        if self.pos + 1 <= self.nums {
+            self.pos += 1;
+        } else {
+            self.pos = 0;
         }
     }
 }
