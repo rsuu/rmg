@@ -1,10 +1,30 @@
 use crate::{
+    img::heic,
     img::size::{MetaSize, Size, TMetaSize},
     utils::err::Res,
 };
 use cfg_if::cfg_if;
 use fir;
 use std::num::NonZeroU32;
+
+pub fn resize_bytes_anim(
+    buffer: &mut Vec<u8>,
+    bytes: &[u8],
+    screen_size: Size<u32>,
+    window_size: Size<u32>,
+    filter: &fir::FilterType,
+) {
+    let mut meta = MetaSize::<u32>::new(
+        screen_size.width,
+        screen_size.height,
+        window_size.width,
+        window_size.height,
+        0,
+        0,
+    );
+
+    if let Ok(ref img) = image::load_from_memory(bytes) {}
+}
 
 pub fn resize_bytes(
     buffer: &mut Vec<u8>,
@@ -22,35 +42,25 @@ pub fn resize_bytes(
         0,
     );
 
-    match image::load_from_memory(bytes) {
-        Ok(ref img) => {
-            meta.image.width = img.width();
-            meta.image.height = img.height();
-            meta.resize();
+    if let Ok(ref img) = image::load_from_memory(bytes) {
+        meta.image.width = img.width();
+        meta.image.height = img.height();
+        meta.resize();
 
-            resize_rgba8(buffer, img.to_rgba8().into_vec(), &meta, filter).unwrap();
-        }
+        resize_rgba8(buffer, img.to_rgba8().into_vec(), &meta, filter).unwrap();
+    } else if let Ok(res) = heic::load_heic(bytes) {
+        // heic
 
-        Err(_) => {
-            cfg_if! {
-                // decode heic
-                if #[cfg(feature="de_heic")] {
-                    use crate::img::heic;
+        meta.image.width = res.0;
+        meta.image.height = res.1;
+        meta.resize();
 
-                    if let Some(res) = heic::load_heic(bytes) {
-                        meta.image.width = res.0;
-                        meta.image.height = res.1;
-                        meta.resize();
+        resize_rgba8(buffer, res.2, &meta, filter).unwrap();
 
-                        resize_rgba8(buffer, res.2, &meta,filter).unwrap();
-
-                        log::debug!("{:?}",(res.0,res.1));
-                        log::debug!("{:?}",&meta);
-                    }else{
-                    }
-                } else {}
-            }
-        }
+        log::debug!("{:?}", (res.0, res.1));
+        log::debug!("{:?}", &meta);
+    } else {
+        todo!()
     }
 }
 

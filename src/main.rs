@@ -1,4 +1,3 @@
-use cfg_if::cfg_if;
 use log;
 use rmg::{
     archive::{self, ArchiveType},
@@ -45,16 +44,7 @@ async fn main() {
 
         log::debug!("page_list: {:#?}", page_list);
 
-        match display::cat_img(
-            &config,
-            page_list,
-            meta_size,
-            //&None,
-            path.as_str(),
-            archive_type,
-        )
-        .await
-        {
+        match display::cat_img(&config, page_list, meta_size, path.as_str(), archive_type).await {
             Ok(_) => {
                 std::process::exit(0);
             }
@@ -106,13 +96,7 @@ pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Pa
 
     // Only allow [.jpg || .jpeg || .png || .avif]
     for (path, pos) in file_list.iter() {
-        if !path.ends_with('/') && path.ends_with(".jpg")
-            || path.ends_with(".png")
-            || path.ends_with(".jpeg")
-            || path.ends_with(".avif")
-            || path.ends_with(".heic")
-            || path.ends_with(".heif")
-        {
+        if rmg::has_supported(path.as_str()) {
             let info = if rename_pad == 0 {
                 Page::new(path.clone(), number, *pos)
             } else {
@@ -142,29 +126,18 @@ where
     } else {
         match file::get_filetype(from.as_ref()).as_str() {
             "tar" => {
-                cfg_if! {
-                    if #[cfg(feature="ex_tar")] {
-                        let file_list = archive::tar::get_file_list(from.as_ref()).unwrap();
-                        return Ok(file_list);
-
-                    } else {
-                        eprintln!("Not Support FileType: tar");
-                        return Err(());
-
-                    }
+                if let Ok(file_list) = archive::tar::get_file_list(from.as_ref()) {
+                    return Ok(file_list);
+                } else {
+                    return Err(());
                 }
             }
 
             "zip" => {
-                cfg_if! {
-                    if #[cfg(feature="ex_zip")] {
-                        let file_list = archive::zip::get_file_list(from.as_ref()).unwrap();
-                        return Ok(file_list);
-
-                    }else {
-                        eprintln!("Not Support FileType: zip");
-                        return Err(());
-                    }
+                if let Ok(file_list) = archive::zip::get_file_list(from.as_ref()) {
+                    return Ok(file_list);
+                } else {
+                    return Err(());
                 }
             }
 

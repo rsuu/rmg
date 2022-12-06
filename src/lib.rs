@@ -1,11 +1,25 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const BITMAP_LIST: &[&str] = &["jpg", "png", "heic", "avif"];
+pub const EXT_LIST: &[&str] = &[
+    "jpg", "jpeg", "png", "heic", "heif", "avif", "ase", "aseprite",
+];
 pub static mut TIMER: usize = 0;
 
-pub enum OsType {
-    Linux,
-    Windows,
-    Mac,
+#[inline]
+pub fn has_supported(path: &str) -> bool {
+    // is dir
+    if path.ends_with('/') {
+        return false;
+    }
+
+    for ext in EXT_LIST {
+        // e.g. ".jpg"
+        if path.ends_with(format!(".{}", ext).as_str()) {
+            return true;
+        } else {
+        }
+    }
+
+    false
 }
 
 // block | expr | ident | item | lifetime | literal
@@ -62,21 +76,21 @@ pub mod archive {
         Dir,
     }
 
-    #[cfg(feature = "ex_tar")]
-    pub mod tar;
-
-    #[cfg(feature = "ex_zip")]
-    pub mod zip;
-
     pub mod dir;
+
+    // feature
+    pub mod tar;
+    pub mod zip;
 }
 
 pub mod img {
+
     pub mod covert;
     pub mod resize;
     pub mod size;
 
-    #[cfg(feature = "de_heic")]
+    // feature
+    pub mod gif;
     pub mod heic;
 }
 

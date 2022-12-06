@@ -72,7 +72,7 @@ WARN: You have to create the file by yourself.
 .jpg |✅ | ✅
 .png|✅| ✅
 .heic / .avif|🔬|❌
-.gif|🔬|✅
+.gif|🚧|✅
 .aseprite|🚧|❌
 
 ## Features
@@ -87,3 +87,12 @@ cargo run --release -F "avx2"
 cargo run --release -F "sse4_1"
     # for sse4_1
 ```
+
+## License
+
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
+[MIT license](LICENSE-MIT) at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall
+be dual licensed as above, without any additional terms or conditions.

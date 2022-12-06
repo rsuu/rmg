@@ -1,13 +1,9 @@
-// TODO
-
 use image::codecs::gif::{GifDecoder, GifEncoder};
 use image::{AnimationDecoder, ImageDecoder};
 use std::fs::File;
 
-fn load_gif() {
-    // Decode a gif into frames
-    let file_in = File::open("foo.gif")?;
-    let mut decoder = GifDecoder::new(file_in).unwrap();
-    let frames = decoder.into_frames();
-    let frames = frames.collect_frames().expect("error decoding gif");
+fn load_anim(bytes: &[u8]) {
+    if let Ok(ref anim) = image::load_from_memory(bytes) {
+        // let frames = gif::Frame::from_rgb(anim.width(), anim.height(), &mut anim.to_rgb8().to_vec());
+    }
 }

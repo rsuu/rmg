@@ -25,6 +25,10 @@ pub enum MyErr {
     WalkDir(walkdir::Error),
 
     Null(()),
+
+    FeatHeic,
+    FeatTar,
+    FeatZip,
 }
 
 impl From<()> for MyErr {

@@ -92,12 +92,6 @@ impl Args {
     }
 }
 
-impl Default for Args {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 fn print_help() -> ! {
     use crate::VERSION;
 

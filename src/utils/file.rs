@@ -1,6 +1,7 @@
+use infer;
 use std::path::Path;
 
-use infer;
+use super::err::Res;
 
 pub fn get_filetype<T>(path: &T) -> String
 where
@@ -74,4 +75,17 @@ pub fn pad_name(pad: usize, name: &str) -> String {
     path.push_str(format!("{}.{}", filename, suffix).as_ref());
 
     path
+}
+
+#[inline(always)]
+pub fn is_same_slice(foo: &[u8], bar: &[u8], start: usize, len: usize) -> Res<bool> {
+    if foo.len() > start + len && &foo[start..start + len] == bar {
+        Ok(true)
+    } else {
+        Err(crate::utils::err::MyErr::Null(()))
+    }
+}
+
+pub fn is_aseprite(bytes: &[u8]) -> bool {
+    is_same_slice(bytes, &[0, 0, 0, 0, 0xa, 5, 0xe, 0], 32 / 8, 16 / 8).is_ok()
 }
