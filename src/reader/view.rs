@@ -34,25 +34,15 @@ pub enum ReaderMode {
     Command,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum ViewMode {
     #[default]
     Scroll,
 
+    Image,
+
     Manga, // Left to Right
     Comic, // Right to Left
-}
-
-impl ViewMode {
-    pub fn reader(mode: &ViewMode) {
-        match mode {
-            Scroll => {}
-            Manga => {}
-            Comic => {}
-        }
-
-        todo!()
-    }
 }
 
 // --------------------------

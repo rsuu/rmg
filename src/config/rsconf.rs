@@ -1,35 +1,27 @@
-// TODO:
-// remove .unwrap()
-
 use fir;
 use log;
 
-/* default
-
-fn main() {
-    Base {
-        size: (900, 900),
-        font: None,
-        rename_pad: 0,
-        invert_mouse: false,
-        filter: "Hamming",
-        step: 10,
-    };
-
-    Keymap {
-        up: 'k',
-        down: 'j',
-        left: 'h',
-        right: 'l',
-        exit: 'q',
-    };
-}
-
-*/
-
-use crate::img::size::Size;
+use crate::{img::size::Size, reader::view::ViewMode};
 use std::{fs::File, io::Read, path::Path};
 
+// default
+//   fn main() {
+//     Base {
+//     size: (900, 900),
+//     font: None,
+//     rename_pad: 0,
+//     invert_mouse: false,
+//     filter: "Hamming",
+//     step: 10,
+//     };
+//     Keymap {
+//     up: 'k',
+//     down: 'j',
+//     left: 'h',
+//     right: 'l',
+//     exit: 'q',
+//     };
+//   }
 #[derive(Debug)]
 pub struct Config {
     pub base: Base,
@@ -50,6 +42,7 @@ pub struct Base {
     pub invert_mouse: bool,   // (default: false)
     pub filter: fir::FilterType,
     pub step: u8,
+    pub view_mode: ViewMode,
 }
 
 #[derive(Debug)]
@@ -59,7 +52,7 @@ pub struct Keymap<Char_> {
     pub left: Char_,  // move to left
     pub right: Char_, // move to right
     pub exit: Char_,  // exit
-                      //pub fullscreen: Char_,
+                      // pub fullscreen: Char_,
 }
 
 #[derive(Debug)]
@@ -79,10 +72,8 @@ impl Config {
 
             let ast = syn::parse_file(content.as_str()).unwrap();
 
-            //eprintln!("{:#?}", ast);
-
-            // not need now
-            // for item in ast.items.iter() {}
+            // eprintln!("{:#?}", ast);
+            // for item in ast.items.iter() {} // not need now
 
             return parse_main(ast.items.first().unwrap()).unwrap();
         } else {
@@ -125,6 +116,7 @@ impl Default for Base {
             invert_mouse: false,
             filter: fir::FilterType::Hamming,
             step: 10,
+            view_mode: ViewMode::Scroll,
         }
     }
 }

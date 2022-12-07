@@ -4,8 +4,8 @@ use crate::{
     img::size::MetaSize,
     reader::{
         keymap::{self, Map},
-        scroll::{Scroll, State},
-        view::{Buffer, Page},
+        scroll::{Render, State},
+        view::{Buffer, Page, ViewMode},
         window::Canvas,
     },
     utils::err::Res,
@@ -37,7 +37,7 @@ pub async fn cat_img(
     let filter = config.base.filter;
     let keymaps = keymap::KeyMap::new();
 
-    let mut buf = Scroll {
+    let mut buf = Render {
         buffer: Buffer::new(), // buffer
         max_ram,
 
@@ -61,26 +61,70 @@ pub async fn cat_img(
 
         page_load_list: Vec::new(),
         filter, //
+        view_mode: config.base.view_mode,
     };
     let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
 
-    for_minifb(config, &mut buf, &mut canvas, &keymaps).await;
+    buf.init(); // init
 
-    info!("---EXIT---");
+    match buf.view_mode {
+        ViewMode::Scroll => {
+            for_minifb_scroll(config, &mut buf, &mut canvas, &keymaps).await;
+        }
+        ViewMode::Image => {
+            for_minifb_image(config, &mut buf, &mut canvas, &keymaps).await;
+        }
+
+        ViewMode::Manga | ViewMode::Comic => {
+            for_minifb_page(config, &mut buf, &mut canvas, &keymaps).await;
+        }
+    }
+
+    info!("*** EXIT ***");
 
     Ok(())
 }
 
-pub async fn for_minifb(
+pub async fn for_minifb_page(
     config: &Config,
-    buf: &mut Scroll,
+    buf: &mut Render,
+    canvas: &mut Canvas,
+    keymaps: &[keymap::KeyMap],
+) {
+}
+
+pub async fn for_minifb_image(
+    config: &Config,
+    buf: &mut Render,
+    canvas: &mut Canvas,
+    keymaps: &[keymap::KeyMap],
+) {
+    'l1: while canvas.window.is_open() {
+        match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
+            Map::Exit => {
+                println!("EXIT");
+
+                // BUG: Miss Key::Escape
+                break 'l1;
+            }
+
+            _ => {}
+        }
+
+        canvas.flush(&buf.buffer.data[buf.rng..buf.rng + buf.max_ram]);
+
+        std::thread::sleep(std::time::Duration::from_millis(40));
+    }
+}
+
+pub async fn for_minifb_scroll(
+    config: &Config,
+    buf: &mut Render,
     canvas: &mut Canvas,
     keymaps: &[keymap::KeyMap],
 ) {
     let arc_state = Arc::new(RwLock::new(State::Nothing));
     let arc_page: Arc<RwLock<Page>> = Arc::new(RwLock::new(Page::null()));
-
-    buf.init();
 
     'l1: while canvas.window.is_open() {
         match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {

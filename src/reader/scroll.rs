@@ -4,7 +4,7 @@ use crate::{
     img::{resize, size::Size},
     reader::{
         keymap::Map,
-        view::{Buffer, Img, ImgType, Page},
+        view::{Buffer, Img, ImgType, Page, ViewMode},
         window::Canvas,
     },
     utils::{
@@ -36,7 +36,7 @@ pub enum State {
 }
 
 #[derive(Debug)]
-pub struct Scroll {
+pub struct Render {
     pub buffer: Buffer,
     pub max_ram: usize,
 
@@ -64,27 +64,41 @@ pub struct Scroll {
 
     pub len: usize,
     pub page_load_list: Vec<usize>,
+
+    pub view_mode: ViewMode,
 }
 
-impl Scroll {
+impl Render {
     /// init
     pub fn init(&mut self) {
-        // only works when page count > 0
-        if self.page_end > 0 {
-            let mut len = 0;
+        let mut len = 0;
 
+        if self.page_end >= 2 {
             len += self.load_next();
 
             'l1: while len <= self.max_ram * 2 && self.tail + 1 < self.page_end {
                 self.tail += 1;
                 len += self.load_next();
-
-                debug!("*** INIT ***");
-                debug!("    len = {}", len);
             }
+        } else if self.page_end >= 1 {
+            len += self.load_next();
         } else {
-            panic!()
         }
+
+        // image is smaller than buffer
+        if len <= self.max_ram {
+            self.view_mode = ViewMode::Image;
+
+            self.buffer.flush(&self.page_list[0]);
+            self.buffer
+                .data
+                .extend_from_slice(&vec![0; self.max_ram - self.buffer.data.len()]);
+        } else {
+            unreachable!()
+        }
+
+        debug!("*** INIT ***");
+        debug!("    len = {}", len);
     }
 
     pub fn load_next(&mut self) -> usize {
@@ -451,6 +465,8 @@ pub fn load_img(
         }
     };
 
+    debug!("    len = {}", bytes.len());
+
     let opt_img: Option<Img> = match infer::get(&bytes) {
         Some(ty) => match ty.extension() {
             "jpg" | "png" | "heic" => Some(Img::new_bit()),
@@ -480,6 +496,7 @@ pub fn load_img(
                 }
 
                 debug!("load img");
+                debug!("    len = {}", img.len());
 
                 return Ok(img);
             }
