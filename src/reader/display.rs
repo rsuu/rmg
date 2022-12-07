@@ -10,8 +10,6 @@ use crate::{
     },
     utils::err::Res,
 };
-//use emeta::meta;
-
 use log::{debug, info};
 use std::{
     path::PathBuf,
@@ -29,9 +27,7 @@ pub async fn cat_img(
 ) -> Res<()> {
     let screen_size = meta_size.screen;
     let window_size = meta_size.window;
-    let max_ram = window_size.width as usize * window_size.height as usize;
-    let limit_next = max_ram * 8;
-    let limit_prev = max_ram * 2;
+    let buffer_max = window_size.width as usize * window_size.height as usize;
 
     let step = config.base.step as usize;
     let filter = config.base.filter;
@@ -39,7 +35,8 @@ pub async fn cat_img(
 
     let mut buf = Render {
         buffer: Buffer::new(), // buffer
-        max_ram,
+        buffer_max,
+        mem_limit: buffer_max * 8,
 
         head: 0,
         tail: 0,
@@ -54,7 +51,7 @@ pub async fn cat_img(
         page_end: page_list.len(),                 //
         page_list,                                 //
         screen_size,                               //
-        y_step: max_ram / step,                    // drop 1/step part of image once
+        y_step: buffer_max / step,                 // drop 1/step part of image once
         x_step: window_size.width as usize / step, //
         window_position: (0, 0),                   //
         window_size,                               //
@@ -111,7 +108,7 @@ pub async fn for_minifb_image(
             _ => {}
         }
 
-        canvas.flush(&buf.buffer.data[buf.rng..buf.rng + buf.max_ram]);
+        canvas.flush(&buf.buffer.data[buf.rng..buf.rng + buf.buffer_max]);
 
         std::thread::sleep(std::time::Duration::from_millis(40));
     }

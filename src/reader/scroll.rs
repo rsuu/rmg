@@ -4,7 +4,7 @@ use crate::{
     img::{resize, size::Size},
     reader::{
         keymap::Map,
-        view::{Buffer, Img, ImgType, Page, ViewMode},
+        view::{Buffer, ImgType, Page, ViewMode},
         window::Canvas,
     },
     utils::{
@@ -15,11 +15,12 @@ use crate::{
 };
 use fir;
 use log::{debug, info};
+use pollster::block_on;
 use std::{
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
+    thread::spawn,
 };
-use tokio;
 
 const LOAD_MAX: usize = 2;
 
@@ -38,7 +39,8 @@ pub enum State {
 #[derive(Debug)]
 pub struct Render {
     pub buffer: Buffer,
-    pub max_ram: usize,
+    pub buffer_max: usize,
+    pub mem_limit: usize,
 
     pub head: usize, // =0
     pub tail: usize, // =0
@@ -76,7 +78,7 @@ impl Render {
         if self.page_end >= 2 {
             len += self.load_next();
 
-            'l1: while len <= self.max_ram * 2 && self.tail + 1 < self.page_end {
+            'l1: while len <= self.mem_limit && self.tail + 1 < self.page_end {
                 self.tail += 1;
                 len += self.load_next();
             }
@@ -86,13 +88,13 @@ impl Render {
         }
 
         // image is smaller than buffer
-        if len <= self.max_ram {
+        if len <= self.buffer_max {
             self.view_mode = ViewMode::Image;
 
             self.buffer.flush(&self.page_list[0]);
             self.buffer
                 .data
-                .extend_from_slice(&vec![0; self.max_ram - self.buffer.data.len()]);
+                .extend_from_slice(&vec![0; self.buffer_max - self.buffer.data.len()]);
         } else {
         }
 
@@ -101,18 +103,20 @@ impl Render {
     }
 
     pub fn load_next(&mut self) -> usize {
-        if let Ok(img) = load_img(
+        let mut tail = &mut self.page_list[self.tail];
+        let pos = tail.pos;
+
+        load_img(
+            &mut tail,
             self.archive_type,
             self.archive_path.as_path(),
-            self.page_list[self.tail].pos,
+            pos,
             self.screen_size,
             self.window_size,
             self.filter,
-        ) {
-            self.page_list[self.tail].flush(img)
-        } else {
-            0
-        }
+        );
+
+        tail.len()
     }
 
     #[inline(always)]
@@ -125,7 +129,10 @@ impl Render {
             }
         }
 
-        if *arc_state.read().unwrap() == State::Nothing {
+        if *arc_state.read().unwrap() == State::Nothing
+            || *arc_state.read().unwrap() == State::NextReady
+            || *arc_state.read().unwrap() == State::PrevReady
+        {
             // update
 
             unsafe {
@@ -147,7 +154,7 @@ impl Render {
         } else {
         }
 
-        canvas.flush(&self.buffer.data[self.rng..self.rng + self.max_ram]);
+        canvas.flush(&self.buffer.data[self.rng..self.rng + self.buffer_max]);
     }
 
     pub fn page_list_len(&mut self) -> usize {
@@ -209,11 +216,13 @@ tail: {}
         {
             self.tail += 1;
 
-            let page = arc_page.clone();
             let state = arc_state.clone();
             *state.write().unwrap() = State::NextReady;
 
+            let page = arc_page.clone();
+
             let mut tail = self.page_list[self.tail].clone();
+            //tail.loading();
 
             let archive_type = self.archive_type;
             let archive_path = self.archive_path.clone();
@@ -222,22 +231,23 @@ tail: {}
             let window_size = self.window_size;
             let filter = self.filter;
 
-            tokio::spawn(async move {
-                if let Ok(img) = load_img(
-                    archive_type,
-                    archive_path.as_path(),
-                    page_pos,
-                    screen_size,
-                    window_size,
-                    filter,
-                ) {
-                    tail.flush(img);
+            spawn(move || {
+                block_on(async {
+                    load_img(
+                        &mut tail,
+                        archive_type,
+                        archive_path.as_path(),
+                        page_pos,
+                        screen_size,
+                        window_size,
+                        filter,
+                    );
+
                     *page.write().unwrap() = tail;
+                    *state.write().unwrap() = State::NextDone;
 
                     debug!("DONE");
-                }
-
-                *state.write().unwrap() = State::NextDone;
+                })
             });
         }
 
@@ -256,7 +266,7 @@ tail: {}
 
         // try to free up the memory
         if *arc_state.write().unwrap() == State::Nothing
-            && self.len >= self.max_ram * 8 + head_len
+            && self.len >= self.mem_limit + head_len
             && self.head + 1 < self.tail
             && self.rng > head_len
         {
@@ -291,9 +301,8 @@ tail: {}
 
         if self.rng >= self.y_step {
             self.rng -= self.y_step;
-        } else if self.rng >= 0 {
-            self.rng = 0;
         } else {
+            self.rng = 0;
         }
 
         self.mode = Map::Up;
@@ -302,15 +311,19 @@ tail: {}
 
         // try to load prev page
         if self.head >= 1
-            && (self.rng <= self.max_ram * 2)
+            && (self.rng <= self.mem_limit)
             && (*arc_state.read().unwrap() == State::Nothing
                 || *arc_state.read().unwrap() == State::NextDone)
         {
             self.head -= 1;
 
-            let page = arc_page.clone();
             let state = arc_state.clone();
             *state.write().unwrap() = State::PrevReady;
+
+            let page = arc_page.clone();
+
+            let mut head = self.page_list[self.head].clone();
+            //head.loading();
 
             let archive_type = self.archive_type;
             let archive_path = self.archive_path.clone();
@@ -318,25 +331,29 @@ tail: {}
             let screen_size = self.screen_size;
             let window_size = self.window_size;
             let filter = self.filter;
-            let mut head = self.page_list[self.head].clone();
 
-            tokio::spawn(async move {
-                if let Ok(img) = load_img(
-                    archive_type,
-                    archive_path.as_path(),
-                    page_pos,
-                    screen_size,
-                    window_size,
-                    filter,
-                ) {
-                    head.flush(img);
+            spawn(move || {
+                block_on(async {
+                    load_img(
+                        &mut head,
+                        archive_type,
+                        archive_path.as_path(),
+                        page_pos,
+                        screen_size,
+                        window_size,
+                        filter,
+                    );
+
                     *page.write().unwrap() = head;
+                    *state.write().unwrap() = State::PrevDone;
 
                     debug!("DONE");
-                }
-
-                *state.write().unwrap() = State::PrevDone;
+                })
             });
+
+        // tokio::spawn(async move {
+        //     ...
+        // });
         } else {
         }
 
@@ -354,10 +371,10 @@ tail: {}
 
         let tail_len = self.page_list[self.tail].len();
 
-        // HACK: try to free up the memory
+        // try to free up the memory
         if *arc_state.write().unwrap() == State::Nothing
             && self.len >= self.end() + tail_len
-            && self.len >= self.max_ram * 8 + tail_len
+            && self.len >= self.mem_limit + tail_len
             && self.tail > self.head + 1
         {
             self.page_list[self.tail].clear();
@@ -393,7 +410,7 @@ tail: {}
     }
 
     pub fn end(&self) -> usize {
-        self.rng + self.max_ram
+        self.rng + self.buffer_max
     }
 }
 
@@ -431,13 +448,14 @@ tail: {}
 ///
 #[inline(always)]
 pub fn load_img(
+    page: &mut Page,
     archive_type: ArchiveType,
     archive_path: &Path,
     page_pos: usize,
     screen_size: Size<u32>,
     window_size: Size<u32>,
     filter: fir::FilterType,
-) -> Res<Img> {
+) {
     debug!("archive_type == {:?}", archive_type);
 
     let bytes = match archive_type {
@@ -460,15 +478,15 @@ pub fn load_img(
         }
 
         _ => {
-            return Err(MyErr::Null(()));
+            panic!()
         }
     };
 
     debug!("    len = {}", bytes.len());
 
-    let opt_img: Option<Img> = match infer::get(&bytes) {
+    let opt_page: Option<Page> = match infer::get(&bytes) {
         Some(ty) => match ty.extension() {
-            "jpg" | "png" | "heic" | "heif" | "avif" => Some(Img::new_bit()),
+            "jpg" | "png" | "heic" | "heif" | "avif" => Some(Page::new_bit()),
             "gif" => {
                 todo!();
             }
@@ -476,19 +494,20 @@ pub fn load_img(
         },
         None => {
             if file::is_aseprite(&bytes) {
-                Some(Img::new_anim())
+                Some(Page::new_anim())
             } else {
                 None
             }
         }
     };
 
-    if let Some(mut img) = opt_img {
+    if let Some(mut img) = opt_page {
         let mut tmp = Vec::new();
 
         match img.ty {
             ImgType::Bit => {
-                resize::resize_bytes(&mut tmp, &bytes, screen_size, window_size, &filter);
+                let size =
+                    resize::resize_bytes(&mut tmp, &bytes, screen_size, window_size, &filter);
 
                 for f in (0..tmp.len()).step_by(4) {
                     img.data[0].push(TransRgba::argb_to_u32(&tmp[f..f + 4].try_into().unwrap()));
@@ -497,7 +516,8 @@ pub fn load_img(
                 debug!("load img");
                 debug!("    len = {}", img.len());
 
-                return Ok(img);
+                page.data = img.data;
+                page.resize = img.resize;
             }
 
             ImgType::Anim => {
@@ -507,6 +527,5 @@ pub fn load_img(
             _ => todo!(),
         }
     } else {
-        return Err(MyErr::Null(()));
     }
 }

@@ -32,7 +32,7 @@ pub fn resize_bytes(
     screen_size: Size<u32>,
     window_size: Size<u32>,
     filter: &fir::FilterType,
-) {
+) -> (u32, u32) {
     let mut meta = MetaSize::<u32>::new(
         screen_size.width,
         screen_size.height,
@@ -42,28 +42,37 @@ pub fn resize_bytes(
         0,
     );
 
-    if let Ok(ref img) = image::load_from_memory(bytes) {
-        meta.image.width = img.width();
-        meta.image.height = img.height();
-        meta.resize();
+    let mut res = (0, 0);
 
-        resize_rgba8(buffer, img.to_rgba8().into_vec(), &meta, filter).unwrap();
-    } else if let Ok(res) = heic::load_heic(bytes) {
-        // heic
+    if let Ok(ref img) = image::load_from_memory(bytes) {
+        res = (img.width(), img.height());
 
         meta.image.width = res.0;
         meta.image.height = res.1;
         meta.resize();
 
-        resize_rgba8(buffer, res.2, &meta, filter).unwrap();
+        resize_rgba8(buffer, img.to_rgba8().into_vec(), &meta, filter).unwrap();
+    } else if let Ok(img) = heic::load_heic(bytes) {
+        // heic
 
-        log::debug!("{:?}", (res.0, res.1));
+        res = (img.0, img.1);
+
+        meta.image.width = res.0;
+        meta.image.height = res.1;
+        meta.resize();
+
+        resize_rgba8(buffer, img.2, &meta, filter).unwrap();
+
+        log::debug!("{:?}", (img.0, img.1));
         log::debug!("{:?}", &meta);
     } else {
         todo!()
     }
+
+    res
 }
 
+#[inline]
 pub fn resize_rgba8(
     buffer: &mut Vec<u8>,
     bytes: Vec<u8>,

@@ -49,11 +49,18 @@ pub enum ViewMode {
 #[derive(Debug, Clone)]
 pub struct Page {
     pub name: String,
-    pub number: usize,          // page number
-    pub pos: usize,             // index of image in the archive file
-    pub resize: (usize, usize), // (width, height)
-    pub img: Img,
+    pub number: usize,      // page number
+    pub pos: usize,         // index of image in the archive file
+    pub resize: (u32, u32), // (width, height)
     //meta:MetaData
+    pub data: Vec<Vec<u32>>, // Bit: data[0] OR Anim: data[head..tail]
+    pub ty: ImgType,
+
+    // for gif only
+    pub nums: usize,
+    pub frame_pos: usize,
+    pub fps: usize,
+    pub timer: usize,
 }
 // --------------------------
 #[derive(Debug, Clone, Copy)]
@@ -61,18 +68,6 @@ pub enum ImgType {
     Bit,  // jpg
     Anim, // gif
     Svg,  //
-}
-
-#[derive(Debug, Clone)]
-pub struct Img {
-    pub data: Vec<Vec<u32>>, // Bit: data[0] OR Anim: data[head..tail]
-    pub ty: ImgType,
-
-    // for gif only
-    pub nums: usize,
-    pub pos: usize,
-    pub fps: usize,
-    pub timer: usize,
 }
 // --------------------------
 
@@ -83,71 +78,72 @@ impl Page {
             number,
             pos,
             resize: (0, 0),
-            img: Img::new_bit(),
-        }
-    }
 
-    pub fn flush(&mut self, img: Img) -> usize {
-        self.img = img;
-        self.img.len()
-    }
-
-    pub fn clear(&mut self) {
-        self.img.clear();
-    }
-
-    pub fn null() -> Self {
-        Self::new("".to_string(), 0, 0)
-    }
-
-    pub fn len(&self) -> usize {
-        self.img.len()
-    }
-
-    pub fn data(&self) -> Option<&[u32]> {
-        self.img.data()
-    }
-
-    pub fn to_next_frame(&mut self) {
-        self.img.to_next_frame();
-    }
-}
-
-impl Img {
-    pub fn new_bit() -> Self {
-        Self {
             data: vec![Vec::new()],
             ty: ImgType::Bit,
             nums: 0,
-            pos: 0,
+            frame_pos: 0,
             fps: 0,
             timer: 0,
         }
     }
 
+    pub fn new_bit() -> Self {
+        let mut res = Self::null();
+        res.ty = ImgType::Bit;
+
+        res
+    }
+
     pub fn new_anim() -> Self {
+        let mut res = Self::null();
+        res.ty = ImgType::Anim;
+
+        res
+    }
+
+    pub fn null() -> Self {
         Self {
-            data: Vec::new(),
-            ty: ImgType::Anim,
-            nums: 0,
+            name: "".to_string(),
+            number: 0,
             pos: 0,
-            fps: 60,
+            resize: (0, 0),
+
+            data: vec![Vec::new()],
+            ty: ImgType::Bit,
+            nums: 0,
+            frame_pos: 0,
+            fps: 0,
             timer: 0,
         }
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.resize = (width, height);
+    }
+
+    pub fn loading(&mut self) -> Vec<u32> {
+        vec![0; self.resize.0 as usize * self.resize.1 as usize]
     }
 
     pub fn data(&self) -> Option<&[u32]> {
         match self.ty {
             ImgType::Bit => Some(self.data[0].as_slice()),
-            ImgType::Anim => Some(self.data[self.pos].as_slice()),
+            ImgType::Anim => Some(self.data[self.frame_pos].as_slice()),
             _ => None,
         }
     }
 
     pub fn clear(&mut self) {
         match self.ty {
-            ImgType::Bit => self.data[0].clear(),
-            ImgType::Anim => self.data.clear(),
+            ImgType::Bit => {
+                self.data[0].clear();
+                self.data[0].shrink_to(0);
+            }
+            ImgType::Anim => {
+                self.data.clear();
+                self.data.shrink_to(0);
+            }
             _ => {}
         }
     }
@@ -155,7 +151,7 @@ impl Img {
     pub fn len(&self) -> usize {
         match self.ty {
             ImgType::Bit => self.data[0].len(),
-            ImgType::Anim => self.data[self.pos].len(),
+            ImgType::Anim => self.data[self.frame_pos].len(),
             _ => 0,
         }
     }
@@ -163,10 +159,10 @@ impl Img {
     pub fn to_next_frame(&mut self) {
         match self.ty {
             ImgType::Anim => {
-                if self.pos + 1 <= self.nums {
-                    self.pos += 1;
+                if self.frame_pos + 1 <= self.nums {
+                    self.frame_pos += 1;
                 } else {
-                    self.pos = 0;
+                    self.frame_pos = 0;
                 }
             }
             _ => {}

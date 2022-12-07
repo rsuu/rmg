@@ -38,11 +38,15 @@ zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","b
 # filetype
 infer = "0.9.0"
 
+# window
 #sdl2 = { version = "0.35.2", features = ["image", "ttf"] }
 minifb = { version = "0.23.0", features = ["x11", "wayland"] }
+
+# image
 image = { version = "0.24.4" }
 fir = {package="fast_image_resize"  ,version="1.0.0"}
 libheif-rs = { version = "0.15.0", optional = true }
+asefile ={ version = "0.3.5", optional = true }
 
 # args
 lexopt = "0.2.1"
@@ -51,7 +55,7 @@ lexopt = "0.2.1"
 syn = { version = "1.0.102", features = ["full", "extra-traits"] }
 
 # async
-tokio = { version = "1.21.2", features = ["rt", "macros", "rt-multi-thread"] }
+pollster = "0.2.5"
 
 # other
 cfg-if = "1.0.0"
@@ -59,6 +63,8 @@ cfg-if = "1.0.0"
 # debug
 log = "0.4.17"
 simple_logger = { version = "2.3.0", features = ["colors", "threads"] }
+
+
 
 [dev-dependencies]
 # benchmark
@@ -82,4 +88,4 @@ avx2 = []
 
 # image
 de_heic = ["dep:libheif-rs"]
-de_ase = []
+de_ase = ["dep:asefile"]

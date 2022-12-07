@@ -3,19 +3,21 @@ use rmg::{
     archive::{self, ArchiveType},
     config::rsconf::Config,
     img::size::{MetaSize, TMetaSize},
-    reader::{
-        display,
-        view::{Img, Page},
-    },
+    reader::{display, view::Page},
     utils::{cli, err::MyErr, file},
 };
 use simple_logger;
 use std::path::Path;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     init_log();
 
+    pollster::block_on(async {
+        start().await;
+    });
+}
+
+async fn start() {
     let mut args = cli::Args::new();
     let mut config: Config = args.init_config();
 
