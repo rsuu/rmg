@@ -94,7 +94,6 @@ impl Render {
                 .data
                 .extend_from_slice(&vec![0; self.max_ram - self.buffer.data.len()]);
         } else {
-            unreachable!()
         }
 
         debug!("*** INIT ***");
@@ -469,7 +468,7 @@ pub fn load_img(
 
     let opt_img: Option<Img> = match infer::get(&bytes) {
         Some(ty) => match ty.extension() {
-            "jpg" | "png" | "heic" => Some(Img::new_bit()),
+            "jpg" | "png" | "heic" | "heif" | "avif" => Some(Img::new_bit()),
             "gif" => {
                 todo!();
             }
