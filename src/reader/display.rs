@@ -17,7 +17,7 @@ use std::{
 };
 
 /// display images
-pub async fn cat_img(
+pub fn cat_img(
     config: &Config,
     page_list: Vec<Page>,
     meta_size: MetaSize<u32>,
@@ -36,7 +36,7 @@ pub async fn cat_img(
     let mut buf = Render {
         buffer: Buffer::new(), // buffer
         buffer_max,
-        mem_limit: buffer_max * 8,
+        mem_limit: buffer_max * 10,
 
         head: 0,
         tail: 0,
@@ -66,14 +66,14 @@ pub async fn cat_img(
 
     match buf.view_mode {
         ViewMode::Scroll => {
-            for_minifb_scroll(config, &mut buf, &mut canvas, &keymaps).await;
+            for_minifb_scroll(config, &mut buf, &mut canvas, &keymaps);
         }
         ViewMode::Image => {
-            for_minifb_image(config, &mut buf, &mut canvas, &keymaps).await;
+            for_minifb_image(config, &mut buf, &mut canvas, &keymaps);
         }
 
         ViewMode::Manga | ViewMode::Comic => {
-            for_minifb_page(config, &mut buf, &mut canvas, &keymaps).await;
+            for_minifb_page(config, &mut buf, &mut canvas, &keymaps);
         }
     }
 
@@ -82,7 +82,7 @@ pub async fn cat_img(
     Ok(())
 }
 
-pub async fn for_minifb_page(
+pub fn for_minifb_page(
     config: &Config,
     buf: &mut Render,
     canvas: &mut Canvas,
@@ -90,7 +90,7 @@ pub async fn for_minifb_page(
 ) {
 }
 
-pub async fn for_minifb_image(
+pub fn for_minifb_image(
     config: &Config,
     buf: &mut Render,
     canvas: &mut Canvas,
@@ -114,7 +114,7 @@ pub async fn for_minifb_image(
     }
 }
 
-pub async fn for_minifb_scroll(
+pub fn for_minifb_scroll(
     config: &Config,
     buf: &mut Render,
     canvas: &mut Canvas,

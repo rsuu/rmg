@@ -1,7 +1,10 @@
 use crate::{
     archive::{self, ArchiveType},
     color::rgba::TransRgba,
-    img::{resize, size::Size},
+    img::{
+        resize,
+        size::{MetaSize, Size},
+    },
     reader::{
         keymap::Map,
         view::{Buffer, ImgType, Page, ViewMode},
@@ -13,9 +16,8 @@ use crate::{
     },
     TIMER,
 };
-use fir;
+use fir::{self, FilterType};
 use log::{debug, info};
-use pollster::block_on;
 use std::{
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
@@ -24,7 +26,6 @@ use std::{
 
 const LOAD_MAX: usize = 2;
 
-// use for async
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum State {
     Nothing,
@@ -103,18 +104,16 @@ impl Render {
     }
 
     pub fn load_next(&mut self) -> usize {
-        let mut tail = &mut self.page_list[self.tail];
+        let tail = &mut self.page_list[self.tail];
         let pos = tail.pos;
 
-        load_img(
-            &mut tail,
-            self.archive_type,
-            self.archive_path.as_path(),
-            pos,
-            self.screen_size,
-            self.window_size,
-            self.filter,
-        );
+        let (tmp_page, file) = load_page(self.archive_type, self.archive_path.as_path(), pos);
+        let (meta, img) = resize::open_img(&file, self.screen_size, self.window_size).unwrap();
+
+        tail.resize = meta.fix;
+        tail.is_ready = false;
+
+        resize_page(tail, img, &meta, &self.filter);
 
         tail.len()
     }
@@ -122,36 +121,23 @@ impl Render {
     #[inline(always)]
     pub fn flush(&mut self, canvas: &mut Canvas, arc_state: &Arc<RwLock<State>>) {
         unsafe {
-            if TIMER >= 60 {
+            if TIMER == 0 {
+                // TODO: gif next frame
+                for idx in self.page_load_list.iter() {
+                    self.page_list[*idx].to_next_frame();
+                }
+            } else if TIMER >= 60 {
                 TIMER = 0;
             } else {
                 TIMER += 1;
             }
         }
 
-        if *arc_state.read().unwrap() == State::Nothing
-            || *arc_state.read().unwrap() == State::NextReady
-            || *arc_state.read().unwrap() == State::PrevReady
-        {
-            // update
+        self.buffer.clear();
+        self.len = self.page_list_len();
 
-            unsafe {
-                if TIMER == 0 {
-                    // TODO: gif next frame
-                    for idx in self.page_load_list.iter() {
-                        self.page_list[*idx].to_next_frame();
-                    }
-                } else {
-                }
-            }
-
-            self.buffer.clear();
-            self.len = self.page_list_len();
-
-            for idx in self.page_load_list.iter() {
-                self.buffer.flush(&self.page_list[*idx]);
-            }
-        } else {
+        for idx in self.page_load_list.iter() {
+            self.buffer.flush(&self.page_list[*idx]);
         }
 
         canvas.flush(&self.buffer.data[self.rng..self.rng + self.buffer_max]);
@@ -174,9 +160,10 @@ impl Render {
     }
 
     /// goto next page
-    // HACK: async version
     #[inline]
     pub fn move_down(&mut self, arc_page: &Arc<RwLock<Page>>, arc_state: &Arc<RwLock<State>>) {
+        info!("move_down()");
+
         debug!(
             "
 state: {:?}
@@ -194,6 +181,8 @@ tail: {}
             self.tail,
         );
 
+        self.mode = Map::Down;
+
         // scrolling
         self.rng += if self.len >= self.end() + self.y_step {
             self.y_step
@@ -203,60 +192,50 @@ tail: {}
             0
         };
 
-        // change the state
-        self.mode = Map::Down;
-
-        info!("move_down()");
-
         // try to load next page
         if self.end() >= self.len / 8
             && self.tail + 1 < self.page_end
-            && *arc_state.read().unwrap() == State::Nothing
-            || *arc_state.read().unwrap() == State::PrevDone
+            && (*arc_state.read().unwrap() == State::Nothing
+                || *arc_state.read().unwrap() == State::PrevDone)
         {
-            self.tail += 1;
-
             let state = arc_state.clone();
             *state.write().unwrap() = State::NextReady;
-
             let page = arc_page.clone();
 
-            let mut tail = self.page_list[self.tail].clone();
-            //tail.loading();
+            self.tail += 1;
 
+            let idx = self.tail;
             let archive_type = self.archive_type;
             let archive_path = self.archive_path.clone();
-            let page_pos = self.page_list[self.tail].pos;
             let screen_size = self.screen_size;
             let window_size = self.window_size;
             let filter = self.filter;
 
+            let mut tail = self.page_list[idx].clone();
+            let pos = tail.pos;
+            tail.is_ready = false;
+
+            info!("load next");
             spawn(move || {
-                block_on(async {
-                    load_img(
-                        &mut tail,
-                        archive_type,
-                        archive_path.as_path(),
-                        page_pos,
-                        screen_size,
-                        window_size,
-                        filter,
-                    );
+                let (tmp_page, file) = load_page(archive_type, archive_path.as_path(), pos);
+                let (meta, img) = resize::open_img(&file, screen_size, window_size).unwrap();
 
-                    *page.write().unwrap() = tail;
-                    *state.write().unwrap() = State::NextDone;
+                tail.resize = meta.fix;
 
-                    debug!("DONE");
-                })
+                resize_page(&mut tail, img, &meta, &filter);
+
+                *page.write().unwrap() = tail;
+                *state.write().unwrap() = State::NextDone;
+
+                debug!("*** DONE ***");
             });
         }
 
         // load next
         if *arc_state.read().unwrap() == State::NextDone {
-            self.page_list[self.tail] = arc_page.read().unwrap().clone();
-
             debug!("state == {:?}", arc_state.read().unwrap());
-            debug!("load next");
+
+            self.page_list[self.tail] = arc_page.read().unwrap().clone();
 
             *arc_state.write().unwrap() = State::Nothing;
         } else {
@@ -265,13 +244,13 @@ tail: {}
         let head_len = self.page_list[self.head].len();
 
         // try to free up the memory
-        if *arc_state.write().unwrap() == State::Nothing
+        if *arc_state.read().unwrap() == State::Nothing
             && self.len >= self.mem_limit + head_len
             && self.head + 1 < self.tail
             && self.rng > head_len
         {
             self.rng -= self.page_list[self.head].len();
-            self.page_list[self.head].clear();
+            self.page_list[self.head].free();
             self.head += 1;
 
             debug!("*** FREE ***")
@@ -322,9 +301,7 @@ tail: {}
 
             let page = arc_page.clone();
 
-            let mut head = self.page_list[self.head].clone();
-            //head.loading();
-
+            let idx = self.head;
             let archive_type = self.archive_type;
             let archive_path = self.archive_path.clone();
             let page_pos = self.page_list[self.head].pos;
@@ -332,28 +309,24 @@ tail: {}
             let window_size = self.window_size;
             let filter = self.filter;
 
+            let mut head = self.page_list[idx].clone();
+            let pos = head.pos;
+            head.is_ready = false;
+
+            info!("load prev");
             spawn(move || {
-                block_on(async {
-                    load_img(
-                        &mut head,
-                        archive_type,
-                        archive_path.as_path(),
-                        page_pos,
-                        screen_size,
-                        window_size,
-                        filter,
-                    );
+                let (tmp_page, file) = load_page(archive_type, archive_path.as_path(), pos);
+                let (meta, img) = resize::open_img(&file, screen_size, window_size).unwrap();
 
-                    *page.write().unwrap() = head;
-                    *state.write().unwrap() = State::PrevDone;
+                head.resize = meta.fix;
 
-                    debug!("DONE");
-                })
+                resize_page(&mut head, img, &meta, &filter);
+
+                *page.write().unwrap() = head;
+                *state.write().unwrap() = State::PrevDone;
+
+                debug!("*** DONE ***");
             });
-
-        // tokio::spawn(async move {
-        //     ...
-        // });
         } else {
         }
 
@@ -377,7 +350,7 @@ tail: {}
             && self.len >= self.mem_limit + tail_len
             && self.tail > self.head + 1
         {
-            self.page_list[self.tail].clear();
+            self.page_list[self.tail].free();
             self.tail -= 1;
 
             debug!("move_up: free()");
@@ -445,17 +418,21 @@ tail: {}
 //     buffer.truncate(buffer.len() - range);
 // }
 
+pub fn resize_page(page: &mut Page, bytes: Vec<u8>, meta: &MetaSize<u32>, filter: &FilterType) {
+    let tmp = resize::resize_rgba8(bytes, meta, filter).unwrap();
+
+    resize::srgb_u32(&mut page.data[0], &tmp);
+
+    page.is_ready = true;
+}
+
 ///
 #[inline(always)]
-pub fn load_img(
-    page: &mut Page,
+pub fn load_page(
     archive_type: ArchiveType,
     archive_path: &Path,
     page_pos: usize,
-    screen_size: Size<u32>,
-    window_size: Size<u32>,
-    filter: fir::FilterType,
-) {
+) -> (Page, Vec<u8>) {
     debug!("archive_type == {:?}", archive_type);
 
     let bytes = match archive_type {
@@ -484,9 +461,9 @@ pub fn load_img(
 
     debug!("    len = {}", bytes.len());
 
-    let opt_page: Option<Page> = match infer::get(&bytes) {
+    match infer::get(&bytes) {
         Some(ty) => match ty.extension() {
-            "jpg" | "png" | "heic" | "heif" | "avif" => Some(Page::new_bit()),
+            "jpg" | "png" | "heic" | "heif" | "avif" => (Page::new_bit(), bytes),
             "gif" => {
                 todo!();
             }
@@ -494,38 +471,10 @@ pub fn load_img(
         },
         None => {
             if file::is_aseprite(&bytes) {
-                Some(Page::new_anim())
+                (Page::new_anim(), bytes)
             } else {
-                None
+                panic!()
             }
         }
-    };
-
-    if let Some(mut img) = opt_page {
-        let mut tmp = Vec::new();
-
-        match img.ty {
-            ImgType::Bit => {
-                let size =
-                    resize::resize_bytes(&mut tmp, &bytes, screen_size, window_size, &filter);
-
-                for f in (0..tmp.len()).step_by(4) {
-                    img.data[0].push(TransRgba::argb_to_u32(&tmp[f..f + 4].try_into().unwrap()));
-                }
-
-                debug!("load img");
-                debug!("    len = {}", img.len());
-
-                page.data = img.data;
-                page.resize = img.resize;
-            }
-
-            ImgType::Anim => {
-                todo!()
-            }
-
-            _ => todo!(),
-        }
-    } else {
     }
 }

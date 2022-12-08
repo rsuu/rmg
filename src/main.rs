@@ -12,12 +12,6 @@ use std::path::Path;
 fn main() {
     init_log();
 
-    pollster::block_on(async {
-        start().await;
-    });
-}
-
-async fn start() {
     let mut args = cli::Args::new();
     let mut config: Config = args.init_config();
 
@@ -46,7 +40,7 @@ async fn start() {
 
         log::debug!("page_list: {:#?}", page_list);
 
-        match display::cat_img(&config, page_list, meta_size, path.as_str(), archive_type).await {
+        match display::cat_img(&config, page_list, meta_size, path.as_str(), archive_type) {
             Ok(_) => {
                 std::process::exit(0);
             }
