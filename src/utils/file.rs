@@ -87,5 +87,5 @@ pub fn is_same_slice(foo: &[u8], bar: &[u8], start: usize, len: usize) -> Res<bo
 }
 
 pub fn is_aseprite(bytes: &[u8]) -> bool {
-    is_same_slice(bytes, &[0, 0, 0, 0, 0xa, 5, 0xe, 0], 32 / 8, 16 / 8).is_ok()
+    is_same_slice(bytes, &[0xe0, 0xa5], 4, 2).is_ok()
 }

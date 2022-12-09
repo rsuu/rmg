@@ -2,12 +2,12 @@ use crate::{
     archive::{self, ArchiveType},
     color::rgba::TransRgba,
     img::{
-        resize,
-        size::{MetaSize, Size},
+        ase, heic, resize,
+        size::{MetaSize, Size, TMetaSize},
     },
     reader::{
         keymap::Map,
-        view::{Buffer, ImgType, Page, ViewMode},
+        view::{Buffer, ImgFormat, ImgType, Page, ViewMode},
         window::Canvas,
     },
     utils::{
@@ -69,6 +69,8 @@ pub struct Render {
     pub page_load_list: Vec<usize>,
 
     pub view_mode: ViewMode,
+
+    pub page_number: u32,
 }
 
 impl Render {
@@ -88,7 +90,7 @@ impl Render {
         } else {
         }
 
-        // image is smaller than buffer
+        // image.len() < buffer.len()
         if len <= self.buffer_max {
             self.view_mode = ViewMode::Image;
 
@@ -107,13 +109,14 @@ impl Render {
         let tail = &mut self.page_list[self.tail];
         let pos = tail.pos;
 
-        let (tmp_page, file) = load_page(self.archive_type, self.archive_path.as_path(), pos);
-        let (meta, img) = resize::open_img(&file, self.screen_size, self.window_size).unwrap();
+        let (ty, file, format) = load_page(self.archive_type, self.archive_path.as_path(), pos);
+        let (meta, img) = open_img(format, &file, self.screen_size, self.window_size).unwrap();
 
         tail.resize = meta.fix;
         tail.is_ready = false;
+        tail.ty = ty;
 
-        resize_page(tail, img, &meta, &self.filter);
+        resize_page(tail, &img, &meta, &self.filter);
 
         tail.len()
     }
@@ -141,8 +144,11 @@ impl Render {
         }
 
         canvas.flush(&self.buffer.data[self.rng..self.rng + self.buffer_max]);
+
+        dbg!("self.page_number = {}", self.page_number);
     }
 
+    #[inline]
     pub fn page_list_len(&mut self) -> usize {
         let mut res = 0;
 
@@ -193,7 +199,7 @@ tail: {}
         };
 
         // try to load next page
-        if self.end() >= self.len / 8
+        if self.end() <= self.mem_limit
             && self.tail + 1 < self.page_end
             && (*arc_state.read().unwrap() == State::Nothing
                 || *arc_state.read().unwrap() == State::PrevDone)
@@ -217,12 +223,13 @@ tail: {}
 
             info!("load next");
             spawn(move || {
-                let (tmp_page, file) = load_page(archive_type, archive_path.as_path(), pos);
-                let (meta, img) = resize::open_img(&file, screen_size, window_size).unwrap();
+                let (ty, file, format) = load_page(archive_type, archive_path.as_path(), pos);
+                let (meta, img) = open_img(format, &file, screen_size, window_size).unwrap();
 
                 tail.resize = meta.fix;
 
-                resize_page(&mut tail, img, &meta, &filter);
+                tail.ty = ty;
+                resize_page(&mut tail, &img, &meta, &filter);
 
                 *page.write().unwrap() = tail;
                 *state.write().unwrap() = State::NextDone;
@@ -278,11 +285,11 @@ tail: {}
             self.tail,
         );
 
-        if self.rng >= self.y_step {
-            self.rng -= self.y_step;
+        self.rng -= if self.rng >= self.y_step {
+            self.y_step
         } else {
-            self.rng = 0;
-        }
+            0
+        };
 
         self.mode = Map::Up;
 
@@ -315,12 +322,13 @@ tail: {}
 
             info!("load prev");
             spawn(move || {
-                let (tmp_page, file) = load_page(archive_type, archive_path.as_path(), pos);
-                let (meta, img) = resize::open_img(&file, screen_size, window_size).unwrap();
+                let (ty, file, format) = load_page(archive_type, archive_path.as_path(), pos);
+                let (meta, img) = open_img(format, &file, screen_size, window_size).unwrap();
 
                 head.resize = meta.fix;
+                head.ty = ty;
 
-                resize_page(&mut head, img, &meta, &filter);
+                resize_page(&mut head, &img, &meta, &filter);
 
                 *page.write().unwrap() = head;
                 *state.write().unwrap() = State::PrevDone;
@@ -387,6 +395,139 @@ tail: {}
     }
 }
 
+#[inline(always)]
+pub fn resize_page(page: &mut Page, img: &Vec<Vec<u8>>, meta: &MetaSize<u32>, filter: &FilterType) {
+    match img.len() {
+        1 => {
+            let buffer = resize::resize_rgba8(&img[0], meta, filter).unwrap();
+
+            resize::srgb_u32(&mut page.data[0], &buffer);
+        }
+
+        _ => {
+            let mut buffer: Vec<u8> = Vec::new();
+            let mut data: Vec<u32> = Vec::new();
+            page.data = vec![vec![]; img.len()];
+            page.nums = img.len();
+
+            for idx in 0..img.len() {
+                buffer = resize::resize_rgba8(&img[idx], meta, filter).unwrap();
+
+                resize::srgb_u32(&mut page.data[idx], &buffer);
+            }
+        }
+    }
+
+    page.is_ready = true;
+}
+
+///
+#[inline(always)]
+pub fn load_page(
+    archive_type: ArchiveType,
+    archive_path: &Path,
+    page_pos: usize,
+) -> (ImgType, Vec<u8>, ImgFormat) {
+    debug!("archive_type == {:?}", archive_type);
+
+    let bytes = match archive_type {
+        ArchiveType::Tar => {
+            debug!("ex_tar()");
+
+            archive::tar::load_file(archive_path, page_pos).unwrap()
+        }
+
+        ArchiveType::Zip => {
+            debug!("ex_zip()");
+
+            archive::zip::load_file(archive_path, page_pos).unwrap()
+        }
+
+        ArchiveType::Dir => {
+            debug!("load file");
+
+            archive::dir::load_file(archive_path, page_pos).unwrap()
+        }
+
+        _ => {
+            panic!()
+        }
+    };
+
+    debug!("    len = {}", bytes.len());
+
+    let mut format = ImgFormat::Unknown;
+
+    if let Some(ty) = infer::get(&bytes) {
+        format = ImgFormat::from(ty.extension());
+    } else if file::is_aseprite(&bytes) {
+        format = ImgFormat::Aseprite;
+    } else {
+    }
+
+    match format {
+        ImgFormat::Jpg | ImgFormat::Png | ImgFormat::Heic | ImgFormat::Avif => {
+            (ImgType::Bit, bytes, format)
+        }
+
+        ImgFormat::Aseprite => (ImgType::Anim, bytes, format),
+
+        _ => {
+            todo!()
+        }
+    }
+}
+
+#[inline(always)]
+pub fn open_img(
+    format: ImgFormat,
+    bytes: &[u8],
+    screen_size: Size<u32>,
+    window_size: Size<u32>,
+) -> Res<(MetaSize<u32>, Vec<Vec<u8>>)> {
+    let mut meta = MetaSize::<u32>::new(
+        screen_size.width,
+        screen_size.height,
+        window_size.width,
+        window_size.height,
+        0,
+        0,
+    );
+
+    match format {
+        ImgFormat::Jpg | ImgFormat::Png => {
+            let img = image::load_from_memory(bytes)?;
+            meta.image.width = img.width();
+            meta.image.height = img.height();
+            meta.resize();
+
+            Ok((meta, vec![img.to_rgba8().to_vec()]))
+        }
+
+        ImgFormat::Heic | ImgFormat::Avif => {
+            let img = heic::load_heic(bytes)?;
+            // heic
+
+            meta.image.width = img.0;
+            meta.image.height = img.1;
+            meta.resize();
+
+            Ok((meta, vec![img.2]))
+        }
+
+        ImgFormat::Aseprite => {
+            let img = ase::load_ase(bytes)?;
+
+            meta.image = img.0;
+            meta.resize();
+
+            Ok((meta, img.1))
+        }
+
+        _ => Err(crate::utils::err::MyErr::Null(())),
+    }
+}
+
 // #[inline(always)]
 // pub fn push_front<T>(vec: &mut Vec<T>, slice: &[T]) {
 //     let amt = slice.len(); // [1, 2, 3]
@@ -417,64 +558,3 @@ tail: {}
 // {
 //     buffer.truncate(buffer.len() - range);
 // }
-
-pub fn resize_page(page: &mut Page, bytes: Vec<u8>, meta: &MetaSize<u32>, filter: &FilterType) {
-    let tmp = resize::resize_rgba8(bytes, meta, filter).unwrap();
-
-    resize::srgb_u32(&mut page.data[0], &tmp);
-
-    page.is_ready = true;
-}
-
-///
-#[inline(always)]
-pub fn load_page(
-    archive_type: ArchiveType,
-    archive_path: &Path,
-    page_pos: usize,
-) -> (Page, Vec<u8>) {
-    debug!("archive_type == {:?}", archive_type);
-
-    let bytes = match archive_type {
-        ArchiveType::Tar => {
-            debug!("ex_tar()");
-
-            archive::tar::load_file(archive_path, page_pos).unwrap()
-        }
-
-        ArchiveType::Zip => {
-            debug!("ex_zip()");
-
-            archive::zip::load_file(archive_path, page_pos).unwrap()
-        }
-
-        ArchiveType::Dir => {
-            debug!("load file");
-
-            archive::dir::load_file(archive_path, page_pos).unwrap()
-        }
-
-        _ => {
-            panic!()
-        }
-    };
-
-    debug!("    len = {}", bytes.len());
-
-    match infer::get(&bytes) {
-        Some(ty) => match ty.extension() {
-            "jpg" | "png" | "heic" | "heif" | "avif" => (Page::new_bit(), bytes),
-            "gif" => {
-                todo!();
-            }
-            _ => panic!(),
-        },
-        None => {
-            if file::is_aseprite(&bytes) {
-                (Page::new_anim(), bytes)
-            } else {
-                panic!()
-            }
-        }
-    }
-}

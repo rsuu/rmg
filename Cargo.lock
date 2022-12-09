@@ -1255,7 +1255,7 @@ dependencies = [
 
 [[package]]
 name = "rmg"
-version = "0.1.3"
+version = "0.2.1"
 dependencies = [
  "asefile",
  "cfg-if",

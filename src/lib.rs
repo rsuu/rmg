@@ -90,6 +90,7 @@ pub mod img {
     pub mod size;
 
     // feature
+    pub mod ase;
     pub mod gif;
     pub mod heic;
 }

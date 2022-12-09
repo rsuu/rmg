@@ -27,6 +27,7 @@ pub enum MyErr {
     Null(()),
 
     FeatHeic,
+    FeatAse,
     FeatTar,
     FeatZip,
 }

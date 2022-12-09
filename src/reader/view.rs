@@ -1,5 +1,6 @@
 use crate::img::size::Size;
 
+// todo
 const TEMP: &[u32; 900 * 900] = &[0; 900 * 900];
 
 #[derive(Debug)]
@@ -62,7 +63,7 @@ pub struct Page {
     pub name: String,
     pub number: usize,     // page number
     pub pos: usize,        // index of image in the archive file
-    pub resize: Size<u32>, // (width, height)
+    pub resize: Size<u32>, // (fix_width, fix_height)
     //meta:MetaData
     pub data: Vec<Vec<u32>>, // Bit: data[0] OR Anim: data[head..tail]
     pub ty: ImgType,
@@ -77,11 +78,35 @@ pub struct Page {
 // --------------------------
 #[derive(Debug, Clone, Copy)]
 pub enum ImgType {
-    Bit,  // jpg
-    Anim, // gif
-    Svg,  //
+    Bit = 0,  // jpg
+    Anim = 1, // gif
 }
 // --------------------------
+#[derive(Debug, Clone, Copy)]
+pub enum ImgFormat {
+    Heic,
+    Avif,
+    Jpg,
+    Png,
+
+    Aseprite,
+
+    Unknown,
+}
+// --------------------------
+
+impl From<&str> for ImgFormat {
+    fn from(value: &str) -> Self {
+        match value {
+            "jpg" => Self::Jpg,
+            "png" => Self::Png,
+            "heic" | "heif" => Self::Heic,
+            "avif" => Self::Avif,
+            "aseprite" => Self::Aseprite,
+            _ => Self::Unknown,
+        }
+    }
+}
 
 impl Page {
     pub fn new(name: String, number: usize, pos: usize) -> Self {
@@ -103,20 +128,6 @@ impl Page {
 
     pub fn size(&self) -> usize {
         self.resize.width as usize * self.resize.height as usize
-    }
-
-    pub fn new_bit() -> Self {
-        let mut res = Self::null();
-        res.ty = ImgType::Bit;
-
-        res
-    }
-
-    pub fn new_anim() -> Self {
-        let mut res = Self::null();
-        res.ty = ImgType::Anim;
-
-        res
     }
 
     pub fn null() -> Self {
@@ -145,16 +156,10 @@ impl Page {
     }
 
     pub fn data(&self) -> &[u32] {
-        match self.ty {
-            ImgType::Bit => {
-                if self.is_ready {
-                    self.data[0].as_slice()
-                } else {
-                    TEMP
-                }
-            }
-            ImgType::Anim => self.data[self.frame_pos].as_slice(),
-            _ => todo!(),
+        if self.is_ready {
+            self.data[self.frame_pos].as_slice()
+        } else {
+            TEMP
         }
     }
 
@@ -181,15 +186,14 @@ impl Page {
     }
 
     pub fn to_next_frame(&mut self) {
-        match self.ty {
-            ImgType::Anim => {
-                if self.frame_pos + 1 <= self.nums {
-                    self.frame_pos += 1;
-                } else {
-                    self.frame_pos = 0;
-                }
-            }
-            _ => {}
+        // bit  = 0
+        // anim = 1
+        let add = self.ty as usize;
+
+        if self.frame_pos + add < self.nums {
+            self.frame_pos += add;
+        } else {
+            self.frame_pos = 0;
         }
     }
 }

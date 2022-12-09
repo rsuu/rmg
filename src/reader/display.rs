@@ -59,6 +59,8 @@ pub fn cat_img(
         page_load_list: Vec::new(),
         filter, //
         view_mode: config.base.view_mode,
+
+        page_number: 0,
     };
     let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
 
