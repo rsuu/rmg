@@ -35,13 +35,13 @@ cargo build --release
 ## Usage
 
 ```bash
-rmg ./tests/files/1.tar
+rmg ./tests/files/img.tar
 
 # OR
-rmg --size 600,600 ./tests/files/1.tar
+rmg --size 600,600 ./tests/files/img.tar
 
 # OR
-rmg --size 600,600 --config ./tests/files/config.rs ./tests/files/1.tar
+rmg --size 600,600 --config ./tests/files/config.rs ./tests/files/img.tar
 ```
 
 ### KeyMap
@@ -62,8 +62,8 @@ WARN: You have to create the file by yourself.
 
 + configuration file path
   + Linux: `$HOME/.config/rmg/config.rs`
-  + Windows: `C:\Users\<USER>\AppData\<USER>\rmg\config.rs`
   + Mac: `$HOME/Library/Application Support/rmg/config.rs`
+  + Windows: `C:\Users\<USER>\AppData\<USER>\rmg\config.rs`
 
 ## Supported formats
 
@@ -73,7 +73,7 @@ WARN: You have to create the file by yourself.
 .png|✅| ✅
 .heic / .avif|🔬|❌
 .gif|🚧|✅
-.aseprite|🚧|❌
+.aseprite|🔬|❌
 
 ## Features
 
@@ -81,7 +81,11 @@ WARN: You have to create the file by yourself.
 # Add support for heic
 cargo run --release -F "de_heic"
 
-# set [CpuExtensions](https://docs.rs/fast_image_resize/latest/fast_image_resize/index.html#resize-rgb8-image-u8x3-4928x3279--852x567)
+
+# for heic AND aseprite
+cargo run --release -F "de_heic" -F "de_ase"
+
+# [CpuExtensions](https://docs.rs/fast_image_resize/latest/fast_image_resize/index.html#resize-rgb8-image-u8x3-4928x3279--852x567)
 cargo run --release -F "avx2"
     # for avx2
 cargo run --release -F "sse4_1"
