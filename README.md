@@ -1,6 +1,6 @@
 # rmg
 
-> Rust: Tiny Manga Reader
+> Rust: Tiny Manga/Image Viewer
 
 ## Demo
 
@@ -67,13 +67,19 @@ WARN: You have to create the file by yourself.
 
 ## Supported formats
 
-| Format | Supported | Default
+| Format | Supported | Default |Dependency
 |:-|:-|:-|
-.jpg |✅ | ✅
-.png|✅| ✅
-.heic / .avif|🔬|❌
-.gif|🚧|✅
-.aseprite|🔬|❌
+.jpg |✅ | ✅|
+.png|✅| ✅|
+.heic / .avif|🔬|❌|libheif
+.gif|🔬|✅|
+.aseprite|🔬|❌|
+
+---
+| Format | Supported | Default |Dependency
+|:-|:-|:-|
+.tar |✅ | ✅| tar
+.zip / .cbz |✅ | ✅| zip
 
 ## Features
 

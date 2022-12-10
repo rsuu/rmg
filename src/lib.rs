@@ -1,6 +1,6 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const EXT_LIST: &[&str] = &[
-    "jpg", "jpeg", "png", "heic", "heif", "avif", "ase", "aseprite",
+    "jpg", "jpeg", "png", "heic", "heif", "avif", "ase", "aseprite", "gif",
 ];
 pub static mut TIMER: usize = 0;
 
@@ -93,6 +93,7 @@ pub mod img {
     pub mod ase;
     pub mod gif;
     pub mod heic;
+    pub mod svg;
 }
 
 pub mod color {

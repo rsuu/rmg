@@ -61,6 +61,7 @@ pub fn cat_img(
         view_mode: config.base.view_mode,
 
         page_number: 0,
+        page_loading: vec![0; buffer_max * 20],
     };
     let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
 
@@ -112,6 +113,7 @@ pub fn for_minifb_image(
 
         canvas.flush(&buf.buffer.data[buf.rng..buf.rng + buf.buffer_max]);
 
+        // TODO: gif
         std::thread::sleep(std::time::Duration::from_millis(40));
     }
 }
@@ -186,6 +188,7 @@ pub fn for_minifb_scroll(
 
         buf.flush(canvas, &arc_state);
 
+        // TODO: dyn FPS
         std::thread::sleep(std::time::Duration::from_millis(40));
     }
 }

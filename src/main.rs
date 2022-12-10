@@ -138,7 +138,9 @@ where
             }
 
             _ => {
-                return Err(());
+                // Only one file.
+
+                todo!()
             }
         };
     };

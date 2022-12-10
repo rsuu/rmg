@@ -38,6 +38,10 @@ impl Args {
                     config.base.size = Size::new(w, h);
                 }
 
+                Long("mode") | Short('m') => {
+                    todo!()
+                }
+
                 Long("pad") => {
                     let pad = parser.value()?.into_string()?;
                     config.base.rename_pad = pad.parse::<u8>()?;
@@ -78,13 +82,10 @@ impl Args {
                     if config_path.as_path().is_file() {
                         res = Config::parse_from(config_path.as_path());
                     } else {
-                        // doing nothing
                     }
                 } else {
-                    // doing nothing
                 }
             } else {
-                // default
             }
         };
 
@@ -95,6 +96,7 @@ impl Args {
 fn print_help() -> ! {
     use crate::VERSION;
 
+    // TODO:
     println!(
         r#"rmg: {version}
 Manga Reader

@@ -1,5 +1,5 @@
-use crate::color::rgba::TransRgba;
 use crate::{
+    color::rgba::TransRgba,
     img::heic,
     img::size::{MetaSize, Size, TMetaSize},
     utils::err::Res,
@@ -10,11 +10,15 @@ use image::DynamicImage;
 use std::num::NonZeroU32;
 
 #[inline(always)]
-pub fn resize_rgba8(bytes: &[u8], meta: &MetaSize<u32>, filter: &fir::FilterType) -> Res<Vec<u8>> {
+pub fn resize_rgba8(
+    bytes: Vec<u8>,
+    meta: &MetaSize<u32>,
+    filter: &fir::FilterType,
+) -> Res<Vec<u8>> {
     let mut src_image = fir::Image::from_vec_u8(
         NonZeroU32::new(meta.image.width).ok_or(())?,
         NonZeroU32::new(meta.image.height).ok_or(())?,
-        bytes.to_vec(),
+        bytes,
         fir::PixelType::U8x4,
     )?;
     let dst_width = NonZeroU32::new(meta.fix.width).ok_or(())?;
@@ -45,7 +49,10 @@ pub fn resize_rgba8(bytes: &[u8], meta: &MetaSize<u32>, filter: &fir::FilterType
 
 #[inline(always)]
 pub fn srgb_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
-    for f in (0..bytes.len()).step_by(4) {
-        buffer.push(TransRgba::argb_to_u32(&bytes[f..f + 4].try_into().unwrap()));
+    *buffer = vec![0; bytes.len() / 4];
+
+    for (idx, f) in (0..bytes.len()).step_by(4).enumerate() {
+        buffer[idx] =
+            TransRgba::rgba_as_srgb_u32(&bytes[f], &bytes[f + 1], &bytes[f + 2], &bytes[f + 3]);
     }
 }

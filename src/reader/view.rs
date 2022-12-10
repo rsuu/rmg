@@ -1,8 +1,5 @@
 use crate::img::size::Size;
 
-// todo
-const TEMP: &[u32; 900 * 900] = &[0; 900 * 900];
-
 #[derive(Debug)]
 pub struct Buffer {
     pub nums: usize,
@@ -26,15 +23,8 @@ impl Buffer {
         self.data.clear();
     }
 
-    pub fn flush(&mut self, page: &Page) {
-        let data = page.data();
-
-        if data.is_empty() {
-            let data = page.loading();
-            self.data.extend_from_slice(&data);
-        } else {
-            self.data.extend_from_slice(data)
-        };
+    pub fn flush(&mut self, bytes: &[u32]) {
+        self.data.extend_from_slice(bytes);
     }
 }
 
@@ -84,12 +74,15 @@ pub enum ImgType {
 // --------------------------
 #[derive(Debug, Clone, Copy)]
 pub enum ImgFormat {
+    // bit
     Heic,
     Avif,
     Jpg,
     Png,
 
+    // anim
     Aseprite,
+    Gif,
 
     Unknown,
 }
@@ -103,6 +96,7 @@ impl From<&str> for ImgFormat {
             "heic" | "heif" => Self::Heic,
             "avif" => Self::Avif,
             "aseprite" => Self::Aseprite,
+            "gif" => Self::Gif,
             _ => Self::Unknown,
         }
     }
@@ -117,7 +111,24 @@ impl Page {
             resize: Size::new(0, 0),
             is_ready: false,
 
-            data: vec![Vec::new()],
+            data: vec![],
+            ty: ImgType::Bit,
+            nums: 0,
+            frame_pos: 0,
+            fps: 0,
+            timer: 0,
+        }
+    }
+
+    pub fn null() -> Self {
+        Self {
+            name: "".to_string(),
+            number: 0,
+            pos: 0,
+            resize: Size::new(0, 0),
+            is_ready: false,
+
+            data: vec![],
             ty: ImgType::Bit,
             nums: 0,
             frame_pos: 0,
@@ -130,37 +141,12 @@ impl Page {
         self.resize.width as usize * self.resize.height as usize
     }
 
-    pub fn null() -> Self {
-        Self {
-            name: "".to_string(),
-            number: 0,
-            pos: 0,
-            resize: Size::new(0, 0),
-            is_ready: false,
-
-            data: vec![Vec::new()],
-            ty: ImgType::Bit,
-            nums: 0,
-            frame_pos: 0,
-            fps: 0,
-            timer: 0,
-        }
-    }
-
     pub fn resize(&mut self, width: u32, height: u32) {
         self.resize = Size::new(width, height);
     }
 
-    pub fn loading(&self) -> Vec<u32> {
-        vec![0; self.resize.width as usize / 100 * self.resize.height as usize]
-    }
-
     pub fn data(&self) -> &[u32] {
-        if self.is_ready {
-            self.data[self.frame_pos].as_slice()
-        } else {
-            TEMP
-        }
+        self.data[self.frame_pos].as_slice()
     }
 
     pub fn free(&mut self) {
@@ -178,10 +164,10 @@ impl Page {
     }
 
     pub fn len(&self) -> usize {
-        match self.ty {
-            ImgType::Bit => self.data[0].len(),
-            ImgType::Anim => self.data[self.frame_pos].len(),
-            _ => 0,
+        if self.is_ready {
+            self.data[0].len()
+        } else {
+            0
         }
     }
 
