@@ -1,6 +1,5 @@
 use crate::{
     img::size::Size,
-    reader::view::Page,
     utils::err::{MyErr, Res},
 };
 

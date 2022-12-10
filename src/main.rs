@@ -35,7 +35,7 @@ fn main() {
         println!("Open: {}", path.as_str());
 
         let file_list = get_file_list(path.as_str()).unwrap();
-        let archive_type = get_archive_type(path.as_str()).unwrap();
+        let archive_type = get_archive_type(path.as_str());
         let page_list = get_page_list(&file_list, config.base.rename_pad as usize);
 
         log::debug!("page_list: {:#?}", page_list);
@@ -64,44 +64,39 @@ pub fn init_log() {
         .unwrap();
 }
 
-pub fn get_archive_type<_Path>(path: &_Path) -> Result<ArchiveType, ()>
+pub fn get_archive_type<_Path>(path: &_Path) -> ArchiveType
 where
     _Path: AsRef<Path> + ?Sized,
 {
-    let res: ArchiveType = if path.as_ref().is_dir() {
+    if path.as_ref().is_dir() {
         ArchiveType::Dir
     } else {
-        let inline_res: ArchiveType = match file::get_filetype(path.as_ref()).as_str() {
+        match file::get_filetype(path.as_ref()).as_str() {
             "tar" => ArchiveType::Tar,
             "zip" => ArchiveType::Zip,
 
-            _ => {
-                return Err(());
-            }
-        };
-
-        inline_res
-    };
-
-    Ok(res)
+            _ => ArchiveType::File,
+        }
+    }
 }
 
 pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Page> {
     let mut page_list = Vec::new();
     let mut number = 0;
 
-    // Only allow [.jpg || .jpeg || .png || .avif]
     for (path, pos) in file_list.iter() {
         if rmg::has_supported(path.as_str()) {
-            let info = if rename_pad == 0 {
+            let page = if rename_pad == 0 {
                 Page::new(path.clone(), number, *pos)
             } else {
+                // rename
                 Page::new(file::pad_name(rename_pad, path.as_str()), number, *pos)
             };
 
-            page_list.push(info);
+            page_list.push(page);
             number += 1;
         } else {
+            // skip
         }
     }
 
@@ -138,9 +133,19 @@ where
             }
 
             _ => {
-                // Only one file.
+                let ty = file::get_filetype(from.as_ref());
 
-                todo!()
+                println!("{}", ty);
+
+                if rmg::reader::view::ImgFormat::from(ty.as_str())
+                    == rmg::reader::view::ImgFormat::Unknown
+                {
+                    // unsupport
+                    return Err(());
+                } else {
+                    // Only one file.
+                    return Ok(vec![(from.as_ref().display().to_string(), 0)]);
+                }
             }
         };
     };

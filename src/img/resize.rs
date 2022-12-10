@@ -1,12 +1,11 @@
 use crate::{
     color::rgba::TransRgba,
-    img::heic,
-    img::size::{MetaSize, Size, TMetaSize},
+    img::size::{MetaSize, TMetaSize},
     utils::err::Res,
 };
 use cfg_if::cfg_if;
 use fir;
-use image::DynamicImage;
+
 use std::num::NonZeroU32;
 
 #[inline(always)]
@@ -48,11 +47,11 @@ pub fn resize_rgba8(
 }
 
 #[inline(always)]
-pub fn srgb_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
+pub fn argb_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
     *buffer = vec![0; bytes.len() / 4];
 
     for (idx, f) in (0..bytes.len()).step_by(4).enumerate() {
         buffer[idx] =
-            TransRgba::rgba_as_srgb_u32(&bytes[f], &bytes[f + 1], &bytes[f + 2], &bytes[f + 3]);
+            TransRgba::rgba_as_argb_u32(&bytes[f], &bytes[f + 1], &bytes[f + 2], &bytes[f + 3]);
     }
 }

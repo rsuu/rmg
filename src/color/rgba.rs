@@ -2,7 +2,7 @@ pub struct TransRgba {}
 
 impl TransRgba {
     #[inline(always)]
-    pub fn rgba_as_srgb_u32(r: &u8, g: &u8, b: &u8, a: &u8) -> u32 {
+    pub fn rgba_as_argb_u32(r: &u8, g: &u8, b: &u8, a: &u8) -> u32 {
         // (r, g, b, a) -> (a, r, g, b) -> u32
         //  3  2  1  0      3  2  1  0
         ((*r as u32) << 8 * 2)

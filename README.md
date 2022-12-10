@@ -46,19 +46,19 @@ rmg --size 600,600 --config ./tests/files/config.rs ./tests/files/img.tar
 
 ### KeyMap
 
-|#|#|
+|Key| |
 |:-|:-|
-k/Up | up
-j/Down | down
-h/Left | left
-r/Right | right
+k/Up | move up
+j/Down | move down
+h/Left | move left
+r/Right | move right
 q | quit
 
 ### Configuration
 
 > config file: https://raw.githubusercontent.com/rsuu/rmg/main/tests/files/config.rs
 
-WARN: You have to create the file by yourself.
+`WARN:` You have to create the file by yourself.
 
 + configuration file path
   + Linux: `$HOME/.config/rmg/config.rs`
@@ -68,7 +68,7 @@ WARN: You have to create the file by yourself.
 ## Supported formats
 
 | Format | Supported | Default |Dependency
-|:-|:-|:-|
+|:-|:-|:-|:-|
 .jpg |✅ | ✅|
 .png|✅| ✅|
 .heic / .avif|🔬|❌|libheif
@@ -77,7 +77,7 @@ WARN: You have to create the file by yourself.
 
 ---
 | Format | Supported | Default |Dependency
-|:-|:-|:-|
+|:-|:-|:-|:-|
 .tar |✅ | ✅| tar
 .zip / .cbz |✅ | ✅| zip
 

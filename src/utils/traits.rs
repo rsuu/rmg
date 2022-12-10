@@ -1,4 +1,4 @@
-use cfg_if::cfg_if;
+
 use std::fmt;
 
 impl<AnyType: ?Sized> AutoTrait for AnyType {}

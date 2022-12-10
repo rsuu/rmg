@@ -16,7 +16,7 @@ where
 
 /// ```text
 /// if pad == 6
-/// '01.jpg'        -> '000001.jpg'     (add "0000")
+/// '01.jpg'        -> '000001.jpg'     (push  "0000" )
 /// '000001.jpg'    -> '000001.jpg'     (doing nothing)
 /// '000000001.jpg' -> '0000000001.jpg' (doing nothing)
 /// ```
@@ -82,7 +82,7 @@ pub fn is_same_slice(foo: &[u8], bar: &[u8], start: usize, len: usize) -> Res<bo
     if foo.len() > start + len && &foo[start..start + len] == bar {
         Ok(true)
     } else {
-        Err(crate::utils::err::MyErr::Null(()))
+        Err(crate::utils::err::MyErr::Null)
     }
 }
 

@@ -1,8 +1,8 @@
-use crate::utils::err::{MyErr, Res};
-use std::io::prelude::*;
-use std::io::BufReader;
-use std::{fs::File, path::Path};
-use zip::ZipArchive;
+use crate::utils::err::{Res};
+
+
+use std::{path::Path};
+
 
 pub fn load_file<_Path>(path: &_Path, idx: usize) -> Res<Vec<u8>>
 where
@@ -45,7 +45,7 @@ where
 
 #[cfg(feature = "ex_zip")]
 mod feat {
-    use crate::utils::err::{MyErr, Res};
+    use crate::utils::err::{Res};
     use std::io::prelude::*;
     use std::io::BufReader;
     use std::{fs::File, path::Path};

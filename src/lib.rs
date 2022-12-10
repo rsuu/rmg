@@ -74,6 +74,7 @@ pub mod archive {
         Tar,
         Zip,
         Dir,
+        File,
     }
 
     pub mod dir;

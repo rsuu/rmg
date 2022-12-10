@@ -68,11 +68,11 @@ pub struct Page {
 // --------------------------
 #[derive(Debug, Clone, Copy)]
 pub enum ImgType {
-    Bit = 0,  // jpg
-    Anim = 1, // gif
+    Bit = 0,  // jpg / heic ...
+    Anim = 1, // gif / aseprite
 }
 // --------------------------
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ImgFormat {
     // bit
     Heic,
@@ -87,7 +87,6 @@ pub enum ImgFormat {
     Unknown,
 }
 // --------------------------
-
 impl From<&str> for ImgFormat {
     fn from(value: &str) -> Self {
         match value {
@@ -150,23 +149,15 @@ impl Page {
     }
 
     pub fn free(&mut self) {
-        match self.ty {
-            ImgType::Bit => {
-                self.data[0].clear();
-                self.data[0].shrink_to(0);
-            }
-            ImgType::Anim => {
-                self.data.clear();
-                self.data.shrink_to(0);
-            }
-            _ => {}
-        }
+        self.data.clear();
+        self.data.shrink_to(0);
     }
 
     pub fn len(&self) -> usize {
         if self.is_ready {
             self.data[0].len()
         } else {
+            // WARN:
             0
         }
     }

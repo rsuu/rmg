@@ -12,9 +12,12 @@ use crate::{
 };
 use log::{debug, info};
 use std::{
+    ops::Sub,
     path::PathBuf,
     sync::{Arc, RwLock},
 };
+
+const FPS: u128 = 40; // 1000/25
 
 /// display images
 pub fn cat_img(
@@ -34,9 +37,9 @@ pub fn cat_img(
     let keymaps = keymap::KeyMap::new();
 
     let mut buf = Render {
-        buffer: Buffer::new(), // buffer
+        buffer: Buffer::new(),
         buffer_max,
-        mem_limit: buffer_max * 10,
+        mem_limit: buffer_max * 5,
 
         head: 0,
         tail: 0,
@@ -47,17 +50,17 @@ pub fn cat_img(
         archive_path: PathBuf::from(path),
         archive_type,
 
-        mode: Map::Stop,                           // keymap
-        page_end: page_list.len(),                 //
-        page_list,                                 //
-        screen_size,                               //
-        y_step: buffer_max / step,                 // drop 1/step part of image once
-        x_step: window_size.width as usize / step, //
-        window_position: (0, 0),                   //
-        window_size,                               //
+        mode: Map::Stop,
+        page_end: page_list.len(),
+        page_list,
+        screen_size,
+        y_step: buffer_max / step, // drop 1/step part of image once
+        x_step: window_size.width as usize / step,
+        window_position: (0, 0),
+        window_size,
 
         page_load_list: Vec::new(),
-        filter, //
+        filter,
         view_mode: config.base.view_mode,
 
         page_number: 0,
@@ -86,15 +89,15 @@ pub fn cat_img(
 }
 
 pub fn for_minifb_page(
-    config: &Config,
-    buf: &mut Render,
-    canvas: &mut Canvas,
-    keymaps: &[keymap::KeyMap],
+    _config: &Config,
+    _buf: &mut Render,
+    _canvas: &mut Canvas,
+    _keymaps: &[keymap::KeyMap],
 ) {
 }
 
 pub fn for_minifb_image(
-    config: &Config,
+    _config: &Config,
     buf: &mut Render,
     canvas: &mut Canvas,
     keymaps: &[keymap::KeyMap],
@@ -127,6 +130,8 @@ pub fn for_minifb_scroll(
     let arc_state = Arc::new(RwLock::new(State::Nothing));
     let arc_page: Arc<RwLock<Page>> = Arc::new(RwLock::new(Page::null()));
 
+    let mut time_start = std::time::Instant::now();
+
     'l1: while canvas.window.is_open() {
         match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
             Map::Down => {
@@ -156,7 +161,7 @@ pub fn for_minifb_scroll(
             Map::Exit => {
                 println!("EXIT");
 
-                // BUG: Miss Key::Escape
+                // TODO: Key::Escape
                 break 'l1;
             }
 
@@ -188,7 +193,13 @@ pub fn for_minifb_scroll(
 
         buf.flush(canvas, &arc_state);
 
-        // TODO: dyn FPS
-        std::thread::sleep(std::time::Duration::from_millis(40));
+        let now = std::time::Instant::now();
+        let count = (now - time_start).as_millis();
+
+        time_start = now;
+
+        //debug!("{}", (FPS - (count / 6)));
+
+        std::thread::sleep(std::time::Duration::from_millis((FPS - (count / 6)) as u64));
     }
 }

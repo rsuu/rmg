@@ -1,7 +1,5 @@
-use crate::utils::err::{MyErr, Res};
+use crate::utils::err::{Res};
 use std::{
-    fs::{File, OpenOptions},
-    io::Read,
     path::Path,
 };
 
@@ -46,7 +44,7 @@ pub fn get_file_list(path: &Path) -> Res<Vec<(String, usize)>> {
 mod feat {
     use crate::utils::err::{MyErr, Res};
     use std::{
-        fs::{File, OpenOptions},
+        fs::{OpenOptions},
         io::Read,
         path::Path,
     };
@@ -90,6 +88,6 @@ mod feat {
             }
         }
 
-        Err(MyErr::Null(()))
+        Err(MyErr::Null)
     }
 }

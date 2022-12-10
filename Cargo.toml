@@ -1,6 +1,6 @@
 [package]
 name = "rmg"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Rust: Tiny Manga/Image Viewer"

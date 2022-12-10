@@ -1,5 +1,4 @@
 use crate::utils::err::{MyErr, Res};
-use log;
 
 pub fn load_heic(bytes: &[u8]) -> Res<(u32, u32, Vec<Vec<u8>>)> {
     cfg_if::cfg_if! {
@@ -63,7 +62,7 @@ mod feat {
 
             return Ok((width, height, vec![res]));
         } else {
-            return Err(MyErr::Null(()));
+            return Err(MyErr::Null);
         }
     }
 }
