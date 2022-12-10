@@ -1,9 +1,8 @@
 use cfg_if::cfg_if;
 
 fn main() {
-    cfg_if! {
-                    // decode heic
-                    if #[cfg(feature="de_heic")] {
+    cfg_if! { // decode heic
+    if #[cfg(feature="de_heic")] {
 
     // cg ex heic -F de_heic
     use libheif_rs;
@@ -61,7 +60,7 @@ where
 
             let rgb = yuv_to_rgb(img[y].into(), img[u].into(), img[v].into());
 
-            res[idx + 0] = rgb[0];
+            res[idx] = rgb[0];
             res[idx + 1] = rgb[1];
             res[idx + 2] = rgb[2];
         }

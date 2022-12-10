@@ -1,69 +1,64 @@
 [package]
 name = "rmg"
-version = "0.2.1"
+version = "0.4.1"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
-description = "Rust: Tiny Manga Reader"
+description = "Rust: Tiny And Fast Manga/Image Viewer"
 readme = "README.md"
 homepage = "https://crates.io/crates/rmg"
 repository = "https://github.com/rsuu/rmg"
 license = "MIT OR Apache-2.0"
-keywords = ["manga","comic"]
-#categories = []
+keywords = ["manga","comic","viewer"]
+categories = ["Multimedia::Images"]
 autobenches = true
 build = "build.rs"
-
-[profile.release]
-strip = true
-codegen-units = 1
-debug = false
-debug-assertions = false
-incremental = false
-lto = true
-opt-level = 3
-overflow-checks = false
-panic = "abort"
+exclude= ["tests", "benches"]
 
 [dependencies]
 # fs
 #tempfile = "3.3.0"
 walkdir = "2.3.2"
 dirs-next = "2.0.0"
-
-# archive
-tar = {version="0.4.38", optional = true }
+#   filetype
+infer = "0.11.0"
+#   archive
+tar = { version = "0.4.38", optional = true }
 #zstd = "0.11.2"
-zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","bzip2","deflate", ], optional = true  }
-
-# filetype
-infer = "0.9.0"
+zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","bzip2","deflate", ], optional = true }
 
 # window
-#sdl2 = { version = "0.35.2", features = ["image", "ttf"] }
 minifb = { version = "0.23.0", features = ["x11", "wayland"] }
 
 # image
-image = { version = "0.24.4" }
-fir = {package="fast_image_resize"  ,version="1.0.0"}
-libheif-rs = { version = "0.15.0", optional = true }
+image = "0.24.5"
+fir = { package = "fast_image_resize", version = "2.4.0" }
+libheif-rs = { version = "0.15.1", optional = true }
 asefile ={ version = "0.3.5", optional = true }
+#   gif
+gif = "0.12.0"
+gif-dispose = "4.0.0"
+#   svg
+usvg ={ version = "0.28.0", optional = true }
+tiny-skia ={ version = "0.8.2", optional = true }
+resvg ={ version = "0.28.0", optional = true }
 
 # args
 lexopt = "0.2.1"
+#argh = "0.1.9"
 
 # config
-syn = { version = "1.0.102", features = ["full", "extra-traits"] }
+syn = { version = "1.0.105", features = ["full", "extra-traits"] }
 
 # async
 #pollster = "0.2.5"
 
-# other
-cfg-if = "1.0.0"
-
 # debug
 log = "0.4.17"
-simple_logger = { version = "2.3.0", features = ["colors", "threads"] }
+simple_logger = { version = "4.0.0", features = ["colors", "threads"] }
 
+# other
+cfg-if = "1.0.0"
+#palette = "0.6.1"
 
 
 [dev-dependencies]
@@ -86,6 +81,30 @@ ex_tar = ["dep:zip"]
 sse4_1 = []
 avx2 = []
 
+
 # image
+de_all = ["de_heic", "de_aseprite", "de_svg"]
 de_heic = ["dep:libheif-rs"]
-de_ase = ["dep:asefile"]
+de_aseprite = ["dep:asefile"]
+de_svg= ["dep:usvg", "dep:tiny-skia", "dep:resvg"]
+
+
+
+[profile.release]
+lto = "thin"
+opt-level = 2
+codegen-units = 1
+panic = "abort"
+strip = true
+debug = false
+debug-assertions = false
+incremental = false
+overflow-checks = false
+
+[profile.release.package."*"]
+opt-level = 2
+codegen-units = 1
+strip = true
+debug = false
+debug-assertions = false
+incremental = false

@@ -1,49 +1,41 @@
-use cfg_if::cfg_if;
+use log;
+use std::fmt;
 
 impl<AnyType: ?Sized> AutoTrait for AnyType {}
 
-use log;
-impl<AnyType: ?Sized> AutoLog for AnyType {}
+impl<AnyType: ?Sized + std::fmt::Display> AutoLog for AnyType {}
 
-pub trait AutoLog {
-    fn _dbg(&self)
-    where
-        Self: std::fmt::Display,
-    {
+pub trait AutoLog
+where
+    Self: fmt::Display,
+{
+    fn _dbg(&self) {
         log::debug!("{}", &self);
     }
 
-    fn _info(&self)
-    where
-        Self: std::fmt::Display,
-    {
+    fn _info(&self) {
         log::info!("{}", &self);
     }
 
-    fn _warn(&self)
-    where
-        Self: std::fmt::Display,
-    {
+    fn _warn(&self) {
         log::warn!("{}", &self);
     }
 
-    fn _err(&self)
-    where
-        Self: std::fmt::Display,
-    {
+    fn _err(&self) {
         log::error!("{}", &self);
     }
+}
 
+pub trait AutoTrait {
+    // usage:
+    //     <u8>::_size()
+    //     <Option<u32>>::_size()
     fn _size() -> usize
     where
         Self: Sized,
     {
         std::mem::size_of::<Self>()
     }
-}
-
-pub trait AutoTrait {
-    fn k() {}
 }
 
 //macro_rules! debug {
