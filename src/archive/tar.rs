@@ -1,14 +1,12 @@
-use crate::utils::err::{MyErr, Res};
+use crate::utils::err::{Res};
 use std::{
-    fs::{File, OpenOptions},
-    io::Read,
     path::Path,
 };
 
 pub fn load_file(path: &Path, idx: usize) -> Res<Vec<u8>> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "ex_tar")] {
-            feat::load_file(path.as_ref(), idx)
+            feat::load_file(path, idx)
         } else {
             Err(MyErr::FeatTar)
         }
@@ -35,7 +33,7 @@ pub fn load_file(path: &Path, idx: usize) -> Res<Vec<u8>> {
 pub fn get_file_list(path: &Path) -> Res<Vec<(String, usize)>> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "ex_tar")] {
-            feat::get_file_list(path.as_ref())
+            feat::get_file_list(path)
         } else {
             Err( MyErr::FeatTar)
         }
@@ -46,7 +44,7 @@ pub fn get_file_list(path: &Path) -> Res<Vec<(String, usize)>> {
 mod feat {
     use crate::utils::err::{MyErr, Res};
     use std::{
-        fs::{File, OpenOptions},
+        fs::{OpenOptions},
         io::Read,
         path::Path,
     };
@@ -90,6 +88,6 @@ mod feat {
             }
         }
 
-        Err(MyErr::Null(()))
+        Err(MyErr::Null)
     }
 }

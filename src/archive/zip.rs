@@ -1,8 +1,8 @@
-use crate::utils::err::{MyErr, Res};
-use std::io::prelude::*;
-use std::io::BufReader;
-use std::{fs::File, path::Path};
-use zip::ZipArchive;
+use crate::utils::err::{Res};
+
+
+use std::{path::Path};
+
 
 pub fn load_file<_Path>(path: &_Path, idx: usize) -> Res<Vec<u8>>
 where
@@ -45,7 +45,7 @@ where
 
 #[cfg(feature = "ex_zip")]
 mod feat {
-    use crate::utils::err::{MyErr, Res};
+    use crate::utils::err::{Res};
     use std::io::prelude::*;
     use std::io::BufReader;
     use std::{fs::File, path::Path};
@@ -71,8 +71,8 @@ mod feat {
         let mut res: Vec<(String, usize)> = Vec::new();
 
         let file = File::open(path.as_ref()).unwrap();
-        let reader = BufReader::new(file);
-        let mut zip = zip::ZipArchive::new(reader).unwrap();
+        let render = BufReader::new(file);
+        let mut zip = zip::ZipArchive::new(render).unwrap();
 
         for idx in 0..zip.len() {
             let file = zip.by_index(idx).unwrap();
@@ -89,8 +89,8 @@ mod feat {
         _Path: AsRef<Path> + ?Sized,
     {
         let file = File::open(path.as_ref()).unwrap();
-        let reader = BufReader::new(file);
-        let mut zip = zip::ZipArchive::new(reader).unwrap();
+        let render = BufReader::new(file);
+        let mut zip = zip::ZipArchive::new(render).unwrap();
         let mut file = zip.by_index(idx).unwrap();
 
         let mut res = Vec::with_capacity(file.size() as usize);

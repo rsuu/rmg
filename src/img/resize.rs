@@ -1,20 +1,21 @@
-use crate::color::rgba::TransRgba;
 use crate::{
-    img::heic,
-    img::size::{MetaSize, Size, TMetaSize},
+    color::rgba::TransRgba,
+    img::size::{MetaSize, TMetaSize},
     utils::err::Res,
 };
 use cfg_if::cfg_if;
 use fir;
-use image::DynamicImage;
 use std::num::NonZeroU32;
 
-#[inline(always)]
-pub fn resize_rgba8(bytes: &[u8], meta: &MetaSize<u32>, filter: &fir::FilterType) -> Res<Vec<u8>> {
+pub fn resize_rgba8(
+    bytes: Vec<u8>,
+    meta: &MetaSize<u32>,
+    filter: &fir::FilterType,
+) -> Res<Vec<u8>> {
     let mut src_image = fir::Image::from_vec_u8(
         NonZeroU32::new(meta.image.width).ok_or(())?,
         NonZeroU32::new(meta.image.height).ok_or(())?,
-        bytes.to_vec(),
+        bytes,
         fir::PixelType::U8x4,
     )?;
     let dst_width = NonZeroU32::new(meta.fix.width).ok_or(())?;
@@ -40,12 +41,83 @@ pub fn resize_rgba8(bytes: &[u8], meta: &MetaSize<u32>, filter: &fir::FilterType
     alpha_mul_div.multiply_alpha_inplace(&mut src_image.view_mut())?;
     alpha_mul_div.divide_alpha_inplace(&mut dst_view)?;
 
+    //
     Ok(dst_image.buffer().to_vec())
 }
 
-#[inline(always)]
-pub fn srgb_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
-    for f in (0..bytes.len()).step_by(4) {
-        buffer.push(TransRgba::argb_to_u32(&bytes[f..f + 4].try_into().unwrap()));
+pub fn center_img(bg: &mut Vec<u32>, fg: &[u32], bw: usize, fw: usize, fh: usize, offset: usize) {
+    *bg = vec![0; bw * fh];
+
+    let mut idx_fg = 0;
+    let mut idx_bg = 0;
+
+    for y in 0..fh {
+        idx_fg = fw * y;
+        idx_bg = (bw * y) + offset;
+
+        for x in 0..fw {
+            bg[idx_bg + x] = fg[idx_fg + x];
+        }
     }
 }
+
+pub fn crop_img2(img: &[u32], offset: usize, iw: usize, ih: usize, ow: usize) -> Vec<u32> {
+    let mut buffer = vec![0; ow * ih];
+
+    let mut i = 0;
+    let mut o = 0;
+
+    for y in 0..ih {
+        i = (iw * y) + offset;
+        o = ow * y;
+
+        for x in 0..ow {
+            buffer[o + x] = img[i + x];
+        }
+    }
+
+    buffer
+}
+
+pub fn crop_img(
+    buffer: &mut Vec<u32>,
+    img: &[u32],
+    offset: usize,
+    iw: usize,
+    ih: usize,
+    ow: usize,
+) {
+    *buffer = vec![0; ow * ih];
+
+    let mut i = 0;
+    let mut o = 0;
+
+    for y in 0..ih {
+        i = (iw * y) + offset;
+        o = ow * y;
+
+        for x in 0..ow {
+            buffer[o + x] = img[i + x];
+        }
+    }
+}
+
+pub fn argb_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
+    *buffer = vec![0; bytes.len() / 4];
+
+    for (idx, f) in (0..bytes.len()).step_by(4).enumerate() {
+        buffer[idx] =
+            TransRgba::rgba_as_argb_u32(&bytes[f], &bytes[f + 1], &bytes[f + 2], &bytes[f + 3]);
+    }
+}
+
+pub fn rgba_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
+    *buffer = vec![0; bytes.len() / 4];
+
+    for (idx, f) in (0..bytes.len()).step_by(4).enumerate() {
+        buffer[idx] =
+            TransRgba::rgba_as_u32(&bytes[f], &bytes[f + 1], &bytes[f + 2], &bytes[f + 3]);
+    }
+}
+
+pub fn yuv420_u32() {}

@@ -1,38 +1,11 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const FPS: u64 = 1000 / 25;
 pub const EXT_LIST: &[&str] = &[
-    "jpg", "jpeg", "png", "heic", "heif", "avif", "ase", "aseprite",
+    "jpg", "jpeg", "png", "heic", "heif", "avif", "ase", "aseprite", "gif", "svg",
 ];
-pub static mut TIMER: usize = 0;
-
-#[inline]
-pub fn has_supported(path: &str) -> bool {
-    // is dir
-    if path.ends_with('/') {
-        return false;
-    }
-
-    for ext in EXT_LIST {
-        // e.g. ".jpg"
-        if path.ends_with(format!(".{}", ext).as_str()) {
-            return true;
-        } else {
-        }
-    }
-
-    false
-}
 
 // block | expr | ident | item | lifetime | literal
 // meta | pat | pat_param | path | stmt | tt | ty | vis
-// #[macro_export]
-// macro_rules! unwrap_or_return {
-//     ( $e:expr , $err:expr) => {
-//         match $e {
-//             Ok(x) => x,
-//             Err(e) => return Err($err(e)),
-//         }
-//     };
-// }
 //
 // #[macro_export]
 // macro_rules! check {
@@ -60,20 +33,24 @@ macro_rules! error_from {
     }
 }
 
+/////////////////////////////////////////////////
+pub fn sleep(ms: u64) {
+    std::thread::sleep(std::time::Duration::from_millis(ms));
+}
+/////////////////////////////////////////////////
 pub mod utils {
-    pub mod cli;
     pub mod err;
     pub mod file;
     pub mod traits;
 }
 
 pub mod archive {
-
     #[derive(Debug, Copy, Clone)]
     pub enum ArchiveType {
         Tar,
         Zip,
         Dir,
+        File,
     }
 
     pub mod dir;
@@ -84,7 +61,6 @@ pub mod archive {
 }
 
 pub mod img {
-
     pub mod covert;
     pub mod resize;
     pub mod size;
@@ -93,6 +69,7 @@ pub mod img {
     pub mod ase;
     pub mod gif;
     pub mod heic;
+    pub mod svg;
 }
 
 pub mod color {
@@ -101,12 +78,13 @@ pub mod color {
     pub mod rgba;
 }
 
-pub mod reader {
+pub mod render {
     pub mod display;
     pub mod keymap;
     pub mod view;
     pub mod window;
 
+    pub mod once;
     pub mod scroll;
     pub mod turn;
 }

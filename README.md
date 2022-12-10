@@ -1,12 +1,12 @@
 # rmg
 
-> Rust: Tiny Manga Reader
+> Rust: Tiny And Fast Manga/Image Viewer
 
 ## Demo
 
-![](./assets/2022-07-12.png)
+![](./assets/demo.jpg)
 
-https://github.com/rsuu/rmg/blob/main/assets/2022-06-29.mp4
+./assets/demo.mp4
 
 ## Install
 
@@ -35,30 +35,32 @@ cargo build --release
 ## Usage
 
 ```bash
-rmg ./tests/files/img.tar
+rmg tests/bit/png
 
-# OR
-rmg --size 600,600 ./tests/files/img.tar
+rmg file.tar
 
-# OR
-rmg --size 600,600 --config ./tests/files/config.rs ./tests/files/img.tar
+rmg --size 600x600 file.tar
+
+rmg --size 100x600 --config ./tests/files/config.rs file.tar
+
+rmg file.gif
 ```
 
 ### KeyMap
 
-|#|#|
+|Key| |
 |:-|:-|
-k/Up | up
-j/Down | down
-h/Left | left
-r/Right | right
+k/Up | move up
+j/Down | move down
+h/Left | move left
+r/Right | move right
 q | quit
 
 ### Configuration
 
 > config file: https://raw.githubusercontent.com/rsuu/rmg/main/tests/files/config.rs
 
-WARN: You have to create the file by yourself.
+`WARN:` You have to create the file by yourself.
 
 + configuration file path
   + Linux: `$HOME/.config/rmg/config.rs`
@@ -67,13 +69,21 @@ WARN: You have to create the file by yourself.
 
 ## Supported formats
 
-| Format | Supported | Default
-|:-|:-|:-|
-.jpg |✅ | ✅
-.png|✅| ✅
-.heic / .avif|🔬|❌
-.gif|🚧|✅
-.aseprite|🔬|❌
+| Format | Supported | Default |Dependency | Mode
+|:-|:-|:-|:-|:-|
+.jpg |✅ | ✅||Scroll/Once
+.png|✅| ✅||Scroll/Once
+.heic / .avif|🔬|❌|libheif|Scroll/Once
+.gif|🔬|✅||Once
+.aseprite|🔬|❌||Once
+.svg|🔬|❌||Scroll/Once
+
+---
+| Format | Supported | Default |Dependency
+|:-|:-|:-|:-|
+directory |✅ | ✅|
+.tar |✅ | ✅| tar
+.zip / .cbz |✅ | ✅| zip
 
 ## Features
 
@@ -81,9 +91,8 @@ WARN: You have to create the file by yourself.
 # Add support for heic
 cargo run --release -F "de_heic"
 
-
-# for heic AND aseprite
-cargo run --release -F "de_heic" -F "de_ase"
+# for svg AND aseprite
+cargo run --release -F "de_svg" -F "de_aseprite"
 
 # [CpuExtensions](https://docs.rs/fast_image_resize/latest/fast_image_resize/index.html#resize-rgb8-image-u8x3-4928x3279--852x567)
 cargo run --release -F "avx2"

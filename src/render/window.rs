@@ -29,6 +29,7 @@ impl Canvas {
 
         Self {
             window,
+
             size: (width, height),
         }
     }

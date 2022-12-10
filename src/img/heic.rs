@@ -1,10 +1,9 @@
 use crate::utils::err::{MyErr, Res};
-use log;
 
-pub fn load_heic(bytes: &[u8]) -> Res<(u32, u32, Vec<u8>)> {
+pub fn load_heic(_bytes: &[u8]) -> Res<(u32, u32, Vec<Vec<u8>>)> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "de_heic")] {
-            feat::load_heic(bytes)
+            feat::load_heic(_bytes)
         } else {
             Err( MyErr::FeatHeic)
         }
@@ -17,9 +16,9 @@ mod feat {
     use libheif_rs;
 
     #[inline]
-    pub fn load_heic(bytes: &[u8]) -> Res<(u32, u32, Vec<u8>)> {
+    pub fn load_heic(bytes: &[u8]) -> Res<(u32, u32, Vec<Vec<u8>>)> {
         if let Ok(ctx) = libheif_rs::HeifContext::read_from_bytes(&bytes) {
-            log::debug!("{}", bytes.len());
+            tracing::debug!("{}", bytes.len());
 
             let handle = ctx.primary_image_handle().unwrap();
 
@@ -36,9 +35,9 @@ mod feat {
             let width = src_img.planes().interleaved.unwrap().width;
             let height = src_img.planes().interleaved.unwrap().height;
 
-            log::debug!("w: {} -- h: {}", width, height);
-            log::debug!("{}", width * height * 3);
-            log::debug!(
+            tracing::debug!("w: {} -- h: {}", width, height);
+            tracing::debug!("{}", width * height * 3);
+            tracing::debug!(
                 "{} -- {}",
                 bytes.len(),
                 src_img.planes().interleaved.unwrap().stride,
@@ -61,9 +60,9 @@ mod feat {
                 }
             }
 
-            return Ok((width, height, res));
+            return Ok((width, height, vec![res]));
         } else {
-            return Err(MyErr::Null(()));
+            return Err(MyErr::Null);
         }
     }
 }
