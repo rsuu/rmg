@@ -74,6 +74,7 @@ q | quit
 .heic / .avif|🔬|❌|libheif
 .gif|🔬|✅|
 .aseprite|🔬|❌|
+.svg|🔬|❌|
 
 ---
 | Format | Supported | Default |Dependency
@@ -89,7 +90,10 @@ cargo run --release -F "de_heic"
 
 
 # for heic AND aseprite
-cargo run --release -F "de_heic" -F "de_ase"
+cargo run --release -F "de_heic" -F "de_aseprite"
+
+# for svg
+cargo run --release -F "de_svg"
 
 # [CpuExtensions](https://docs.rs/fast_image_resize/latest/fast_image_resize/index.html#resize-rgb8-image-u8x3-4928x3279--852x567)
 cargo run --release -F "avx2"

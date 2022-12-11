@@ -9,6 +9,7 @@ use crate::{
         window::Canvas,
     },
     utils::err::Res,
+    FPS,
 };
 use log::{debug, info};
 use std::{
@@ -16,8 +17,6 @@ use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
 };
-
-const FPS: u128 = 40; // 1000/25
 
 /// display images
 pub fn cat_img(
@@ -131,6 +130,7 @@ pub fn for_minifb_scroll(
     let arc_page: Arc<RwLock<Page>> = Arc::new(RwLock::new(Page::null()));
 
     let mut time_start = std::time::Instant::now();
+    let mut sleep = FPS;
 
     'l1: while canvas.window.is_open() {
         match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
@@ -194,12 +194,12 @@ pub fn for_minifb_scroll(
         buf.flush(canvas, &arc_state);
 
         let now = std::time::Instant::now();
-        let count = (now - time_start).as_millis();
+        let count = (now - time_start).as_millis() as u64;
 
         time_start = now;
 
-        //debug!("{}", (FPS - (count / 6)));
+        sleep = FPS.checked_sub(count / 6).unwrap_or(10);
 
-        std::thread::sleep(std::time::Duration::from_millis((FPS - (count / 6)) as u64));
+        std::thread::sleep(std::time::Duration::from_millis(sleep));
     }
 }

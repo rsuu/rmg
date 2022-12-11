@@ -1,8 +1,8 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const FPS: u64 = 40; // 1000/25
 pub const EXT_LIST: &[&str] = &[
-    "jpg", "jpeg", "png", "heic", "heif", "avif", "ase", "aseprite", "gif",
+    "jpg", "jpeg", "png", "heic", "heif", "avif", "ase", "aseprite", "gif", "svg",
 ];
-pub static mut TIMER: usize = 0;
 
 #[inline]
 pub fn has_supported(path: &str) -> bool {
@@ -24,15 +24,6 @@ pub fn has_supported(path: &str) -> bool {
 
 // block | expr | ident | item | lifetime | literal
 // meta | pat | pat_param | path | stmt | tt | ty | vis
-// #[macro_export]
-// macro_rules! unwrap_or_return {
-//     ( $e:expr , $err:expr) => {
-//         match $e {
-//             Ok(x) => x,
-//             Err(e) => return Err($err(e)),
-//         }
-//     };
-// }
 //
 // #[macro_export]
 // macro_rules! check {

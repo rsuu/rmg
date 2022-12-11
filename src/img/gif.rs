@@ -1,5 +1,5 @@
+use crate::FPS;
 use gif;
-
 
 use std::io::Read;
 use std::mem;
@@ -10,10 +10,7 @@ use gif_dispose;
 
 use super::size::Size;
 
-pub fn load_gif(bytes: impl Read) -> Res<(Size<u32>, Vec<Vec<u8>>)> {
-    let mut res = vec![];
-    let mut buffer_frame = Vec::new();
-
+pub fn load_gif(bytes: impl Read) -> Res<(Size<u32>, Vec<Vec<u8>>, Vec<u32>)> {
     let mut gif_opts = gif::DecodeOptions::new();
     gif_opts.set_color_output(gif::ColorOutput::Indexed);
     let mut decoder = gif_opts.read_info(bytes).unwrap();
@@ -24,6 +21,11 @@ pub fn load_gif(bytes: impl Read) -> Res<(Size<u32>, Vec<Vec<u8>>)> {
         height: decoder.height() as u32,
     };
 
+    let mut frames = vec![];
+    let mut buffer_frame = Vec::new();
+    let mut pts = 0;
+    let mut pts_list = vec![];
+
     loop {
         "decoded frame"._dbg();
 
@@ -31,19 +33,18 @@ pub fn load_gif(bytes: impl Read) -> Res<(Size<u32>, Vec<Vec<u8>>)> {
             screen.blit_frame(frame).unwrap();
 
             for rgba in screen.pixels.buf().iter() {
-                buffer_frame.push(rgba.r);
-                buffer_frame.push(rgba.g);
-                buffer_frame.push(rgba.b);
-                buffer_frame.push(rgba.a);
+                buffer_frame.extend_from_slice(&[rgba.r, rgba.g, rgba.b, rgba.a]);
             }
 
-            res.push(mem::take(&mut buffer_frame));
+            pts += FPS as u32 + frame.delay as u32;
+            pts_list.push(pts);
+            frames.push(mem::take(&mut buffer_frame));
         } else {
             break;
         }
     }
 
-    Ok((size, res))
+    Ok((size, frames, pts_list))
 }
 
 // image

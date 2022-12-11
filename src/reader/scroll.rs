@@ -14,7 +14,6 @@ use crate::{
         file,
         traits::AutoLog,
     },
-    TIMER,
 };
 use fir::{self, FilterType};
 use log::{debug, info};
@@ -106,16 +105,19 @@ impl Render {
         debug!("    len = {}", len);
     }
 
+    // use for init
     pub fn load_next(&mut self) -> usize {
         let tail = &mut self.page_list[self.tail];
         let pos = tail.pos;
 
         let (ty, mut buffer, format) =
-            load_page(self.archive_type, self.archive_path.as_path(), pos).unwrap();
-        let meta = open_img(format, &mut buffer, self.screen_size, self.window_size).unwrap();
+            load_file(self.archive_type, self.archive_path.as_path(), pos).unwrap();
+        let (meta, pts) =
+            load_img(format, &mut buffer, self.screen_size, self.window_size).unwrap();
 
         tail.ty = ty;
         tail.resize = meta.fix;
+        tail.pts = pts;
 
         resize_page(tail, &mut buffer, &meta, &self.filter);
 
@@ -126,34 +128,18 @@ impl Render {
 
     #[inline(always)]
     pub fn flush(&mut self, canvas: &mut Canvas, _arc_state: &Arc<RwLock<State>>) {
-        // not need
-        if *_arc_state.read().unwrap() == State::Nothing {
-            unsafe {
-                // TODO: next frame
-                if TIMER == 0 {
-                    for idx in self.page_load_list.iter() {
-                        self.page_list[*idx].to_next_frame();
-                    }
-                } else if TIMER >= 60 {
-                    TIMER = 0;
-                } else {
-                    TIMER += 1;
-                }
-            }
+        self.buffer.clear();
+        self.len = self.page_list_len();
 
-            // NOTE:
-            self.buffer.clear();
-            self.len = self.page_list_len();
-
-            for idx in self.page_load_list.iter() {
-                if self.page_list[*idx].is_ready {
-                    self.buffer.flush(self.page_list[*idx].data());
-                } else {
-                    // BUG:
-                    self.buffer
-                        .data
-                        .extend_from_slice(&self.page_loading[0..self.buffer_max]);
-                }
+        for idx in self.page_load_list.iter() {
+            if self.page_list[*idx].is_ready {
+                self.buffer.flush(self.page_list[*idx].data());
+                self.page_list[*idx].to_next_frame();
+            } else {
+                // BUG: need to reset self.rng
+                self.buffer
+                    .data
+                    .extend_from_slice(&self.page_loading[0..self.buffer_max * 2]);
             }
         }
 
@@ -182,16 +168,18 @@ impl Render {
     /// move down
     #[inline]
     pub fn move_down(&mut self, arc_page: &Arc<RwLock<Page>>, arc_state: &Arc<RwLock<State>>) {
-        info!("move_down()");
+        "move_down()"._info();
 
         debug!(
-            "
-state: {:?}
-start: {}
-end: {}
-len: {}
-head: {}
-tail: {}
+            "move_down():
+    state: {:?}
+    rng: {}
+
+    end: {}
+    len: {}
+
+    head: {}
+    tail: {}
 ",
             *arc_state.read().unwrap(),
             self.rng,
@@ -213,19 +201,20 @@ tail: {}
         };
 
         // try to load next page
+        // HACK: ? overflow
         if self.end() <= self.mem_limit * 2
             && self.tail + 1 < self.page_end
             && (*arc_state.read().unwrap() == State::Nothing
                 || *arc_state.read().unwrap() == State::PrevDone)
         {
+            let page = arc_page.clone();
             let state = arc_state.clone();
+
             *state.write().unwrap() = State::NextReady;
 
-            let page = arc_page.clone();
-
             self.tail += 1;
-
             let idx = self.tail;
+
             let archive_type = self.archive_type;
             let archive_path = self.archive_path.clone();
             let screen_size = self.screen_size;
@@ -233,22 +222,25 @@ tail: {}
             let filter = self.filter;
 
             self.page_list[idx].is_ready = false;
+            let pos = self.page_list[idx].pos;
 
-            let mut tail = self.page_list[idx].clone();
-            let pos = tail.pos;
+            // swap page and arc_temp_page
+            mem::swap(&mut self.page_list[self.tail], &mut *page.write().unwrap());
 
             info!("load next");
             spawn(move || {
                 let (ty, mut buffer, format) =
-                    load_page(archive_type, archive_path.as_path(), pos).unwrap();
-                let meta = open_img(format, &mut buffer, screen_size, window_size).unwrap();
+                    load_file(archive_type, archive_path.as_path(), pos).unwrap();
+                let (meta, pts) = load_img(format, &mut buffer, screen_size, window_size).unwrap();
 
-                tail.ty = ty;
-                tail.resize = meta.fix;
+                page.write().unwrap().ty = ty;
+                page.write().unwrap().resize = meta.fix;
+                page.write().unwrap().pts = pts;
 
-                resize_page(&mut tail, &mut buffer, &meta, &filter);
+                resize_page(&mut page.write().unwrap(), &mut buffer, &meta, &filter);
 
-                *page.write().unwrap() = tail;
+                page.write().unwrap().is_ready = true;
+
                 *state.write().unwrap() = State::NextDone;
 
                 "*** DONE ***"._info();
@@ -259,12 +251,11 @@ tail: {}
         if *arc_state.read().unwrap() == State::NextDone {
             debug!("state == {:?}", arc_state.read().unwrap());
 
+            // swap page and arc_temp_page again
             mem::swap(
-                &mut self.page_list[self.tail].data,
-                &mut arc_page.write().unwrap().data,
+                &mut self.page_list[self.tail],
+                &mut *arc_page.write().unwrap(),
             );
-
-            self.page_list[self.tail].is_ready = true;
 
             *arc_state.write().unwrap() = State::Nothing;
 
@@ -313,7 +304,7 @@ tail: {}
         self.rng -= if self.rng >= self.y_step {
             self.y_step
         } else {
-            0
+            self.rng
         };
 
         self.mode = Map::Up;
@@ -326,14 +317,14 @@ tail: {}
             && (*arc_state.read().unwrap() == State::Nothing
                 || *arc_state.read().unwrap() == State::NextDone)
         {
-            self.head -= 1;
-
+            let page = arc_page.clone();
             let state = arc_state.clone();
+
             *state.write().unwrap() = State::PrevReady;
 
-            let page = arc_page.clone();
-
+            self.head -= 1;
             let idx = self.head;
+
             let archive_type = self.archive_type;
             let archive_path = self.archive_path.clone();
             let _page_pos = self.page_list[self.head].pos;
@@ -341,23 +332,27 @@ tail: {}
             let window_size = self.window_size;
             let filter = self.filter;
 
-            let mut head = self.page_list[idx].clone();
-            head.is_ready = false;
-            let pos = head.pos;
+            self.page_list[idx].is_ready = false;
+            let pos = self.page_list[idx].pos;
+
+            // swap page and arc_temp_page
+            mem::swap(&mut self.page_list[idx], &mut *page.write().unwrap());
 
             "load prev"._info();
 
             spawn(move || {
                 let (ty, mut buffer, format) =
-                    load_page(archive_type, archive_path.as_path(), pos).unwrap();
-                let meta = open_img(format, &mut buffer, screen_size, window_size).unwrap();
+                    load_file(archive_type, archive_path.as_path(), pos).unwrap();
+                let (meta, pts) = load_img(format, &mut buffer, screen_size, window_size).unwrap();
 
-                head.ty = ty;
-                head.resize = meta.fix;
+                page.write().unwrap().ty = ty;
+                page.write().unwrap().resize = meta.fix;
+                page.write().unwrap().pts = pts;
 
-                resize_page(&mut head, &mut buffer, &meta, &filter);
+                resize_page(&mut page.write().unwrap(), &mut buffer, &meta, &filter);
 
-                *page.write().unwrap() = head;
+                page.write().unwrap().is_ready = true;
+
                 *state.write().unwrap() = State::PrevDone;
 
                 "*** DONE ***"._info();
@@ -367,11 +362,12 @@ tail: {}
 
         // load prev
         if *arc_state.read().unwrap() == State::PrevDone {
+            // swap page and arc_temp_page again
             mem::swap(
                 &mut self.page_list[self.head],
                 &mut *arc_page.write().unwrap(),
             );
-            self.page_list[self.head].is_ready = true;
+
             self.rng += self.page_list[self.head].len();
 
             *arc_state.write().unwrap() = State::Nothing;
@@ -429,7 +425,7 @@ tail: {}
 
 ///
 #[inline(always)]
-pub fn load_page(
+pub fn load_file(
     archive_type: ArchiveType,
     archive_path: &Path,
     page_pos: usize,
@@ -476,7 +472,7 @@ pub fn load_page(
     }
 
     match format {
-        ImgFormat::Jpg | ImgFormat::Png | ImgFormat::Heic | ImgFormat::Avif => {
+        ImgFormat::Jpg | ImgFormat::Png | ImgFormat::Heic | ImgFormat::Avif | ImgFormat::Svg => {
             Ok((ImgType::Bit, bytes, format))
         }
 
@@ -487,12 +483,12 @@ pub fn load_page(
 }
 
 #[inline(always)]
-pub fn open_img(
+pub fn load_img(
     format: ImgFormat,
     bytes: &mut Vec<Vec<u8>>,
     screen_size: Size<u32>,
     window_size: Size<u32>,
-) -> Res<MetaSize<u32>> {
+) -> Res<(MetaSize<u32>, Vec<u32>)> {
     let mut meta = MetaSize::<u32>::new(
         screen_size.width,
         screen_size.height,
@@ -501,6 +497,8 @@ pub fn open_img(
         0,
         0,
     );
+
+    let mut pts = vec![];
 
     match format {
         ImgFormat::Jpg | ImgFormat::Png => {
@@ -511,7 +509,7 @@ pub fn open_img(
 
             mem::swap(bytes, &mut vec![img.to_rgba8().to_vec()]);
 
-            Ok(meta)
+            Ok((meta, pts))
         }
 
         ImgFormat::Heic | ImgFormat::Avif => {
@@ -524,29 +522,40 @@ pub fn open_img(
 
             mem::swap(bytes, &mut img.2);
 
-            Ok(meta)
+            Ok((meta, pts))
         }
 
         ImgFormat::Aseprite => {
-            let mut img = ase::load_ase(&bytes[0])?;
+            let mut anim = ase::load_ase(&bytes[0])?;
 
-            meta.image = img.0;
+            meta.image = anim.0;
             meta.resize();
 
-            mem::swap(bytes, &mut img.1);
+            mem::swap(bytes, &mut anim.1);
 
-            Ok(meta)
+            Ok((meta, anim.2))
         }
 
         ImgFormat::Gif => {
-            let mut img = gif::load_gif(bytes[0].as_slice())?;
+            let mut anim = gif::load_gif(bytes[0].as_slice())?;
+
+            meta.image = anim.0;
+            meta.resize();
+
+            mem::swap(bytes, &mut anim.1);
+
+            Ok((meta, anim.2))
+        }
+
+        ImgFormat::Svg => {
+            let mut img = crate::img::svg::load_svg(bytes[0].as_slice())?;
 
             meta.image = img.0;
             meta.resize();
 
             mem::swap(bytes, &mut img.1);
 
-            Ok(meta)
+            Ok((meta, pts))
         }
 
         _ => Err(MyErr::Todo),
@@ -571,7 +580,6 @@ pub fn resize_page(
         _ => {
             let mut tmp: Vec<u8> = Vec::new();
 
-            page.nums = img.len();
             page.data = vec![vec![]; img.len()]; // anim
 
             for idx in 0..img.len() {

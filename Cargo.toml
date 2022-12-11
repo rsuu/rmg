@@ -1,6 +1,6 @@
 [package]
 name = "rmg"
-version = "0.2.4"
+version = "0.3.0"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Rust: Tiny Manga/Image Viewer"
@@ -51,9 +51,9 @@ asefile ={ version = "0.3.5", optional = true }
 gif = "0.12.0"
 gif-dispose = "4"
 #   svg
-usvg = "0.27.0"
-tiny-skia = "0.8.2"
-resvg = "0.27.0"
+usvg ={ version =  "0.27.0", optional = true }
+tiny-skia ={ version =  "0.8.2", optional = true }
+resvg ={ version =  "0.27.0", optional = true }
 
 # args
 lexopt = "0.2.1"
@@ -92,6 +92,9 @@ ex_tar = ["dep:zip"]
 sse4_1 = []
 avx2 = []
 
+
 # image
+de_all = ["de_heic","de_aseprite","de_svg"]
 de_heic = ["dep:libheif-rs"]
-de_ase = ["dep:asefile"]
+de_aseprite = ["dep:asefile"]
+de_svg= ["dep:usvg","dep:tiny-skia","dep:resvg"]

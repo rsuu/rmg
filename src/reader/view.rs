@@ -1,4 +1,6 @@
 use crate::img::size::Size;
+use crate::FPS;
+use log::debug;
 
 #[derive(Debug)]
 pub struct Buffer {
@@ -7,6 +9,69 @@ pub struct Buffer {
     //scale:Scale,
 }
 
+#[derive(Debug, Clone)]
+pub struct Page {
+    pub data: Vec<Vec<u32>>, // Bit: data[0] OR Anim: data[head..tail]
+    pub name: String,
+    pub number: usize, // page number
+    pub ty: ImgType,
+
+    // Arc
+    pub is_ready: bool, // reset after thread return ok()
+
+    // use once
+    pub pos: usize,        // index of image in the archive file
+    pub resize: Size<u32>, // (fix_width, fix_height)
+
+    // for gif only
+    pub idx: usize, // index of frame
+    pub timer: usize,
+    pub miss: usize,
+    pub pts: Vec<u32>, // pts = delay + fps
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ImgType {
+    Bit = 0,  // jpg / heic ...
+    Anim = 1, // gif / aseprite
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ImgFormat {
+    // bit
+    Heic,
+    Avif,
+    Jpg,
+    Png,
+    Svg,
+
+    // anim
+    Aseprite,
+    Gif,
+
+    Unknown,
+}
+
+#[derive(Debug, Default)]
+pub enum ReaderMode {
+    #[default]
+    View,
+
+    Command,
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub enum ViewMode {
+    #[default]
+    Scroll,
+
+    Image, // image OR gif
+
+    Manga, // Left to Right
+    Comic, // Right to Left
+}
+
+////////////////////////////////
 impl Buffer {
     pub fn new() -> Self {
         Self {
@@ -27,66 +92,6 @@ impl Buffer {
         self.data.extend_from_slice(bytes);
     }
 }
-
-#[derive(Debug, Default)]
-pub enum ReaderMode {
-    #[default]
-    View,
-
-    Command,
-}
-
-#[derive(Debug, Default, Clone, Copy)]
-pub enum ViewMode {
-    #[default]
-    Scroll,
-
-    Image,
-
-    Manga, // Left to Right
-    Comic, // Right to Left
-}
-
-// --------------------------
-#[derive(Debug, Clone)]
-pub struct Page {
-    pub name: String,
-    pub number: usize,     // page number
-    pub pos: usize,        // index of image in the archive file
-    pub resize: Size<u32>, // (fix_width, fix_height)
-    //meta:MetaData
-    pub data: Vec<Vec<u32>>, // Bit: data[0] OR Anim: data[head..tail]
-    pub ty: ImgType,
-    pub is_ready: bool,
-
-    // for gif only
-    pub nums: usize,
-    pub frame_pos: usize,
-    pub fps: usize,
-    pub timer: usize,
-}
-// --------------------------
-#[derive(Debug, Clone, Copy)]
-pub enum ImgType {
-    Bit = 0,  // jpg / heic ...
-    Anim = 1, // gif / aseprite
-}
-// --------------------------
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ImgFormat {
-    // bit
-    Heic,
-    Avif,
-    Jpg,
-    Png,
-
-    // anim
-    Aseprite,
-    Gif,
-
-    Unknown,
-}
-// --------------------------
 impl From<&str> for ImgFormat {
     fn from(value: &str) -> Self {
         match value {
@@ -96,6 +101,7 @@ impl From<&str> for ImgFormat {
             "avif" => Self::Avif,
             "aseprite" => Self::Aseprite,
             "gif" => Self::Gif,
+            "svg" | "xml" => Self::Svg,
             _ => Self::Unknown,
         }
     }
@@ -111,11 +117,11 @@ impl Page {
             is_ready: false,
 
             data: vec![],
+            pts: vec![],
             ty: ImgType::Bit,
-            nums: 0,
-            frame_pos: 0,
-            fps: 0,
+            idx: 0,
             timer: 0,
+            miss: 0,
         }
     }
 
@@ -128,11 +134,20 @@ impl Page {
             is_ready: false,
 
             data: vec![],
+            pts: vec![],
             ty: ImgType::Bit,
-            nums: 0,
-            frame_pos: 0,
-            fps: 0,
+            idx: 0,
             timer: 0,
+            miss: 0,
+        }
+    }
+
+    #[inline]
+    pub fn pts(&self) -> usize {
+        if self.ty == ImgType::Anim {
+            self.pts[self.idx] as usize
+        } else {
+            0
         }
     }
 
@@ -144,8 +159,9 @@ impl Page {
         self.resize = Size::new(width, height);
     }
 
+    #[inline(always)]
     pub fn data(&self) -> &[u32] {
-        self.data[self.frame_pos].as_slice()
+        self.data[self.idx].as_slice()
     }
 
     pub fn free(&mut self) {
@@ -153,24 +169,52 @@ impl Page {
         self.data.shrink_to(0);
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
+        // WARN: for bit AND anim
         if self.is_ready {
             self.data[0].len()
         } else {
-            // WARN:
             0
         }
     }
 
+    #[inline(always)]
     pub fn to_next_frame(&mut self) {
-        // bit  = 0
-        // anim = 1
-        let add = self.ty as usize;
+        if self.ty == ImgType::Anim {
+            if self.timer >= (self.pts() as isize - self.miss as isize).abs() as usize {
+                self.miss = self.timer - self.pts();
 
-        if self.frame_pos + add < self.nums {
-            self.frame_pos += add;
+                if self.idx + 1 < self.data.len() {
+                    self.idx += 1;
+                } else {
+                    // reset
+                    self.idx = 0;
+                    self.timer = 0;
+                }
+            } else {
+                self.timer += FPS as usize;
+            }
+
+            debug!("self.timer = {}", self.timer);
+            debug!("self.idx = {}", self.idx);
+            debug!("self.miss = {}", self.miss);
+            debug!("self.pts() = {}", self.pts());
+            debug!(
+                "self.data.len() = {}
+
+                   ",
+                self.data.len()
+            );
         } else {
-            self.frame_pos = 0;
         }
+
+        //        let add = self.ty as usize;
+        //
+        //        if self.idx + add < self.data.len() {
+        //            self.idx += add;
+        //        } else {
+        //            self.idx = 0;
+        //        }
     }
 }

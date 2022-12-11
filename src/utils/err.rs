@@ -21,6 +21,7 @@ pub enum MyErr {
     Todo,
 
     FeatHeic,
+    FeatSvg,
     FeatAse,
     FeatTar,
     FeatZip,

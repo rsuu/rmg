@@ -1,37 +1,46 @@
-use resvg;
-use tiny_skia;
-use usvg::{self, ScreenRect};
-
-use crate::utils::err::Res;
-
-use super::size::Size;
+use crate::{
+    img::size::Size,
+    utils::err::{MyErr, Res},
+};
 
 pub fn load_svg(bytes: &[u8]) -> Res<(Size<u32>, Vec<Vec<u8>>)> {
-    let size = Size::new(2000, 2000);
-    let opt = usvg::Options::default();
-
-    if let Ok(rtree) = usvg::Tree::from_data(&bytes, &opt.to_ref()) {
-        let pixmap_size = rtree
-            .size
-            .to_screen_size()
-            .scale_to(usvg::ScreenSize::new(size.width, size.height).unwrap());
-
-        if let Some(mut pixmap) = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height())
-        {
-            resvg::render(
-                &rtree,
-                usvg::FitTo::Height(size.height),
-                //usvg::FitTo::Original,
-                tiny_skia::Transform::identity(),
-                pixmap.as_mut(),
-            )
-            .unwrap();
-
-            return Ok((size, vec![pixmap.data().to_vec()]));
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "de_svg")] {
+            feat::load_svg(bytes)
         } else {
+           Err(MyErr::FeatSvg)
         }
-    } else {
     }
+}
 
-    Err(crate::utils::err::MyErr::Todo)
+#[cfg(feature = "de_svg")]
+mod feat {
+
+    use crate::{
+        img::size::Size,
+        utils::err::{MyErr, Res},
+    };
+
+    pub fn load_svg(bytes: &[u8]) -> Res<(Size<u32>, Vec<Vec<u8>>)> {
+        // BUG:
+        let mut opt = usvg::Options::default();
+        let rtree = usvg::Tree::from_data(bytes, &opt.to_ref()).unwrap();
+        let pixmap_size = rtree.size.to_screen_size();
+        //.scale_to(usvg::ScreenSize::new(size.width, size.height).unwrap());
+
+        let size = Size::new(pixmap_size.width(), pixmap_size.height());
+        //let mut pixmap = tiny_skia::Pixmap::new(size.width, size.height).unwrap();
+        let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
+
+        resvg::render(
+            &rtree,
+            usvg::FitTo::Original,
+            //usvg::FitTo::Height(size.height),
+            tiny_skia::Transform::default(),
+            pixmap.as_mut(),
+        )
+        .unwrap();
+
+        Ok((size, vec![pixmap.data().to_vec()]))
+    }
 }
