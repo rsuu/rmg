@@ -3,7 +3,7 @@ name = "rmg"
 version = "0.3.0"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
-description = "Rust: Tiny Manga/Image Viewer"
+description = "Rust: Tiny And Fast Manga/Image Viewer"
 readme = "README.md"
 homepage = "https://crates.io/crates/rmg"
 repository = "https://github.com/rsuu/rmg"
@@ -13,17 +13,6 @@ keywords = ["manga","comic"]
 autobenches = true
 build = "build.rs"
 
-[profile.release]
-strip = true
-codegen-units = 1
-debug = false
-debug-assertions = false
-incremental = false
-lto = true
-opt-level = 3
-overflow-checks = false
-panic = "abort"
-
 [dependencies]
 # fs
 #tempfile = "3.3.0"
@@ -31,35 +20,35 @@ walkdir = "2.3.2"
 dirs-next = "2.0.0"
 
 # archive
-tar = {version="0.4.38", optional = true }
+tar = { version = "0.4.38", optional = true }
 #zstd = "0.11.2"
-zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","bzip2","deflate", ], optional = true  }
+zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","bzip2","deflate", ], optional = true }
 
 # filetype
-infer = "0.9.0"
+infer = "0.11.0"
 
 # window
 #sdl2 = { version = "0.35.2", features = ["image", "ttf"] }
 minifb = { version = "0.23.0", features = ["x11", "wayland"] }
 
 # image
-image = { version = "0.24.4" }
-fir = {package="fast_image_resize"  ,version="1.0.0"}
-libheif-rs = { version = "0.15.0", optional = true }
+image = "0.24.5"
+fir = { package = "fast_image_resize", version = "2.4.0" }
+libheif-rs = { version = "0.15.1", optional = true }
 asefile ={ version = "0.3.5", optional = true }
 #   gif
 gif = "0.12.0"
-gif-dispose = "4"
+gif-dispose = "4.0.0"
 #   svg
-usvg ={ version =  "0.27.0", optional = true }
-tiny-skia ={ version =  "0.8.2", optional = true }
-resvg ={ version =  "0.27.0", optional = true }
+usvg ={ version = "0.28.0", optional = true }
+tiny-skia ={ version = "0.8.2", optional = true }
+resvg ={ version = "0.28.0", optional = true }
 
 # args
 lexopt = "0.2.1"
 
 # config
-syn = { version = "1.0.102", features = ["full", "extra-traits"] }
+syn = { version = "1.0.105", features = ["full", "extra-traits"] }
 
 # async
 #pollster = "0.2.5"
@@ -69,7 +58,7 @@ cfg-if = "1.0.0"
 
 # debug
 log = "0.4.17"
-simple_logger = { version = "2.3.0", features = ["colors", "threads"] }
+simple_logger = { version = "4.0.0", features = ["colors", "threads"] }
 
 
 [dev-dependencies]
@@ -98,3 +87,66 @@ de_all = ["de_heic","de_aseprite","de_svg"]
 de_heic = ["dep:libheif-rs"]
 de_aseprite = ["dep:asefile"]
 de_svg= ["dep:usvg","dep:tiny-skia","dep:resvg"]
+
+
+
+[profile.release]
+strip = true
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+lto = true
+opt-level = 3
+overflow-checks = false
+panic = "abort"
+
+
+[profile.dev.package.asefile]
+strip = true
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+opt-level = 3
+overflow-checks = false
+
+
+[profile.dev.package.fast_image_resize]
+strip = true
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+opt-level = 3
+overflow-checks = false
+
+
+[profile.dev.package.image]
+strip = true
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+opt-level = 3
+overflow-checks = false
+
+
+[profile.dev.package.gif]
+strip = true
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+opt-level = 3
+overflow-checks = false
+
+
+[profile.dev.package.gif-dispose]
+strip = true
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+opt-level = 3
+overflow-checks = false

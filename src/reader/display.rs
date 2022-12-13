@@ -18,6 +18,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use super::scroll::{self, ExtData};
+
 /// display images
 pub fn cat_img(
     config: &Config,
@@ -35,49 +37,34 @@ pub fn cat_img(
     let filter = config.base.filter;
     let keymaps = keymap::KeyMap::new();
 
-    let mut buf = Render {
-        buffer: Buffer::new(),
-        buffer_max,
-        mem_limit: buffer_max * 5,
-
-        head: 0,
-        tail: 0,
-        rng: 0,
-
-        len: 0,
-
-        archive_path: PathBuf::from(path),
-        archive_type,
-
-        mode: Map::Stop,
-        page_end: page_list.len(),
+    let mut buf = Render::new(
         page_list,
+        archive_type,
+        path,
+        buffer_max,
+        step,
         screen_size,
-        y_step: buffer_max / step, // drop 1/step part of image once
-        x_step: window_size.width as usize / step,
-        window_position: (0, 0),
         window_size,
-
-        page_load_list: Vec::new(),
+        config.base.view_mode,
         filter,
-        view_mode: config.base.view_mode,
-
-        page_number: 0,
-        page_loading: vec![0; buffer_max * 20],
-    };
+    );
     let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
 
     buf.init(); // init
 
     match buf.view_mode {
+        // Bit
         ViewMode::Scroll => {
             for_minifb_scroll(config, &mut buf, &mut canvas, &keymaps);
         }
+
+        // Bit OR Anim
         ViewMode::Image => {
             for_minifb_image(config, &mut buf, &mut canvas, &keymaps);
         }
 
-        ViewMode::Manga | ViewMode::Comic => {
+        // Bit OR Anim
+        ViewMode::Page => {
             for_minifb_page(config, &mut buf, &mut canvas, &keymaps);
         }
     }
@@ -93,6 +80,7 @@ pub fn for_minifb_page(
     _canvas: &mut Canvas,
     _keymaps: &[keymap::KeyMap],
 ) {
+    todo!()
 }
 
 pub fn for_minifb_image(
@@ -101,8 +89,36 @@ pub fn for_minifb_image(
     canvas: &mut Canvas,
     keymaps: &[keymap::KeyMap],
 ) {
+    let mut time_start = std::time::Instant::now();
+    let mut sleep = FPS;
+
+    let end = buf.page_list[0].size();
+
+    buf.buffer.data = vec![0; buf.buffer_max];
+
     'l1: while canvas.window.is_open() {
         match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
+            Map::Down => {
+                // scrolling
+                if buf.rng + buf.y_step <= end {
+                    buf.rng += buf.y_step;
+                } else if buf.rng <= end {
+                    buf.rng = end - buf.rng;
+                } else {
+                    unreachable!()
+                }
+            }
+
+            Map::Up => {
+                if buf.rng >= buf.y_step {
+                    buf.rng -= buf.y_step;
+                } else if buf.rng >= 0 {
+                    buf.rng -= buf.rng;
+                } else {
+                    unreachable!()
+                };
+            }
+
             Map::Exit => {
                 println!("EXIT");
 
@@ -113,10 +129,19 @@ pub fn for_minifb_image(
             _ => {}
         }
 
+        buf.buffer.data = vec![0; buf.buffer_max];
+        buf.buffer.data.copy_from_slice(buf.page_list[0].data());
+        buf.page_list[0].to_next_frame();
+
         canvas.flush(&buf.buffer.data[buf.rng..buf.rng + buf.buffer_max]);
 
-        // TODO: gif
-        std::thread::sleep(std::time::Duration::from_millis(40));
+        let now = std::time::Instant::now();
+        let count = (now - time_start).as_millis() as u64;
+
+        time_start = now;
+        sleep = FPS.checked_sub(count / 6).unwrap_or(10);
+
+        std::thread::sleep(std::time::Duration::from_millis(sleep));
     }
 }
 
@@ -127,7 +152,22 @@ pub fn for_minifb_scroll(
     keymaps: &[keymap::KeyMap],
 ) {
     let arc_state = Arc::new(RwLock::new(State::Nothing));
-    let arc_page: Arc<RwLock<Page>> = Arc::new(RwLock::new(Page::null()));
+    let arc_extdata = Arc::new(RwLock::new(ExtData::new(
+        buf.archive_type.clone(),
+        buf.archive_path.clone(),
+        buf.screen_size.clone(),
+        buf.window_size.clone(),
+        buf.filter.clone(),
+    ))); // use for resize image
+
+    let arc_state_main = arc_state.clone();
+    let arc_extdata_main = arc_extdata.clone();
+
+    let arc_state_thread = arc_state.clone();
+    let arc_extdata_thread = arc_extdata.clone();
+
+    // new thread for resize image
+    let _thread_for_resize_image = new_thread(arc_state_thread, arc_extdata_thread);
 
     let mut time_start = std::time::Instant::now();
     let mut sleep = FPS;
@@ -135,11 +175,11 @@ pub fn for_minifb_scroll(
     'l1: while canvas.window.is_open() {
         match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
             Map::Down => {
-                buf.move_down(&arc_page, &arc_state);
+                buf.move_down(&arc_state_main, &arc_extdata_main);
             }
 
             Map::Up => {
-                buf.move_up(&arc_page, &arc_state);
+                buf.move_up(&arc_state_main, &arc_extdata_main);
             }
 
             Map::Reset => {
@@ -170,9 +210,9 @@ pub fn for_minifb_scroll(
                 if config.base.invert_mouse {
                     if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
                         if y > 0.0 {
-                            buf.move_up(&arc_page, &arc_state);
+                            buf.move_up(&arc_state_main, &arc_extdata_main);
                         } else if y < 0.0 {
-                            buf.move_down(&arc_page, &arc_state);
+                            buf.move_down(&arc_state_main, &arc_extdata_main);
                         } else {
                         }
 
@@ -180,9 +220,9 @@ pub fn for_minifb_scroll(
                     }
                 } else if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
                     if y > 0.0 {
-                        buf.move_down(&arc_page, &arc_state);
+                        buf.move_down(&arc_state_main, &arc_extdata_main);
                     } else if y < 0.0 {
-                        buf.move_up(&arc_page, &arc_state);
+                        buf.move_up(&arc_state_main, &arc_extdata_main);
                     } else {
                     }
 
@@ -197,9 +237,61 @@ pub fn for_minifb_scroll(
         let count = (now - time_start).as_millis() as u64;
 
         time_start = now;
-
         sleep = FPS.checked_sub(count / 6).unwrap_or(10);
 
         std::thread::sleep(std::time::Duration::from_millis(sleep));
     }
+}
+
+pub fn new_thread(arc_state: Arc<RwLock<State>>, arc_extdata: Arc<RwLock<ExtData>>) {
+    std::thread::spawn(move || {
+        loop {
+            if let Ok(mut arc_state) = arc_state.try_write() {
+                match *arc_state {
+                    State::LoadNext | State::LoadPrev => {
+                        if let Ok(mut arc_extdata) = arc_extdata.try_write() {
+                            let (ty, mut buffer, format) = scroll::load_file(
+                                arc_extdata.archive_type.clone(),
+                                arc_extdata.path.clone().as_path(),
+                                arc_extdata.pos,
+                            )
+                            .unwrap();
+
+                            let (meta, pts) = scroll::load_img(
+                                format,
+                                &mut buffer,
+                                arc_extdata.screen_size,
+                                arc_extdata.window_size,
+                            )
+                            .unwrap();
+
+                            arc_extdata.page.ty = ty;
+                            arc_extdata.page.resize = meta.fix;
+                            arc_extdata.page.pts = pts;
+
+                            let f = arc_extdata.filter.clone();
+
+                            scroll::resize_page(&mut arc_extdata.page, &mut buffer, &meta, &f);
+
+                            *arc_state = match *arc_state {
+                                State::LoadPrev => State::DonePrev,
+                                State::LoadNext => State::DoneNext,
+                                _ => {
+                                    unreachable!()
+                                }
+                            }
+                        } else {
+                            // wait
+                        }
+                    }
+                    _ => {}
+                }
+            } else {
+                // wait
+            }
+
+            // limit CPU usage
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    });
 }

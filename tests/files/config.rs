@@ -4,7 +4,7 @@ fn main() {
         font: None,          //
         rename_pad: 0,       //
         invert_mouse: false, //
-        filter: "Hamming",   // ["Box", "Hamming", ]
+        filter: "Hamming",   // ["Box", "Hamming", "Lanczos3"]
         step: 10,            //
     };
 

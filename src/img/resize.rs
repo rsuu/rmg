@@ -43,6 +43,8 @@ pub fn resize_rgba8(
     alpha_mul_div.multiply_alpha_inplace(&mut src_image.view_mut())?;
     alpha_mul_div.divide_alpha_inplace(&mut dst_view)?;
 
+    //
+
     Ok(dst_image.buffer().to_vec())
 }
 

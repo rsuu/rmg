@@ -30,6 +30,32 @@ pub struct Page {
     pub pts: Vec<u32>, // pts = delay + fps
 }
 
+// 放大镜
+//   鼠标 截取区块
+//   定位
+//   copy from buffer with Block
+//
+// 进入 crop 模式
+// 暂停
+// 选择区块
+// 放大
+// 退出
+#[derive(Debug, Clone)]
+struct CropBlock {
+    // (sx, sy)
+    // +--------------+
+    // |              |
+    // |              |
+    // |              |
+    // |              |
+    // +--------------+
+    //                (rx, ry)
+    sx: u32,
+    sy: u32, //
+    rx: u32,
+    ry: u32, //
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ImgType {
     Bit = 0,  // jpg / heic ...
@@ -57,6 +83,8 @@ pub enum ReaderMode {
     #[default]
     View,
 
+    Crop,
+
     Command,
 }
 
@@ -67,8 +95,9 @@ pub enum ViewMode {
 
     Image, // image OR gif
 
-    Manga, // Left to Right
-    Comic, // Right to Left
+    Page, //
+          // Manga: Left to Right
+          // Comic: Right to Left
 }
 
 ////////////////////////////////
@@ -125,6 +154,10 @@ impl Page {
         }
     }
 
+    pub fn null_ptr_mut() -> *mut Self {
+        std::ptr::null_mut()
+    }
+
     pub fn null() -> Self {
         Self {
             name: "".to_string(),
@@ -167,11 +200,21 @@ impl Page {
     pub fn free(&mut self) {
         self.data.clear();
         self.data.shrink_to(0);
+        self.is_ready = false;
+    }
+
+    #[inline]
+    pub fn all_len(&self) -> usize {
+        if self.is_ready {
+            self.data[0].len() * self.data.len()
+        } else {
+            0
+        }
     }
 
     #[inline]
     pub fn len(&self) -> usize {
-        // WARN: for bit AND anim
+        // FIXME: maybe OOM for Anim
         if self.is_ready {
             self.data[0].len()
         } else {
@@ -183,7 +226,7 @@ impl Page {
     pub fn to_next_frame(&mut self) {
         if self.ty == ImgType::Anim {
             if self.timer >= (self.pts() as isize - self.miss as isize).abs() as usize {
-                self.miss = self.timer - self.pts();
+                self.miss = self.timer.checked_sub(self.pts()).unwrap_or(0);
 
                 if self.idx + 1 < self.data.len() {
                     self.idx += 1;
@@ -196,16 +239,16 @@ impl Page {
                 self.timer += FPS as usize;
             }
 
-            debug!("self.timer = {}", self.timer);
-            debug!("self.idx = {}", self.idx);
-            debug!("self.miss = {}", self.miss);
-            debug!("self.pts() = {}", self.pts());
-            debug!(
-                "self.data.len() = {}
-
-                   ",
-                self.data.len()
-            );
+        //            debug!("self.timer = {}", self.timer);
+        //            debug!("self.idx = {}", self.idx);
+        //            debug!("self.miss = {}", self.miss);
+        //            debug!("self.pts() = {}", self.pts());
+        //            debug!(
+        //                "self.data.len() = {}
+        //
+        //                   ",
+        //                self.data.len()
+        //            );
         } else {
         }
 
@@ -216,5 +259,12 @@ impl Page {
         //        } else {
         //            self.idx = 0;
         //        }
+    }
+}
+
+// mem::take()
+impl Default for Page {
+    fn default() -> Self {
+        Page::null()
     }
 }

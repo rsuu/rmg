@@ -1,6 +1,6 @@
 # rmg
 
-> Rust: Tiny Manga/Image Viewer
+> Rust: Tiny And Fast Manga/Image Viewer
 
 ## Demo
 

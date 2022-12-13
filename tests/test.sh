@@ -38,3 +38,6 @@ way3() {
 #   0.78%  rmg                          [.] 0x00000000000e66a9
 #   0.76%  rmg                          [.] 0x00000000000e66ed
 #   0.75%  rmg                          [.] 0x000000000004b411
+#
+# cat /proc/sys/kernel/threads-max
+# echo 10000 > /proc/sys/kernel/threads-max

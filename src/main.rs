@@ -31,26 +31,29 @@ fn main() {
 
     log::debug!("meta_size: {:#?}", &meta_size);
 
-    if let Some(path) = &config.cli.file_path {
-        println!("Open: {}", path.as_str());
+    let Some(path) = &config.cli.file_path else {
+todo!()
+    };
 
-        let file_list = get_file_list(path.as_str()).unwrap();
-        let archive_type = get_archive_type(path.as_str());
-        let page_list = get_page_list(&file_list, config.base.rename_pad as usize);
+    println!("Open: {}", path.as_str());
 
-        log::debug!("page_list: {:#?}", page_list);
+    let file_list = get_file_list(path.as_str()).unwrap();
+    let archive_type = get_archive_type(path.as_str());
+    let page_list = get_page_list(&file_list, config.base.rename_pad as usize);
 
-        match display::cat_img(&config, page_list, meta_size, path.as_str(), archive_type) {
-            Ok(_) => {
-                std::process::exit(0);
-            }
-            Err(e) => match e {
-                MyErr::Io(e) => {
-                    panic!("{}", e);
-                }
-                _ => {}
-            },
+    log::debug!("file_list: {:#?}", file_list);
+    log::debug!("page_list: {:#?}", page_list);
+
+    match display::cat_img(&config, page_list, meta_size, path.as_str(), archive_type) {
+        Ok(_) => {
+            std::process::exit(0);
         }
+        Err(e) => match e {
+            MyErr::Io(e) => {
+                panic!("{}", e);
+            }
+            _ => {}
+        },
     }
 }
 
@@ -85,7 +88,7 @@ pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Pa
     let mut number = 0;
 
     for (path, pos) in file_list.iter() {
-        if rmg::has_supported(path.as_str()) {
+        if rmg::utils::file::has_supported(AsRef::<Path>::as_ref(path.as_str())) {
             let page = if rename_pad == 0 {
                 Page::new(path.clone(), number, *pos)
             } else {
@@ -107,25 +110,22 @@ pub fn get_page_list(file_list: &[(String, usize)], rename_pad: usize) -> Vec<Pa
     page_list
 }
 
-pub fn get_file_list<_Path>(from: &_Path) -> Result<Vec<(String, usize)>, ()>
-where
-    _Path: AsRef<Path> + ?Sized,
-{
-    if from.as_ref().is_dir() {
-        let file_list = archive::dir::get_file_list(from.as_ref()).unwrap();
+pub fn get_file_list(path: impl AsRef<Path>) -> Result<Vec<(String, usize)>, ()> {
+    if path.as_ref().is_dir() {
+        let file_list = archive::dir::get_file_list(path.as_ref()).unwrap();
         return Ok(file_list);
     } else {
-        match file::get_filetype(from.as_ref()).as_str() {
+        match file::get_filetype(path.as_ref()).as_str() {
             "tar" => {
-                if let Ok(file_list) = archive::tar::get_file_list(from.as_ref()) {
-                    return Ok(file_list);
-                } else {
+                let Ok(file_list) = archive::tar::get_file_list(path.as_ref()) else {
                     return Err(());
-                }
+                };
+
+                return Ok(file_list);
             }
 
             "zip" => {
-                if let Ok(file_list) = archive::zip::get_file_list(from.as_ref()) {
+                if let Ok(file_list) = archive::zip::get_file_list(path.as_ref()) {
                     return Ok(file_list);
                 } else {
                     return Err(());
@@ -133,7 +133,8 @@ where
             }
 
             _ => {
-                let ty = file::get_filetype(from.as_ref());
+                // e.g. rmg test.gif
+                let ty = file::get_filetype(path.as_ref());
 
                 println!("{}", ty);
 
@@ -144,7 +145,7 @@ where
                     return Err(());
                 } else {
                     // Only one file.
-                    return Ok(vec![(from.as_ref().display().to_string(), 0)]);
+                    return Ok(vec![(path.as_ref().display().to_string(), 0)]);
                 }
             }
         };

@@ -1,26 +1,10 @@
+use std::path::Path;
+
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const FPS: u64 = 40; // 1000/25
 pub const EXT_LIST: &[&str] = &[
     "jpg", "jpeg", "png", "heic", "heif", "avif", "ase", "aseprite", "gif", "svg",
 ];
-
-#[inline]
-pub fn has_supported(path: &str) -> bool {
-    // is dir
-    if path.ends_with('/') {
-        return false;
-    }
-
-    for ext in EXT_LIST {
-        // e.g. ".jpg"
-        if path.ends_with(format!(".{}", ext).as_str()) {
-            return true;
-        } else {
-        }
-    }
-
-    false
-}
 
 // block | expr | ident | item | lifetime | literal
 // meta | pat | pat_param | path | stmt | tt | ty | vis

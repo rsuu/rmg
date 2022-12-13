@@ -2,16 +2,50 @@ use infer;
 use std::path::Path;
 
 use super::err::Res;
+use crate::EXT_LIST;
 
-pub fn get_filetype<T>(path: &T) -> String
-where
-    T: AsRef<Path> + ?Sized,
-{
-    infer::get_from_path(path.as_ref())
-        .expect("file read successfully")
-        .expect("file type is known")
-        .extension()
-        .to_string()
+pub fn has_supported(path: impl AsRef<Path>) -> bool {
+    if path.as_ref().is_dir() {
+        return false;
+    } else {
+        for ext in EXT_LIST {
+            if path
+                .as_ref()
+                .to_str()
+                .unwrap()
+                .ends_with(format!(".{}", ext).as_str())
+            {
+                return true;
+            } else {
+
+                // skip
+            }
+        }
+    }
+
+    false
+}
+
+pub fn get_filetype(path: impl AsRef<Path>) -> String {
+    let Ok(opt_file) = infer::get_from_path(path.as_ref()) else {
+        todo!()
+    };
+
+    if let Some(ty) = opt_file {
+        return ty.extension().to_string();
+    } else {
+        match path.as_ref().extension().unwrap().to_str().unwrap() {
+            "ase" | "aseprite" => {
+                return "aseprite".to_string();
+            }
+
+            _ => {
+                println!("{:?}", path.as_ref());
+
+                todo!()
+            }
+        }
+    }
 }
 
 /// ```text

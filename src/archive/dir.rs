@@ -20,8 +20,8 @@ pub fn load_dir(path: impl AsRef<Path>, pos: usize) -> Res<Vec<u8>> {
         if pos == idx {
             let mut buffer = Vec::new();
             let mut file = OpenOptions::new()
-                .write(false)
                 .read(true)
+                .write(false)
                 .create(false)
                 .open(tmp?.path())?;
 

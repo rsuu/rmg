@@ -15,7 +15,7 @@ use crate::{
         traits::AutoLog,
     },
 };
-use fir::{self, FilterType};
+use fir::FilterType;
 use log::{debug, info};
 use std::{
     mem,
@@ -23,6 +23,38 @@ use std::{
     sync::{Arc, RwLock},
     thread::spawn,
 };
+
+#[derive(Debug, Clone)]
+pub struct ExtData {
+    pub page: Page,
+
+    pub archive_type: ArchiveType,
+    pub path: PathBuf,
+    pub screen_size: Size<u32>,
+    pub window_size: Size<u32>,
+    pub filter: FilterType,
+    pub pos: usize,
+}
+
+impl ExtData {
+    pub fn new(
+        archive_type: ArchiveType,
+        path: PathBuf,
+        screen_size: Size<u32>,
+        window_size: Size<u32>,
+        filter: FilterType,
+    ) -> Self {
+        Self {
+            page: Page::null(),
+            archive_type,
+            path,
+            screen_size,
+            window_size,
+            filter,
+            pos: 0,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum State {
@@ -33,6 +65,12 @@ pub enum State {
 
     PrevReady,
     PrevDone,
+
+    LoadNext,
+    LoadPrev,
+
+    DoneNext,
+    DonePrev,
 }
 
 #[derive(Debug)]
@@ -45,6 +83,8 @@ pub struct Render {
     pub tail: usize, // =0
 
     pub rng: usize, //
+    pub load_next: bool,
+    pub load_prev: bool,
 
     pub page_list: Vec<Page>,
     pub page_end: usize,
@@ -57,13 +97,15 @@ pub struct Render {
 
     pub mode: Map, // [UP, DOWN, QUIT, ...]
 
-    pub window_size: Size<u32>,
-    pub screen_size: Size<u32>,
-    pub window_position: (i32, i32),
+    pub window_size: Size<u32>,      //
+    pub screen_size: Size<u32>,      // not need
+    pub window_position: (i32, i32), //
 
-    pub filter: fir::FilterType,
+    pub filter: FilterType, // resize image
 
-    pub len: usize,
+    pub len: usize,     // free up Bit
+    pub all_len: usize, // free up Anim
+
     pub page_load_list: Vec<usize>,
 
     pub view_mode: ViewMode,
@@ -73,30 +115,86 @@ pub struct Render {
 }
 
 impl Render {
+    pub fn new(
+        page_list: Vec<Page>,
+        archive_type: ArchiveType,
+        path: impl AsRef<Path>,
+        buffer_max: usize,
+        step: usize,
+        screen_size: Size<u32>,
+        window_size: Size<u32>,
+        view_mode: ViewMode,
+        filter: FilterType,
+    ) -> Self {
+        Self {
+            buffer: Buffer::new(),
+            buffer_max,
+            mem_limit: buffer_max * 5,
+
+            head: 0,
+            tail: 0,
+            rng: 0,
+            load_next: false,
+            load_prev: false,
+
+            len: 0,
+            all_len: 0,
+
+            archive_path: path.as_ref().to_path_buf(),
+            archive_type,
+
+            mode: Map::Stop,
+            page_end: page_list.len(),
+            page_list,
+            y_step: buffer_max / step, // drop 1/step part of image once
+            x_step: window_size.width as usize / step,
+            window_position: (0, 0),
+
+            screen_size,
+            window_size,
+
+            page_load_list: Vec::new(),
+            filter,
+            view_mode,
+
+            page_number: 0,
+            page_loading: vec![0; buffer_max * 4],
+        }
+    }
+
     /// init
     pub fn init(&mut self) {
+        let mut tmp = (0, 0);
+
         let mut len = 0;
+        let mut has_anim_file = 0;
 
-        if self.page_end >= 2 {
-            len += self.load_next();
-
-            'l1: while len <= self.mem_limit && self.tail + 1 < self.page_end {
-                self.tail += 1;
-                len += self.load_next();
+        match self.page_list.len() {
+            0 => {
+                panic!()
             }
-        } else if self.page_end >= 1 {
-            len += self.load_next();
-        } else {
+            1 => {
+                self.view_mode = ViewMode::Image;
+                tmp = self.load_next();
+            }
+            _ => {
+                tmp = self.load_next();
+                len += tmp.0;
+                has_anim_file += tmp.1;
+
+                'l1: while len <= self.mem_limit && self.tail + 1 < self.page_end {
+                    self.tail += 1;
+
+                    tmp = self.load_next();
+                    len += tmp.0;
+                    has_anim_file += tmp.1;
+                }
+            }
         }
 
         // image.len() < buffer.len()
-        if len <= self.buffer_max {
-            self.view_mode = ViewMode::Image;
-
-            self.buffer.flush(&self.page_list[0].data());
-            self.buffer
-                .data
-                .extend_from_slice(&vec![0; self.buffer_max - self.buffer.data.len()]);
+        if has_anim_file >= 1 {
+            self.view_mode = ViewMode::Page;
         } else {
         }
 
@@ -106,7 +204,7 @@ impl Render {
     }
 
     // use for init
-    pub fn load_next(&mut self) -> usize {
+    pub fn load_next(&mut self) -> (usize, usize) {
         let tail = &mut self.page_list[self.tail];
         let pos = tail.pos;
 
@@ -123,280 +221,249 @@ impl Render {
 
         tail.is_ready = true;
 
-        tail.len()
+        (tail.len(), (tail.ty == ImgType::Anim) as usize)
     }
 
     #[inline(always)]
     pub fn flush(&mut self, canvas: &mut Canvas, _arc_state: &Arc<RwLock<State>>) {
         self.buffer.clear();
-        self.len = self.page_list_len();
+        self.len = self.page_list_len().0;
+        self.all_len = self.page_list_len().1;
 
         for idx in self.page_load_list.iter() {
             if self.page_list[*idx].is_ready {
                 self.buffer.flush(self.page_list[*idx].data());
                 self.page_list[*idx].to_next_frame();
             } else {
-                // BUG: need to reset self.rng
-                self.buffer
-                    .data
-                    .extend_from_slice(&self.page_loading[0..self.buffer_max * 2]);
+                // self.buffer
+                //     .data
+                //     .extend_from_slice(&self.page_loading[0..self.buffer_max]);
             }
         }
 
         canvas.flush(&self.buffer.data[self.rng..self.rng + self.buffer_max]);
 
-        // dbg!("self.page_number = {}", self.page_number);
+        // debug!("self.page_number = {}", self.page_number);
     }
 
     #[inline]
-    pub fn page_list_len(&mut self) -> usize {
-        let mut res = 0;
+    pub fn page_list_len(&mut self) -> (usize, usize) {
+        let (mut len, mut all_lan) = (0, 0);
 
         self.page_load_list.clear();
 
         for (idx, page) in self.page_list.iter().enumerate() {
             if page.len() > 0 {
-                res += page.len();
+                len += page.len();
+                all_lan += page.all_len();
                 self.page_load_list.push(idx);
             } else {
             }
         }
 
-        res
+        (len, all_lan)
     }
 
     /// move down
-    #[inline]
-    pub fn move_down(&mut self, arc_page: &Arc<RwLock<Page>>, arc_state: &Arc<RwLock<State>>) {
+    #[inline(always)]
+    pub fn move_down(
+        &mut self,
+        arc_state: &Arc<RwLock<State>>,
+        arc_extdata: &Arc<RwLock<ExtData>>,
+    ) {
         "move_down()"._info();
-
         debug!(
-            "move_down():
-    state: {:?}
-    rng: {}
-
-    end: {}
-    len: {}
-
-    head: {}
-    tail: {}
-",
-            *arc_state.read().unwrap(),
-            self.rng,
-            self.end(),
-            self.len,
-            self.head,
-            self.tail,
+            "{},
+{}",
+            self.rng, self.len
         );
 
         self.mode = Map::Down;
 
         // scrolling
-        self.rng += if self.len >= self.end() + self.y_step {
-            self.y_step
-        } else if self.len >= self.end() {
-            self.len - self.end()
+        if self.rng + self.y_step <= self.len - self.buffer_max {
+            self.load_next = false;
+            self.rng += self.y_step;
+        } else if self.rng <= self.len - self.buffer_max {
+            self.load_next = true;
+            self.rng = self.len - self.buffer_max;
         } else {
-            0
         };
-
-        // try to load next page
-        // HACK: ? overflow
-        if self.end() <= self.mem_limit * 2
-            && self.tail + 1 < self.page_end
-            && (*arc_state.read().unwrap() == State::Nothing
-                || *arc_state.read().unwrap() == State::PrevDone)
-        {
-            let page = arc_page.clone();
-            let state = arc_state.clone();
-
-            *state.write().unwrap() = State::NextReady;
-
-            self.tail += 1;
-            let idx = self.tail;
-
-            let archive_type = self.archive_type;
-            let archive_path = self.archive_path.clone();
-            let screen_size = self.screen_size;
-            let window_size = self.window_size;
-            let filter = self.filter;
-
-            self.page_list[idx].is_ready = false;
-            let pos = self.page_list[idx].pos;
-
-            // swap page and arc_temp_page
-            mem::swap(&mut self.page_list[self.tail], &mut *page.write().unwrap());
-
-            info!("load next");
-            spawn(move || {
-                let (ty, mut buffer, format) =
-                    load_file(archive_type, archive_path.as_path(), pos).unwrap();
-                let (meta, pts) = load_img(format, &mut buffer, screen_size, window_size).unwrap();
-
-                page.write().unwrap().ty = ty;
-                page.write().unwrap().resize = meta.fix;
-                page.write().unwrap().pts = pts;
-
-                resize_page(&mut page.write().unwrap(), &mut buffer, &meta, &filter);
-
-                page.write().unwrap().is_ready = true;
-
-                *state.write().unwrap() = State::NextDone;
-
-                "*** DONE ***"._info();
-            });
-        }
-
-        // load next
-        if *arc_state.read().unwrap() == State::NextDone {
-            debug!("state == {:?}", arc_state.read().unwrap());
-
-            // swap page and arc_temp_page again
-            mem::swap(
-                &mut self.page_list[self.tail],
-                &mut *arc_page.write().unwrap(),
-            );
-
-            *arc_state.write().unwrap() = State::Nothing;
-
-            "*** NEXT ***"._info();
-        } else {
-        }
 
         let head_len = self.page_list[self.head].len();
 
-        // try to free up the memory
-        if *arc_state.read().unwrap() == State::Nothing
-            && self.len >= self.mem_limit + head_len
-            && self.head + 1 < self.tail
-            && self.rng > head_len
-        {
-            self.rng -= self.page_list[self.head].len();
-            self.page_list[self.head].free();
-            self.page_list[self.head].is_ready = false; // NOTE: DO NOT reset state before len()
-            self.head += 1;
+        if let Ok(mut arc_state) = arc_state.try_write() {
+            match *arc_state {
+                State::Nothing | State::PrevDone => {
+                    // try to load next page
+                    if self.tail + 1 < self.page_end && self.len <= self.mem_limit + head_len {
+                        if let Ok(mut arc_extdata) = arc_extdata.try_write() {
+                            info!("load next");
+                            info!("{:?}", *arc_state);
 
-            "*** FREE ***"._info();
+                            self.tail += 1;
+
+                            let idx = self.tail;
+                            self.page_list[idx].is_ready = false;
+                            arc_extdata.pos = self.page_list[idx].pos;
+
+                            mem::swap(&mut self.page_list[idx], &mut arc_extdata.page);
+
+                            *arc_state = State::LoadNext;
+                        } else {
+                            // wait
+                        }
+                    } else {
+                        // nothing
+                    }
+                }
+                _ => {}
+            }
         } else {
+            // wait
+        }
+
+        if let Ok(mut arc_state) = arc_state.try_write() {
+            match *arc_state {
+                State::DoneNext => {
+                    debug!("state == {:?}", *arc_state);
+
+                    if let Ok(mut arc_extdata) = arc_extdata.try_write() {
+                        // swap page and arc_temp_page again
+                        mem::swap(&mut self.page_list[self.tail], &mut arc_extdata.page);
+                        self.page_list[self.tail].is_ready = true;
+
+                        *arc_state = State::Nothing;
+
+                        "*** NEXT ***"._info();
+                    } else {
+                        // wait
+                    }
+                }
+
+                State::Nothing => {
+                    debug!("state == {:?}", *arc_state);
+
+                    if self.head + 1 < self.tail
+                        && self.len >= self.mem_limit / 2 + head_len
+                        && self.rng >= self.buffer_max * 2 + head_len
+                    {
+                        self.rng -= self.page_list[self.head].len();
+                        self.page_list[self.head].free();
+                        self.head += 1;
+
+                        "*** FREE ***"._info();
+                    } else {
+                        // nothing
+                    }
+                }
+                _ => {}
+            }
+        } else {
+            // wait
         }
     }
 
     /// move up
-    #[inline]
-    pub fn move_up(&mut self, arc_page: &Arc<RwLock<Page>>, arc_state: &Arc<RwLock<State>>) {
-        debug!(
-            "
-state: {:?}
-start: {}
-end: {}
-len: {}
-head: {}
-tail: {}
-",
-            *arc_state.read().unwrap(),
-            self.rng,
-            self.end(),
-            self.len,
-            self.head,
-            self.tail,
-        );
-
-        self.rng -= if self.rng >= self.y_step {
-            self.y_step
-        } else {
-            self.rng
-        };
+    #[inline(always)]
+    pub fn move_up(&mut self, arc_state: &Arc<RwLock<State>>, arc_extdata: &Arc<RwLock<ExtData>>) {
+        info!("move_up()");
 
         self.mode = Map::Up;
 
-        info!("move_up()");
-
-        // try to load prev page
-        if self.head >= 1
-            && (self.rng <= self.mem_limit * 2)
-            && (*arc_state.read().unwrap() == State::Nothing
-                || *arc_state.read().unwrap() == State::NextDone)
-        {
-            let page = arc_page.clone();
-            let state = arc_state.clone();
-
-            *state.write().unwrap() = State::PrevReady;
-
-            self.head -= 1;
-            let idx = self.head;
-
-            let archive_type = self.archive_type;
-            let archive_path = self.archive_path.clone();
-            let _page_pos = self.page_list[self.head].pos;
-            let screen_size = self.screen_size;
-            let window_size = self.window_size;
-            let filter = self.filter;
-
-            self.page_list[idx].is_ready = false;
-            let pos = self.page_list[idx].pos;
-
-            // swap page and arc_temp_page
-            mem::swap(&mut self.page_list[idx], &mut *page.write().unwrap());
-
-            "load prev"._info();
-
-            spawn(move || {
-                let (ty, mut buffer, format) =
-                    load_file(archive_type, archive_path.as_path(), pos).unwrap();
-                let (meta, pts) = load_img(format, &mut buffer, screen_size, window_size).unwrap();
-
-                page.write().unwrap().ty = ty;
-                page.write().unwrap().resize = meta.fix;
-                page.write().unwrap().pts = pts;
-
-                resize_page(&mut page.write().unwrap(), &mut buffer, &meta, &filter);
-
-                page.write().unwrap().is_ready = true;
-
-                *state.write().unwrap() = State::PrevDone;
-
-                "*** DONE ***"._info();
-            });
+        if self.rng >= self.y_step {
+            self.load_prev = false;
+            self.rng -= self.y_step;
+        } else if self.rng >= 0 {
+            self.load_prev = true;
+            self.rng -= self.rng;
         } else {
-        }
-
-        // load prev
-        if *arc_state.read().unwrap() == State::PrevDone {
-            // swap page and arc_temp_page again
-            mem::swap(
-                &mut self.page_list[self.head],
-                &mut *arc_page.write().unwrap(),
-            );
-
-            self.rng += self.page_list[self.head].len();
-
-            *arc_state.write().unwrap() = State::Nothing;
-
-            debug!("state == {:?}", arc_state.read().unwrap());
-            debug!("load prev");
-        } else {
-        }
+            unreachable!()
+        };
 
         let tail_len = self.page_list[self.tail].len();
 
-        // try to free up the memory
-        if *arc_state.write().unwrap() == State::Nothing
-            && self.len >= self.end() + tail_len
-            && self.len >= self.mem_limit + tail_len
-            && self.tail > self.head + 1
-        {
-            self.page_list[self.tail].is_ready = false;
-            self.page_list[self.tail].free();
-            self.tail -= 1;
+        // load image
+        if let Ok(mut arc_state) = arc_state.try_write() {
+            match *arc_state {
+                State::Nothing | State::DoneNext => {
+                    // try to load prev page
+                    if self.head >= 1 && self.len <= self.mem_limit + tail_len {
+                        if let Ok(mut arc_extdata) = arc_extdata.try_write() {
+                            info!("load prev");
 
-            debug!("move_up: free()");
+                            self.head -= 1;
+
+                            let idx = self.head;
+                            self.page_list[idx].is_ready = false;
+
+                            arc_extdata.pos = self.page_list[idx].pos;
+                            mem::swap(&mut self.page_list[idx], &mut arc_extdata.page);
+
+                            *arc_state = State::LoadPrev;
+                        } else {
+                            // wait
+                        }
+                    } else {
+                        // nothing
+                    }
+                }
+                _ => {}
+            }
+        } else {
+            // wait
+        }
+
+        // display image
+        if let Ok(mut arc_state) = arc_state.try_write() {
+            debug!("state == {:?}", *arc_state);
+
+            match *arc_state {
+                State::DonePrev => {
+                    debug!("state == {:?}", *arc_state);
+
+                    if let Ok(mut arc_extdata) = arc_extdata.try_write() {
+                        // swap page and arc_temp_page again
+                        mem::swap(&mut self.page_list[self.head], &mut arc_extdata.page);
+
+                        self.page_list[self.head].is_ready = true;
+
+                        // a bit different with move_down()
+                        self.rng += self.page_list[self.head].len();
+
+                        *arc_state = State::Nothing;
+
+                        "*** PREV ***"._info();
+                    } else {
+                        // wait
+                    }
+                }
+
+                State::Nothing => {
+                    // free up memory
+                    if self.tail > self.head + 1
+                        && self.len >= self.mem_limit / 2 + tail_len
+                        && self.len >= self.rng + self.buffer_max * 2 + tail_len
+                    {
+                        self.page_list[self.tail].is_ready = false;
+                        self.page_list[self.tail].free();
+                        self.tail -= 1;
+
+                        "*** FREE ***"._info();
+                    } else {
+                    }
+                }
+                _ => {}
+            }
+        } else {
+            // wait
         }
     }
 
+    /// move left
     pub fn move_left(&mut self) {
-        // HACK: overflow
         // ??? How it works
-        if self.len > self.end() + self.x_step {
+        if self.len > self.end() + self.x_step && self.x_step <= self.window_size.width as usize {
             self.rng += self.x_step;
 
             debug!("start: {}", self.rng);
@@ -407,10 +474,9 @@ tail: {}
         self.mode = Map::Left;
     }
 
-    ///
+    /// move right
     pub fn move_right(&mut self) {
-        // HACK: overflow
-        if self.rng >= self.x_step {
+        if self.rng >= self.x_step && self.x_step <= self.window_size.width as usize {
             self.rng -= self.x_step;
         } else {
         }
@@ -418,6 +484,7 @@ tail: {}
         self.mode = Map::Right;
     }
 
+    #[inline]
     pub fn end(&self) -> usize {
         self.rng + self.buffer_max
     }
@@ -507,6 +574,7 @@ pub fn load_img(
             meta.image.height = img.height();
             meta.resize();
 
+            // BUG:
             mem::swap(bytes, &mut vec![img.to_rgba8().to_vec()]);
 
             Ok((meta, pts))
