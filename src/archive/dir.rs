@@ -16,21 +16,27 @@ pub fn load_file(path: impl AsRef<Path>) -> Res<Vec<u8>> {
 }
 
 pub fn load_dir(path: impl AsRef<Path>, pos: usize) -> Res<Vec<u8>> {
-    for (idx, tmp) in walkdir::WalkDir::new(path.as_ref()).into_iter().enumerate() {
-        if pos == idx {
-            let mut buffer = Vec::new();
-            let mut file = OpenOptions::new()
-                .read(true)
-                .write(false)
-                .create(false)
-                .open(tmp?.path())?;
+    let mut idx = 0;
 
-            file.read_to_end(&mut buffer)?;
+    for tmp in walkdir::WalkDir::new(path.as_ref()).into_iter() {
+        if tmp.as_ref().unwrap().file_type().is_file() {
+            if pos == idx {
+                let mut buffer = Vec::new();
+                let mut file = OpenOptions::new()
+                    .read(true)
+                    .write(false)
+                    .create(false)
+                    .open(tmp?.path())?;
 
-            // done
-            return Ok(buffer);
+                file.read_to_end(&mut buffer)?;
+
+                log::debug!("{},{}", idx, pos);
+                // done
+                return Ok(buffer);
+            } else {
+                idx += 1;
+            }
         } else {
-            // to next
         }
     }
 
@@ -39,9 +45,14 @@ pub fn load_dir(path: impl AsRef<Path>, pos: usize) -> Res<Vec<u8>> {
 
 pub fn get_file_list(path: impl AsRef<Path>) -> Res<Vec<(String, usize)>> {
     let mut list = Vec::new();
+    let mut idx = 0;
 
-    for (idx, file) in walkdir::WalkDir::new(path.as_ref()).into_iter().enumerate() {
-        list.push((file?.path().to_str().unwrap().to_string(), idx));
+    for file in walkdir::WalkDir::new(path.as_ref()).into_iter() {
+        if file.as_ref().unwrap().file_type().is_file() {
+            list.push((file?.path().to_str().unwrap().to_string(), idx));
+            idx += 1;
+        } else {
+        }
     }
 
     Ok(list)

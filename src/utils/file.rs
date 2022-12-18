@@ -4,15 +4,18 @@ use std::path::Path;
 use super::err::Res;
 use crate::EXT_LIST;
 
+// TODO: rewrite
 pub fn has_supported(path: impl AsRef<Path>) -> bool {
     if path.as_ref().is_dir() {
         return false;
     } else {
         for ext in EXT_LIST {
+            // HINT: non-UTF-8 path is allow
             if path
                 .as_ref()
-                .to_str()
-                .unwrap()
+                .display()
+                .to_string()
+                .as_str()
                 .ends_with(format!(".{}", ext).as_str())
             {
                 return true;
@@ -26,6 +29,7 @@ pub fn has_supported(path: impl AsRef<Path>) -> bool {
     false
 }
 
+// TODO: rewrite
 pub fn get_filetype(path: impl AsRef<Path>) -> String {
     let Ok(opt_file) = infer::get_from_path(path.as_ref()) else {
         todo!()
@@ -35,9 +39,8 @@ pub fn get_filetype(path: impl AsRef<Path>) -> String {
         return ty.extension().to_string();
     } else {
         match path.as_ref().extension().unwrap().to_str().unwrap() {
-            "ase" | "aseprite" => {
-                return "aseprite".to_string();
-            }
+            "ase" | "aseprite" => "aseprite".to_string(),
+            "svg" => "svg".to_string(),
 
             _ => {
                 println!("{:?}", path.as_ref());
@@ -63,7 +66,7 @@ where
     for f in list.iter() {
         let full = Path::new(f.as_ref());
 
-        let mut path = full.parent().unwrap().to_str().unwrap().to_string();
+        let mut path = full.parent().unwrap().display().to_string();
         let suffix = full.extension().unwrap().to_str().unwrap();
         let filename = full.file_stem().unwrap().to_str().unwrap();
 

@@ -35,13 +35,13 @@ cargo build --release
 ## Usage
 
 ```bash
-rmg ./tests/files/img.tar
+rmg file.tar
 
-# OR
-rmg --size 600,600 ./tests/files/img.tar
+rmg --size 600,600 file.tar
 
-# OR
-rmg --size 600,600 --config ./tests/files/config.rs ./tests/files/img.tar
+rmg --size 600,600 --config ./tests/files/config.rs file.tar
+
+rmg file.gif
 ```
 
 ### KeyMap
@@ -67,14 +67,14 @@ q | quit
 
 ## Supported formats
 
-| Format | Supported | Default |Dependency
-|:-|:-|:-|:-|
-.jpg |✅ | ✅|
-.png|✅| ✅|
-.heic / .avif|🔬|❌|libheif
-.gif|🔬|✅|
-.aseprite|🔬|❌|
-.svg|🔬|❌|
+| Format | Supported | Default |Dependency | Mode
+|:-|:-|:-|:-|:-|
+.jpg |✅ | ✅||Scroll/Once
+.png|✅| ✅||Scroll/Once
+.heic / .avif|🔬|❌|libheif|Scroll/Once
+.gif|🔬|✅||Once
+.aseprite|🔬|❌||Once
+.svg|🔬|❌||Scroll/Once
 
 ---
 | Format | Supported | Default |Dependency

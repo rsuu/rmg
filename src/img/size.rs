@@ -28,13 +28,11 @@ impl TMetaSize for MetaSize<u32> {
 
     fn resize(&mut self) {
         // WARN: DO NOT use odd numbers. (╯°Д°)╯︵ ┻━┻
-        // if
-        //     width = 3, height = 4
-        // do
-        //     width  = (width/2)  * 2  = (3/2) * 2 = 1 * 2 = 2
-        //     height = (height/2) * 2  = (4/2) * 2 = 2 * 2 = 4
-        let w = self.window.width as f32;
+        // e.g. width = 3, height = 4
+        //      width  = (width /2)*2 = 2
+        //      height = (height/2)*2 = 4
         let q = self.image.width as f32 / self.image.height as f32;
+        let w = self.window.width as f32;
         let h = w / q;
 
         self.fix.width = (w as Self::T / 2) * 2;
@@ -51,5 +49,13 @@ pub struct Size<T> {
 impl<T> Size<T> {
     pub fn new(width: T, height: T) -> Self {
         Size { width, height }
+    }
+
+    pub fn len(&self) -> usize
+    where
+        T: TryInto<usize> + Copy,
+        T::Error: std::fmt::Debug,
+    {
+        self.width.try_into().unwrap() * self.height.try_into().unwrap()
     }
 }

@@ -1,4 +1,6 @@
-use crate::{config::rsconf::Config, img::size::Size, utils::err::Res};
+use crate::{
+    config::rsconf::Config, img::size::Size, reader::view::ViewMode, utils::err::Res, VERSION,
+};
 use dirs_next;
 use lexopt::{self, prelude::*};
 use std::{path::PathBuf, process::exit};
@@ -28,7 +30,7 @@ impl Args {
 
                 Long("size") | Short('s') => {
                     let size = parser.value()?.into_string()?;
-                    let size = size.as_str().split(',').collect::<Vec<&str>>();
+                    let size = size.as_str().split('x').collect::<Vec<&str>>();
 
                     let (w, h) = (
                         size[0].parse::<usize>().unwrap_or_default(),
@@ -39,11 +41,19 @@ impl Args {
                 }
 
                 Long("mode") | Short('m') => {
-                    todo!()
+                    let mode = parser.value()?.into_string()?;
+
+                    config.base.view_mode = match mode.as_str() {
+                        "s" | "scroll" => ViewMode::Scroll,
+                        "o" | "once" => ViewMode::Once,
+                        "t" | "turn" => ViewMode::Turn,
+                        _ => ViewMode::Scroll,
+                    };
                 }
 
                 Long("pad") => {
                     let pad = parser.value()?.into_string()?;
+
                     config.base.rename_pad = pad.parse::<u8>()?;
                 }
 
@@ -93,28 +103,31 @@ impl Args {
     }
 }
 
-fn print_help() -> ! {
-    use crate::VERSION;
-
+pub fn print_help() -> ! {
     // TODO:
     println!(
-        r#"rmg: {version}
-Manga Reader
+        r#"rmg: {VERSION}
+Manga Viewer
 
 USAGE:
     rmg [OPTIONS] file
 
 OPTIONS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
-    -s, --size       Max width and height of the buffer
-                     e.g. rmg --size 900,900
-    -c, --config     Reset the config path
-
-    --pad            ...
+    -h, --help
+            Prints help information
+    -V, --version
+            Prints version information
+    -s, --size
+            Reset the width and the height of the buffer
+                Example: rmg --size 900x900
+    -c, --config
+            Specify the config file path
+    -m, --mode
+            (TODO)
+        --pad
+            (TODO)
 "#,
-        version = VERSION
     );
+
     exit(127);
 }

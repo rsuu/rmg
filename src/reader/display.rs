@@ -3,29 +3,26 @@ use crate::{
     config::rsconf::Config,
     img::size::MetaSize,
     reader::{
-        keymap::{self, Map},
-        scroll::{Render, State},
-        view::{Buffer, Page, ViewMode},
+        keymap::KeyMap,
+        once::Once,
+        scroll::{self, Scroll, State},
+        turn::Turn,
+        view::{ArcTmpBuffer, Check, Data, ImgType, Page, PageList, ViewMode},
         window::Canvas,
     },
     utils::err::Res,
-    FPS,
 };
 use log::{debug, info};
 use std::{
-    ops::Sub,
     path::PathBuf,
     sync::{Arc, RwLock},
 };
 
-use super::scroll::{self, ExtData};
-
 /// display images
 pub fn cat_img(
     config: &Config,
-    page_list: Vec<Page>,
+    page_list: &mut Vec<Page>,
     meta_size: MetaSize<u32>,
-    //_metadata: &Option<meta::MetaData>,
     path: &str,
     archive_type: ArchiveType,
 ) -> Res<()> {
@@ -34,38 +31,60 @@ pub fn cat_img(
     let buffer_max = window_size.width as usize * window_size.height as usize;
 
     let step = config.base.step as usize;
-    let filter = config.base.filter;
-    let keymaps = keymap::KeyMap::new();
 
-    let mut buf = Render::new(
-        page_list,
-        archive_type,
-        path,
-        buffer_max,
-        step,
-        screen_size,
-        window_size,
-        config.base.view_mode,
-        filter,
-    );
+    let keymaps = KeyMap::new();
+
     let mut canvas = Canvas::new(window_size.width as usize, window_size.height as usize);
 
-    buf.init(); // init
+    let data = Data::new(
+        archive_type,
+        PathBuf::from(path),
+        screen_size,
+        window_size,
+        config.base.filter,
+    ); // use for resize image
 
-    match buf.view_mode {
+    let arc_state = Arc::new(RwLock::new(State::Nothing));
+    let arc_buffer = ArcTmpBuffer::new_arc();
+
+    page_list.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
+
+    let mut page_list = PageList::new(page_list.to_owned());
+
+    for (idx, page) in page_list.list.iter_mut().enumerate() {
+        page.number = idx;
+    }
+
+    let mut scroll = Scroll::new(&data, page_list, buffer_max, step, config.base.view_mode);
+
+    init(&mut scroll, &data); // init
+
+    match scroll.view_mode {
         // Bit
         ViewMode::Scroll => {
-            for_minifb_scroll(config, &mut buf, &mut canvas, &keymaps);
+            Scroll::start(
+                config,
+                &mut scroll,
+                &mut canvas,
+                &keymaps,
+                &data,
+                &arc_state,
+                &arc_buffer,
+            );
         }
 
         // Bit OR Anim
-        ViewMode::Image => {
-            for_minifb_image(config, &mut buf, &mut canvas, &keymaps);
+        ViewMode::Once => {
+            // TODO: scale gif?
+            Once::start(&mut scroll, &mut canvas, &keymaps);
         }
 
         // Bit OR Anim
-        ViewMode::Page => {
-            for_minifb_page(config, &mut buf, &mut canvas, &keymaps);
+        ViewMode::Turn => {
+            todo!();
+
+            //let mut turn = Turn::from_scroll(scroll);
+            //turn.start(&mut canvas, &keymaps);
         }
     }
 
@@ -74,224 +93,71 @@ pub fn cat_img(
     Ok(())
 }
 
-pub fn for_minifb_page(
-    _config: &Config,
-    _buf: &mut Render,
-    _canvas: &mut Canvas,
-    _keymaps: &[keymap::KeyMap],
-) {
-    todo!()
-}
+///
+pub fn init(scroll: &mut Scroll, data: &Data) {
+    let mut tmp = (0, 0);
 
-pub fn for_minifb_image(
-    _config: &Config,
-    buf: &mut Render,
-    canvas: &mut Canvas,
-    keymaps: &[keymap::KeyMap],
-) {
-    let mut time_start = std::time::Instant::now();
-    let mut sleep = FPS;
+    let mut len = 0;
+    let mut anim_count = 0;
 
-    let end = buf.page_list[0].size();
+    scroll.head = 1;
+    scroll.tail = 0;
 
-    buf.buffer.data = vec![0; buf.buffer_max];
+    debug!("{:#?}", &scroll.page_list.list);
 
-    'l1: while canvas.window.is_open() {
-        match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
-            Map::Down => {
-                // scrolling
-                if buf.rng + buf.y_step <= end {
-                    buf.rng += buf.y_step;
-                } else if buf.rng <= end {
-                    buf.rng = end - buf.rng;
-                } else {
-                    unreachable!()
-                }
-            }
-
-            Map::Up => {
-                if buf.rng >= buf.y_step {
-                    buf.rng -= buf.y_step;
-                } else if buf.rng >= 0 {
-                    buf.rng -= buf.rng;
-                } else {
-                    unreachable!()
-                };
-            }
-
-            Map::Exit => {
-                println!("EXIT");
-
-                // BUG: Miss Key::Escape
-                break 'l1;
-            }
-
-            _ => {}
+    // [Head, 1, 2, Tail]
+    match scroll.page_list.len() {
+        0..=2 => {
+            panic!()
         }
 
-        buf.buffer.data = vec![0; buf.buffer_max];
-        buf.buffer.data.copy_from_slice(buf.page_list[0].data());
-        buf.page_list[0].to_next_frame();
+        3 => {
+            scroll.view_mode = ViewMode::Once;
+            tmp = load_next(scroll, data);
+            return;
+        }
 
-        canvas.flush(&buf.buffer.data[buf.rng..buf.rng + buf.buffer_max]);
+        _ => {
+            while len <= scroll.mem_limit && scroll.not_tail() {
+                scroll.tail += 1;
+                tmp = load_next(scroll, data);
+                len += tmp.0;
+                anim_count += tmp.1;
+            }
 
-        let now = std::time::Instant::now();
-        let count = (now - time_start).as_millis() as u64;
-
-        time_start = now;
-        sleep = FPS.checked_sub(count / 6).unwrap_or(10);
-
-        std::thread::sleep(std::time::Duration::from_millis(sleep));
+            debug!("{}", scroll.tail);
+        }
     }
-}
 
-pub fn for_minifb_scroll(
-    config: &Config,
-    buf: &mut Render,
-    canvas: &mut Canvas,
-    keymaps: &[keymap::KeyMap],
-) {
-    let arc_state = Arc::new(RwLock::new(State::Nothing));
-    let arc_extdata = Arc::new(RwLock::new(ExtData::new(
-        buf.archive_type.clone(),
-        buf.archive_path.clone(),
-        buf.screen_size.clone(),
-        buf.window_size.clone(),
-        buf.filter.clone(),
-    ))); // use for resize image
-
-    let arc_state_main = arc_state.clone();
-    let arc_extdata_main = arc_extdata.clone();
-
-    let arc_state_thread = arc_state.clone();
-    let arc_extdata_thread = arc_extdata.clone();
-
-    // new thread for resize image
-    let _thread_for_resize_image = new_thread(arc_state_thread, arc_extdata_thread);
-
-    let mut time_start = std::time::Instant::now();
-    let mut sleep = FPS;
-
-    'l1: while canvas.window.is_open() {
-        match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
-            Map::Down => {
-                buf.move_down(&arc_state_main, &arc_extdata_main);
-            }
-
-            Map::Up => {
-                buf.move_up(&arc_state_main, &arc_extdata_main);
-            }
-
-            Map::Reset => {
-                todo!()
-            }
-
-            Map::FullScreen => {
-                todo!()
-            }
-
-            Map::Left => {
-                buf.move_left();
-            }
-
-            Map::Right => {
-                buf.move_right();
-            }
-
-            Map::Exit => {
-                println!("EXIT");
-
-                // TODO: Key::Escape
-                break 'l1;
-            }
-
-            _ => {
-                // input from mouse
-                if config.base.invert_mouse {
-                    if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
-                        if y > 0.0 {
-                            buf.move_up(&arc_state_main, &arc_extdata_main);
-                        } else if y < 0.0 {
-                            buf.move_down(&arc_state_main, &arc_extdata_main);
-                        } else {
-                        }
-
-                        debug!("mouse_y == {}", y);
-                    }
-                } else if let Some((_x, y)) = canvas.window.get_scroll_wheel() {
-                    if y > 0.0 {
-                        buf.move_down(&arc_state_main, &arc_extdata_main);
-                    } else if y < 0.0 {
-                        buf.move_up(&arc_state_main, &arc_extdata_main);
-                    } else {
-                    }
-
-                    debug!("mouse_y == {}", y);
-                }
-            }
-        }
-
-        buf.flush(canvas, &arc_state);
-
-        let now = std::time::Instant::now();
-        let count = (now - time_start).as_millis() as u64;
-
-        time_start = now;
-        sleep = FPS.checked_sub(count / 6).unwrap_or(10);
-
-        std::thread::sleep(std::time::Duration::from_millis(sleep));
+    if anim_count >= 1 {
+        // TODO:
+        scroll.view_mode = ViewMode::Turn;
+        return;
     }
+
+    if len < scroll.buffer_max {
+        todo!()
+    }
+
+    debug!("    len = {}", len);
 }
 
-pub fn new_thread(arc_state: Arc<RwLock<State>>, arc_extdata: Arc<RwLock<ExtData>>) {
-    std::thread::spawn(move || {
-        loop {
-            if let Ok(mut arc_state) = arc_state.try_write() {
-                match *arc_state {
-                    State::LoadNext | State::LoadPrev => {
-                        if let Ok(mut arc_extdata) = arc_extdata.try_write() {
-                            let (ty, mut buffer, format) = scroll::load_file(
-                                arc_extdata.archive_type.clone(),
-                                arc_extdata.path.clone().as_path(),
-                                arc_extdata.pos,
-                            )
-                            .unwrap();
+pub fn load_next(scroll: &mut Scroll, data: &Data) -> (usize, usize) {
+    let tail = scroll.page_list.get_mut(scroll.tail);
+    let pos = tail.pos;
 
-                            let (meta, pts) = scroll::load_img(
-                                format,
-                                &mut buffer,
-                                arc_extdata.screen_size,
-                                arc_extdata.window_size,
-                            )
-                            .unwrap();
+    let (ty, mut buffer, format) =
+        scroll::load_file(&data.archive_type, data.path.as_path(), pos).unwrap();
+    let (meta, pts) =
+        scroll::load_img(&format, &mut buffer, &data.screen_size, &data.window_size).unwrap();
 
-                            arc_extdata.page.ty = ty;
-                            arc_extdata.page.resize = meta.fix;
-                            arc_extdata.page.pts = pts;
+    tail.ty = ty;
+    tail.resize = meta.fix;
+    tail.pts = pts;
 
-                            let f = arc_extdata.filter.clone();
+    scroll::resize_page(tail, &mut buffer, &meta, &data.filter, &data.window_size);
 
-                            scroll::resize_page(&mut arc_extdata.page, &mut buffer, &meta, &f);
+    tail.is_ready = true;
 
-                            *arc_state = match *arc_state {
-                                State::LoadPrev => State::DonePrev,
-                                State::LoadNext => State::DoneNext,
-                                _ => {
-                                    unreachable!()
-                                }
-                            }
-                        } else {
-                            // wait
-                        }
-                    }
-                    _ => {}
-                }
-            } else {
-                // wait
-            }
-
-            // limit CPU usage
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
-    });
+    (tail.len(), (tail.ty == ImgType::Anim) as usize)
 }

@@ -1,0 +1,3 @@
+infer svg
+
+gif OOM

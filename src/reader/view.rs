@@ -1,6 +1,113 @@
-use crate::img::size::Size;
-use crate::FPS;
+use crate::{archive::ArchiveType, img::resize, img::size::Size, FPS};
+use fir::FilterType;
 use log::debug;
+use std::{
+    mem::swap,
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Check {
+    Head,
+    Body,
+    Tail,
+}
+
+// use in the thread
+#[derive(Debug, Clone)]
+pub struct ArcTmpBuffer {
+    pub page: Page,
+    pub pos: usize,
+}
+
+impl ArcTmpBuffer {
+    pub fn new() -> Self {
+        Self {
+            page: Page::null(),
+            pos: 0,
+        }
+    }
+
+    pub fn new_arc() -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(Self::new()))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Data {
+    pub page: Page,
+    pub pos: usize,
+    pub archive_type: ArchiveType,
+    pub path: PathBuf,
+    pub screen_size: Size<u32>,
+    pub window_size: Size<u32>,
+    pub filter: FilterType,
+}
+
+impl Data {
+    pub fn new(
+        archive_type: ArchiveType,
+        path: PathBuf,
+        screen_size: Size<u32>,
+        window_size: Size<u32>,
+        filter: FilterType,
+    ) -> Self {
+        Self {
+            page: Page::null(),
+            pos: 0,
+            archive_type,
+            path,
+            screen_size,
+            window_size,
+            filter,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct PageList {
+    pub list: Vec<Page>,
+    pub head: usize,
+    pub tail: usize,
+    pub cur: usize,
+}
+
+impl PageList {
+    pub fn new(tmp_list: Vec<Page>) -> Self {
+        let mut list = Vec::with_capacity(tmp_list.len() + 2);
+
+        list.push(Page::null());
+        list.extend(tmp_list.into_iter());
+        list.push(Page::null());
+
+        list.first_mut().unwrap().check = Check::Head;
+        list.last_mut().unwrap().check = Check::Tail;
+
+        Self {
+            list,
+            cur: 0,
+            head: 0,
+            tail: 0,
+        }
+    }
+
+    pub fn get(&self, idx: usize) -> &Page {
+        &self.list[idx]
+    }
+
+    pub fn get_mut(&mut self, idx: usize) -> &mut Page {
+        self.list.get_mut(idx).unwrap()
+    }
+
+    pub fn len(&self) -> usize {
+        self.list.len()
+    }
+
+    pub fn swap(&mut self, l: usize, r: usize) {
+        self.list.swap(l, r);
+    }
+}
 
 #[derive(Debug)]
 pub struct Buffer {
@@ -23,43 +130,35 @@ pub struct Page {
     pub pos: usize,        // index of image in the archive file
     pub resize: Size<u32>, // (fix_width, fix_height)
 
+    pub offset_x: usize,
+
     // for gif only
     pub idx: usize, // index of frame
     pub timer: usize,
     pub miss: usize,
     pub pts: Vec<u32>, // pts = delay + fps
+    pub check: Check,
 }
 
-// 放大镜
-//   鼠标 截取区块
-//   定位
-//   copy from buffer with Block
-//
-// 进入 crop 模式
-// 暂停
-// 选择区块
-// 放大
-// 退出
 #[derive(Debug, Clone)]
 struct CropBlock {
-    // (sx, sy)
-    // +--------------+
-    // |              |
-    // |              |
-    // |              |
-    // |              |
-    // +--------------+
-    //                (rx, ry)
-    sx: u32,
-    sy: u32, //
-    rx: u32,
-    ry: u32, //
+    //  (x , y)
+    //     +--------------+
+    //     |              |
+    //     |              |
+    //     |              |
+    //     |              |
+    //     +--------------+
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ImgType {
-    Bit = 0,  // jpg / heic ...
-    Anim = 1, // gif / aseprite
+    Bit,  // jpg / heic ...
+    Anim, // gif / aseprite
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -93,9 +192,9 @@ pub enum ViewMode {
     #[default]
     Scroll,
 
-    Image, // image OR gif
+    Once, // image OR gif
 
-    Page, //
+    Turn, //
           // Manga: Left to Right
           // Comic: Right to Left
 }
@@ -121,6 +220,7 @@ impl Buffer {
         self.data.extend_from_slice(bytes);
     }
 }
+
 impl From<&str> for ImgFormat {
     fn from(value: &str) -> Self {
         match value {
@@ -137,13 +237,15 @@ impl From<&str> for ImgFormat {
 }
 
 impl Page {
-    pub fn new(name: String, number: usize, pos: usize) -> Self {
+    pub fn new(name: String, pos: usize) -> Self {
         Self {
             name,
-            number,
+            number: 0,
             pos,
             resize: Size::new(0, 0),
             is_ready: false,
+            check: Check::Body,
+            offset_x: 0,
 
             data: vec![],
             pts: vec![],
@@ -165,6 +267,8 @@ impl Page {
             pos: 0,
             resize: Size::new(0, 0),
             is_ready: false,
+            check: Check::Body,
+            offset_x: 0,
 
             data: vec![],
             pts: vec![],
@@ -192,9 +296,24 @@ impl Page {
         self.resize = Size::new(width, height);
     }
 
+    pub fn get_resize(&mut self) -> Size<u32> {
+        self.resize
+    }
+
     #[inline(always)]
     pub fn data(&self) -> &[u32] {
         self.data[self.idx].as_slice()
+    }
+
+    pub fn data_crop(&self, ww: usize) {
+        // TODO:
+        let res = resize::crop_img2(
+            self.data[self.idx].as_slice(),
+            self.offset_x,
+            self.resize.width as usize,
+            self.resize.height as usize,
+            ww, // window_size.width
+        );
     }
 
     pub fn free(&mut self) {
@@ -204,7 +323,7 @@ impl Page {
     }
 
     #[inline]
-    pub fn all_len(&self) -> usize {
+    pub fn anim_len(&self) -> usize {
         if self.is_ready {
             self.data[0].len() * self.data.len()
         } else {
@@ -225,8 +344,8 @@ impl Page {
     #[inline(always)]
     pub fn to_next_frame(&mut self) {
         if self.ty == ImgType::Anim {
-            if self.timer >= (self.pts() as isize - self.miss as isize).abs() as usize {
-                self.miss = self.timer.checked_sub(self.pts()).unwrap_or(0);
+            if self.timer >= (self.pts() as isize - self.miss as isize).unsigned_abs() {
+                self.miss = self.timer.saturating_sub(self.pts());
 
                 if self.idx + 1 < self.data.len() {
                     self.idx += 1;
@@ -239,30 +358,22 @@ impl Page {
                 self.timer += FPS as usize;
             }
 
-        //            debug!("self.timer = {}", self.timer);
-        //            debug!("self.idx = {}", self.idx);
-        //            debug!("self.miss = {}", self.miss);
-        //            debug!("self.pts() = {}", self.pts());
-        //            debug!(
-        //                "self.data.len() = {}
-        //
-        //                   ",
-        //                self.data.len()
-        //            );
+            debug!("self.timer = {}", self.timer);
+            debug!("self.idx = {}", self.idx);
+            debug!("self.miss = {}", self.miss);
+            debug!("self.pts() = {}", self.pts());
+            debug!(
+                "self.data.len() = {}
+
+                         ",
+                self.data.len()
+            );
         } else {
         }
-
-        //        let add = self.ty as usize;
-        //
-        //        if self.idx + add < self.data.len() {
-        //            self.idx += add;
-        //        } else {
-        //            self.idx = 0;
-        //        }
     }
 }
 
-// mem::take()
+// use for mem::take()
 impl Default for Page {
     fn default() -> Self {
         Page::null()

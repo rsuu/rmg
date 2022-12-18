@@ -2,10 +2,10 @@ fn main() {
     Base {
         size: (900, 900),    // width AND height
         font: None,          //
-        rename_pad: 0,       //
+        rename_pad: 6,       //
         invert_mouse: false, //
-        filter: "Hamming",   // ["Box", "Hamming", "Lanczos3"]
-        step: 10,            //
+        filter: "Lanczos3",  // [Box, Hamming, Lanczos3, CatmullRom, Mitchell]
+        step: 4,             //
     };
 
     Keymap {

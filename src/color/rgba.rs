@@ -26,40 +26,25 @@ impl TransRgba {
         //     (rgba & 0x0ff) as u8,
         // ];
 
-        // SAFETY
+        // SAFETY:
         unsafe { std::mem::transmute::<u32, [u8; 4]>(rgba.to_be()) }
     }
 }
 
-// trait ExtRgba {
-//     fn as_u32(&self) -> u32;
-// }
-//
-// impl ExtRgba for rgb::RGBA8 {
-//     #[inline(always)]
-//     fn as_u32(&self) -> u32 {
-//         let r = (self.r as u32) << 24;
-//         let g = (self.g as u32) << 16;
-//         let b = (self.b as u32) << 8;
-//         let a = self.a as u32;
-//
-//         r + g + b + a
-//     }
-// }
-
 mod test {
-    use super::TransRgba;
 
     #[test]
     fn _rgba_as_argb_u32() {}
 
     #[test]
     fn _rgba_as_u32() {
+        use crate::color::rgba::TransRgba;
         assert_eq!(16909060, TransRgba::rgba_as_u32(&1, &2, &3, &4));
     }
 
     #[test]
     fn _rgba_from_u32() {
+        use crate::color::rgba::TransRgba;
         assert_eq!([1_u8, 2, 3, 4], TransRgba::rgba_from_u32(&16909060));
     }
 }

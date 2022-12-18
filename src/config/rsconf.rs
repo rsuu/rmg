@@ -52,7 +52,13 @@ pub struct Keymap<Char_> {
     pub left: Char_,  // move to left
     pub right: Char_, // move to right
     pub exit: Char_,  // exit
-                      // pub fullscreen: Char_,
+    pub fullscreen: Char_,
+}
+
+#[derive(Debug)]
+pub struct Image {
+    pub resize_anim: bool,
+    pub resize_bit: bool,
 }
 
 #[derive(Debug)]
@@ -100,6 +106,7 @@ impl Default for Keymap<char> {
             left: 'h',
             right: 'l',
             exit: 'q',
+            fullscreen: 'f',
         }
     }
 }

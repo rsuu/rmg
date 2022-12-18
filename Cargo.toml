@@ -1,6 +1,6 @@
 [package]
 name = "rmg"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Rust: Tiny And Fast Manga/Image Viewer"
@@ -91,62 +91,21 @@ de_svg= ["dep:usvg","dep:tiny-skia","dep:resvg"]
 
 
 [profile.release]
-strip = true
+lto = "thin"
+opt-level = 3
 codegen-units = 1
+strip = true
 debug = false
 debug-assertions = false
 incremental = false
-lto = true
-opt-level = 3
 overflow-checks = false
 panic = "abort"
 
 
-[profile.dev.package.asefile]
-strip = true
+[profile.release.package."*"]
+opt-level = 3
 codegen-units = 1
+strip = true
 debug = false
 debug-assertions = false
 incremental = false
-opt-level = 3
-overflow-checks = false
-
-
-[profile.dev.package.fast_image_resize]
-strip = true
-codegen-units = 1
-debug = false
-debug-assertions = false
-incremental = false
-opt-level = 3
-overflow-checks = false
-
-
-[profile.dev.package.image]
-strip = true
-codegen-units = 1
-debug = false
-debug-assertions = false
-incremental = false
-opt-level = 3
-overflow-checks = false
-
-
-[profile.dev.package.gif]
-strip = true
-codegen-units = 1
-debug = false
-debug-assertions = false
-incremental = false
-opt-level = 3
-overflow-checks = false
-
-
-[profile.dev.package.gif-dispose]
-strip = true
-codegen-units = 1
-debug = false
-debug-assertions = false
-incremental = false
-opt-level = 3
-overflow-checks = false

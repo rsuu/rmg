@@ -1,4 +1,4 @@
-use std::path::Path;
+
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const FPS: u64 = 40; // 1000/25
@@ -84,6 +84,7 @@ pub mod reader {
     pub mod view;
     pub mod window;
 
+    pub mod once;
     pub mod scroll;
     pub mod turn;
 }
