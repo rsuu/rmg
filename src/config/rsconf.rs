@@ -2,8 +2,8 @@ use crate::{img::size::Size, render::view::ViewMode, utils::err::Res, VERSION};
 use dirs_next;
 use fir;
 use lexopt::{self, prelude::*};
-use log;
 use std::{fs::File, io::Read, path::Path, path::PathBuf, process::exit};
+use tracing::debug;
 
 #[derive(Debug)]
 pub struct Config {
@@ -93,7 +93,7 @@ impl Config {
             return;
         }
 
-        log::debug!("config_path: {:?}", config_path);
+        debug!("config_path: {:?}", config_path);
 
         self.parse(config_path.as_path());
     }
@@ -136,11 +136,6 @@ impl Config {
                     let pad = parser.value()?.into_string()?;
 
                     self.base.rename_pad = pad.parse::<u8>()?;
-                }
-
-                Long("debug") => {
-                    // RUST_LOG=NAME=debug
-                    std::env::set_var("RUST_LOG", format!("{}=debug", parser.bin_name().unwrap()));
                 }
 
                 Value(v) => {
@@ -215,7 +210,7 @@ pub fn parse_struct(block: &Box<syn::Block>) -> Option<Config> {
     for stmt in block.stmts.iter() {
         match stmt {
             syn::Stmt::Semi(syn::Expr::Struct(expr_struct), _token) => {
-                log::debug!("{:#?}", expr_struct);
+                debug!("{:#?}", expr_struct);
 
                 match match_struct_name(expr_struct) {
                     ConfigType::Base => {
@@ -295,7 +290,7 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
 
                 let ty = lit.token().to_string().trim_matches('"').to_string();
 
-                log::debug!("ty: {}", ty);
+                debug!("ty: {}", ty);
 
                 base.filter = match ty.as_str() {
                     "Box" => fir::FilterType::Box,

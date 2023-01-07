@@ -15,12 +15,10 @@ use crate::{
     utils::{
         err::{MyErr, Res},
         file,
-        traits::AutoLog,
     },
     FPS,
 };
 use fir::FilterType;
-use log::{debug, info};
 use std::{
     mem,
     path::Path,
@@ -152,7 +150,7 @@ impl Scroll {
     pub fn mouse_input(&mut self, canvas: &mut Canvas, config: &Config) {
         // scroll
         if let Some((_, y)) = canvas.window.get_scroll_wheel() {
-            debug!("mouse_y == {}", y);
+            tracing::debug!("mouse_y == {}", y);
 
             if config.base.invert_mouse {
                 if y > 0.0 {
@@ -196,7 +194,7 @@ impl Scroll {
                 _ => *number,
             };
 
-            debug!("offset_y: {}", y);
+            tracing::debug!("offset_y: {}", y);
             //dbg!(number, self.page_number);
         } else {
         }
@@ -233,8 +231,6 @@ impl Scroll {
         }
 
         canvas.flush(&self.buffer.data[self.rng..self.rng + self.buffer_max]);
-
-        self.page_number._info();
     }
 
     pub fn pages_data_len(&mut self) {
@@ -256,8 +252,7 @@ impl Scroll {
 
     /// move down
     pub fn move_down(&mut self) {
-        "MOVE DOWN"._info();
-        debug!("{}, {}", self.rng, self.bit_len);
+        tracing::debug!("{}, {}", self.rng, self.bit_len);
 
         self.map = Map::Down;
 
@@ -272,8 +267,6 @@ impl Scroll {
 
     /// move up
     pub fn move_up(&mut self) {
-        "MOVE UP"._info();
-
         self.map = Map::Up;
 
         if self.rng >= self.y_step {
@@ -295,8 +288,8 @@ impl Scroll {
         } else {
         }
 
-        debug!("start: {}", self.rng);
-        debug!("end: {}", self.end());
+        tracing::debug!("start: {}", self.rng);
+        tracing::debug!("end: {}", self.end());
     }
 
     /// move right
@@ -331,7 +324,7 @@ impl Scroll {
         arc_state: &Arc<RwLock<State>>,
         arc_buffer: &Arc<RwLock<ArcTmpBuffer>>,
     ) {
-        debug!("{},{}", self.head, self.tail);
+        tracing::debug!("{},{}", self.head, self.tail);
 
         match self.map {
             Map::Down if (self.need_load_next() || self.need_free_head()) => {
@@ -387,7 +380,7 @@ impl Scroll {
             State::Nothing | State::DonePrev if (self.need_load_next()) => {
                 let Ok(mut arc_buffer) = arc_buffer.try_write() else {return;};
 
-                info!("load next");
+                tracing::info!("load next");
 
                 self.tail += 1;
                 let idx = self.tail;
@@ -409,16 +402,12 @@ impl Scroll {
                 self.page_list.get_mut(self.tail).is_ready = true;
 
                 *arc_state = State::Nothing;
-
-                "*** NEXT ***"._info();
             }
 
             State::Nothing if (self.need_free_head()) => {
                 self.rng -= self.page_list.get(self.head).len();
                 self.page_list.get_mut(self.head).free();
                 self.head += 1;
-
-                "*** FREE HEAD ***"._info();
             }
 
             _ => {}
@@ -441,7 +430,7 @@ impl Scroll {
                         return;
                     };
 
-                info!("load prev");
+                tracing::info!("load prev");
 
                 self.head -= 1;
                 let idx = self.head;
@@ -454,7 +443,7 @@ impl Scroll {
             }
 
             State::DonePrev => {
-                debug!("state == {:?}", *arc_state);
+                tracing::debug!("state == {:?}", *arc_state);
 
                 let Ok(mut arc_buffer) = arc_buffer.try_write() else {
                     return;
@@ -467,8 +456,6 @@ impl Scroll {
                 self.rng += self.page_list.get(self.head).len();
 
                 *arc_state = State::Nothing;
-
-                "*** LOAD PREV ***"._info();
             }
 
             State::Nothing if self.need_free_tail() => {
@@ -476,14 +463,12 @@ impl Scroll {
                 //self.rng -= self.page_list.get(self.tail).len();
                 self.page_list.get_mut(self.tail).free();
                 self.tail -= 1;
-
-                "*** FREE TAIL ***"._info();
             }
 
             _ => {}
         }
 
-        debug!("prev(): {}, {}", self.bit_len, self.rng);
+        tracing::debug!("prev(): {}, {}", self.bit_len, self.rng);
     }
 }
 
@@ -495,36 +480,20 @@ pub fn load_file(
     archive_path: &Path,
     page_pos: usize,
 ) -> Res<(ImgType, Vec<Vec<u8>>, ImgFormat)> {
-    debug!("archive_type == {:?}", archive_type);
+    tracing::debug!("archive_type == {:?}", archive_type);
 
     let bytes = match *archive_type {
-        ArchiveType::Tar => {
-            "load tar"._dbg();
+        ArchiveType::Tar => archive::tar::load_file(archive_path, page_pos).unwrap(),
 
-            archive::tar::load_file(archive_path, page_pos).unwrap()
-        }
+        ArchiveType::Zip => archive::zip::load_file(archive_path, page_pos).unwrap(),
 
-        ArchiveType::Zip => {
-            "load zip"._dbg();
+        ArchiveType::Dir => archive::dir::load_dir(archive_path, page_pos).unwrap(),
 
-            archive::zip::load_file(archive_path, page_pos).unwrap()
-        }
-
-        ArchiveType::Dir => {
-            "load dir"._dbg();
-
-            archive::dir::load_dir(archive_path, page_pos).unwrap()
-        }
-
-        ArchiveType::File => {
-            "load file"._dbg();
-
-            archive::dir::load_file(archive_path).unwrap()
-        }
+        ArchiveType::File => archive::dir::load_file(archive_path).unwrap(),
     };
 
     let bytes = vec![bytes];
-    debug!("    len = {}", bytes.len());
+    tracing::debug!("    len = {}", bytes.len());
 
     if bytes[0].is_empty() {
         return Err(MyErr::Todo);
@@ -681,7 +650,7 @@ pub fn resize_page(
             } else {
                 let offset = (window_size.width as usize - size.width as usize) / 2;
 
-                debug!("{}, {}, {}", window_size.width, size.width, offset);
+                tracing::debug!("{}, {}, {}", window_size.width, size.width, offset);
 
                 for (frame_idx, frame) in img.iter_mut().enumerate() {
                     resize::argb_u32(&mut tmp, frame.as_slice());

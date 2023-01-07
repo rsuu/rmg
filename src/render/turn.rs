@@ -3,14 +3,13 @@ use crate::{
         scroll::Scroll,
         view::{ArcTmpBuffer, Buffer, Check, Data, Page, PageList, State},
     },
-    utils::traits::AutoLog,
     FPS,
 };
-use log::debug;
 use std::{
     mem,
     sync::{Arc, RwLock},
 };
+use tracing::{debug, info};
 
 use super::{keymap, keymap::Map, window::Canvas};
 use crate::render::keymap::KeyMap;
@@ -204,7 +203,7 @@ impl Turn {
 
                 *arc_state = State::Nothing;
 
-                "*** NEXT ***"._info();
+                info!("*** NEXT ***");
             }
 
             State::Nothing => {
@@ -212,7 +211,7 @@ impl Turn {
                     self.page_list.get_mut(self.head).free();
                 }
 
-                "*** FREE HEAD ***"._info();
+                info!("*** FREE HEAD ***");
             }
 
             _ => {}
@@ -240,8 +239,6 @@ impl Turn {
 
     /// move up
     pub fn move_up(&mut self) {
-        "MOVE UP"._info();
-
         self.map = Map::Up;
 
         if self.rng >= self.y_step {
@@ -254,9 +251,6 @@ impl Turn {
 
     /// move down
     pub fn move_down(&mut self) {
-        "MOVE DOWN"._info();
-        debug!("{}    --    {}", self.rng, self.buffer.len());
-
         self.map = Map::Down;
 
         // scrolling

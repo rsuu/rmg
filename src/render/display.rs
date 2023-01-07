@@ -12,7 +12,7 @@ use crate::{
     },
     utils::err::Res,
 };
-use log::{debug, info};
+use tracing::{debug, info};
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},

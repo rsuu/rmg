@@ -1,6 +1,6 @@
 use crate::{archive::ArchiveType, img::resize, img::size::Size, FPS};
 use fir::FilterType;
-use log::debug;
+use tracing::debug;
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},

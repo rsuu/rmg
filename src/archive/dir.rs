@@ -30,7 +30,7 @@ pub fn load_dir(path: impl AsRef<Path>, pos: usize) -> Res<Vec<u8>> {
 
                 file.read_to_end(&mut buffer)?;
 
-                log::debug!("{}, {}", idx, pos);
+                tracing::debug!("{}, {}", idx, pos);
 
                 return Ok(buffer);
             } else {
