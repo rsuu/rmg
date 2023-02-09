@@ -1,14 +1,14 @@
 use crate::{
     img::size::Size,
-    utils::err::{MyErr, Res},
+    
 };
 
-pub fn load_svg(_bytes: &[u8]) -> Res<(Size<u32>, Vec<Vec<u8>>)> {
+pub fn load_svg(_bytes: &[u8]) -> anyhow::Result<(Size<u32>, Vec<Vec<u8>>)> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "de_svg")] {
             feat::load_svg(_bytes)
         } else {
-           Err(MyErr::FeatSvg)
+           Err(anyhow::anyhow!(""))
         }
     }
 }
@@ -17,12 +17,12 @@ pub fn load_svg(_bytes: &[u8]) -> Res<(Size<u32>, Vec<Vec<u8>>)> {
 mod feat {
     use crate::{
         img::size::Size,
-        utils::err::{MyErr, Res},
+        
     };
 
-    pub fn load_svg(bytes: &[u8]) -> Res<(Size<u32>, Vec<Vec<u8>>)> {
+    pub fn load_svg(bytes: &[u8]) -> anyhow::Result<(Size<u32>, Vec<Vec<u8>>)> {
         // BUG:
-        let mut opt = usvg::Options::default();
+        let opt = usvg::Options::default();
         let rtree = usvg::Tree::from_data(bytes, &opt).unwrap();
         let pixmap_size = rtree.size.to_screen_size();
         //.scale_to(usvg::ScreenSize::new(size.width, size.height).unwrap());

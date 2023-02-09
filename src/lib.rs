@@ -1,3 +1,5 @@
+#![feature(async_fn_in_trait)]
+
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const FPS: u64 = 1000 / 25;
 pub const EXT_LIST: &[&str] = &[
@@ -20,18 +22,18 @@ pub const EXT_LIST: &[&str] = &[
 //    }
 // }
 
-#[macro_export]
-macro_rules! error_from {
-    ( $($l:path, $r:path ;)* ) => {
-        $(
-            impl From<$l> for MyErr {
-                fn from(e: $l) -> Self {
-                    $r(e)
-                }
-            }
-        )*
-    }
-}
+// #[macro_export]
+// macro_rules! error_from {
+//     ( $($l:path, $r:path ;)* ) => {
+//         $(
+//             impl From<$l> for MyErr {
+//                 fn from(e: $l) -> Self {
+//                     $r(e)
+//                 }
+//             }
+//         )*
+//     }
+// }
 
 /////////////////////////////////////////////////
 pub fn sleep(ms: u64) {
@@ -39,21 +41,14 @@ pub fn sleep(ms: u64) {
 }
 /////////////////////////////////////////////////
 pub mod utils {
-    pub mod err;
-    pub mod file;
     pub mod traits;
 }
 
 pub mod archive {
-    #[derive(Debug, Copy, Clone)]
-    pub enum ArchiveType {
-        Tar,
-        Zip,
-        Dir,
-        File,
-    }
+    pub mod utils;
 
     pub mod dir;
+    pub mod file;
 
     // feature
     pub mod tar;
