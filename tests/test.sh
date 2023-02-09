@@ -1,15 +1,15 @@
 #!/bin/#!/bin/bash
 
-way1() {
+top() {
     perf top -p $(pidof rmg)
 }
 
-way2() {
+rep() {
     perf record -g -p $(pidof rmg)
     perf report -g -n
 }
 
-way3() {
+gra() {
     perf record --call-graph dwarf -p $(pidof rmg)
     perf report -g graph --no-children
 }

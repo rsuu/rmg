@@ -1,93 +1,77 @@
-use crate::utils::err::{Res};
-use std::{
-    path::Path,
-};
+use crate::archive::utils::FileList;
+use std::path::Path;
 
-pub fn load_file(path: &Path, idx: usize) -> Res<Vec<u8>> {
+pub fn get_file(path: &Path, index: usize) -> anyhow::Result<Vec<u8>> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "ex_tar")] {
-            feat::load_file(path, idx)
+            feat::get_file(path, index)
         } else {
-            Err(MyErr::FeatTar)
+            Err(anyhow::anyhow!(""))
         }
     }
 }
 
-// feat! {
-//   ok {
-//     #[cfg(feature = "ex_tar")]
-//   }
-//
-//   err {}
-// }
-
-// #[allow(unused)]
-// pub fn extract(tar_path: &Path, tmp_dir: &Path) -> Result<(), std::io::Error> {
-//     let file = File::open(tar_path)?;
-//     let mut tar = tar::Archive::new(file);
-//     tar.unpack(tmp_dir)?;
-//
-//     Ok(())
-// }
-
-pub fn get_file_list(path: &Path) -> Res<Vec<(String, usize)>> {
+pub fn get_list(path: &Path) -> anyhow::Result<FileList> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "ex_tar")] {
-            feat::get_file_list(path)
+            feat::get_list(path)
         } else {
-            Err( MyErr::FeatTar)
+            Err( anyhow::anyhow!(""))
         }
     }
 }
 
 #[cfg(feature = "ex_tar")]
 mod feat {
-    use crate::utils::err::{MyErr, Res};
-    use std::{
-        fs::{OpenOptions},
-        io::Read,
-        path::Path,
-    };
+    use crate::archive::utils::{FileInfo, FileList};
+    use std::{fs::OpenOptions, io::Read, path::Path};
     use tar;
 
     #[inline]
-    pub fn get_file_list(path: &Path) -> Res<Vec<(String, usize)>> {
-        let file = OpenOptions::new()
-            .write(false)
-            .read(true)
-            .create(false)
-            .open(path)?;
-        let mut tar = tar::Archive::new(file);
-        let mut list = Vec::new();
+    pub fn get_list(path: &Path) -> anyhow::Result<FileList> {
+        let mut tar = {
+            let file = OpenOptions::new()
+                .read(true)
+                .write(false)
+                .create(false)
+                .open(path)?;
 
-        for (idx, f) in tar.entries()?.enumerate() {
-            list.push((f?.path()?.display().to_string(), idx));
+            tar::Archive::new(file)
+        };
+
+        let mut res = FileList::new();
+
+        for (index, file) in tar.entries()?.enumerate() {
+            let path = file?.path()?.clone().to_str().unwrap().to_string();
+
+            if path.ends_with('/') {
+            } else {
+                res.push(FileInfo::new(path, index));
+            }
         }
 
-        Ok(list)
+        Ok(res)
     }
 
     #[inline]
-    pub fn load_file(tar_file: &Path, idx: usize) -> Res<Vec<u8>> {
+    pub fn get_file(tar_file: &Path, index: usize) -> anyhow::Result<Vec<u8>> {
         let file = OpenOptions::new()
             .write(false)
             .read(true)
             .create(false)
-            .open(tar_file)
-            .unwrap();
+            .open(tar_file)?;
         let mut tar_file = tar::Archive::new(&file);
-        let mut buffer = Vec::new();
+        let mut buffer = vec![];
 
-        for (n, file) in tar_file.entries().unwrap().enumerate() {
-            if n == idx {
-                let mut f = file.unwrap();
-                f.read_to_end(&mut buffer).expect("");
+        for (n, file) in tar_file.entries()?.enumerate() {
+            if n == index {
+                file?.read_to_end(&mut buffer).expect("");
 
                 return Ok(buffer);
             } else {
             }
         }
 
-        Err(MyErr::Null)
+        Err(anyhow::anyhow!(""))
     }
 }

@@ -1,23 +1,20 @@
-use crate::utils::err::{MyErr, Res};
-
-pub fn load_heic(_bytes: &[u8]) -> Res<(u32, u32, Vec<Vec<u8>>)> {
+pub fn load_heic(_bytes: &[u8]) -> anyhow::Result<(u32, u32, Vec<Vec<u8>>)> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "de_heic")] {
             feat::load_heic(_bytes)
         } else {
-            Err( MyErr::FeatHeic)
+            Err( anyhow::anyhow!(""))
         }
     }
 }
 
 #[cfg(feature = "de_heic")]
 mod feat {
-    use crate::utils::err::{MyErr, Res};
     use libheif_rs;
 
     #[inline]
-    pub fn load_heic(bytes: &[u8]) -> Res<(u32, u32, Vec<Vec<u8>>)> {
-        if let Ok(ctx) = libheif_rs::HeifContext::read_from_bytes(&bytes) {
+    pub fn load_heic(bytes: &[u8]) -> anyhow::Result<(u32, u32, Vec<Vec<u8>>)> {
+        if let Ok(ctx) = libheif_rs::HeifContext::read_from_bytes(bytes) {
             tracing::debug!("{}", bytes.len());
 
             let handle = ctx.primary_image_handle().unwrap();
@@ -51,7 +48,7 @@ mod feat {
 
                 for _ in 0..width {
                     res.extend_from_slice(&[
-                        bytes[step + 0],
+                        bytes[step],
                         bytes[step + 1],
                         bytes[step + 2],
                         bytes[step + 3],
@@ -60,9 +57,9 @@ mod feat {
                 }
             }
 
-            return Ok((width, height, vec![res]));
+            Ok((width, height, vec![res]))
         } else {
-            return Err(MyErr::Null);
+            Err(anyhow::anyhow!(""))
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{img::size::Size, render::view::ViewMode, utils::err::Res, VERSION};
+use crate::{img::size::Size, render::view::ViewMode, VERSION};
 use dirs_next;
 use fir;
 use lexopt::{self, prelude::*};
@@ -63,54 +63,58 @@ impl Config {
         }
     }
 
-    fn parse(&mut self, path: impl AsRef<Path>) {
-        let Ok(mut file) = File::open(path.as_ref()) else {return;};
-        let mut content = String::new();
-        file.read_to_string(&mut content).unwrap();
+    fn parse(&mut self, path: impl AsRef<Path>) -> anyhow::Result<()> {
+        let ast = {
+            let Ok(mut file) = File::open(path.as_ref()) else { return Err(anyhow::anyhow!("")); };
+            let mut code = String::new();
+            file.read_to_string(&mut code)?;
 
-        let ast = syn::parse_file(content.as_str()).unwrap();
+            syn::parse_file(code.as_str())?
+        };
 
-        *self = parse_rust(ast.items.first().unwrap()).unwrap();
+        if let Some(config) = parse_config(ast.items.first().unwrap()) {
+            *self = config;
+        } else {
+        };
 
+        Ok(())
         // dbg!(ast);
     }
 
-    pub fn try_from_config_file(&mut self) {
+    pub fn try_from_config_file(&mut self) -> anyhow::Result<()> {
         let mut config_path = PathBuf::new();
 
         // e.g. ~/.config/rmg/config.rs
-        let Some(path) = dirs_next::config_dir() else {return;};
+        let Some(path) = dirs_next::config_dir() else {
+            anyhow::bail!("")
+        };
 
         if path.as_path().is_dir() {
             config_path.push(path.as_path());
             config_path.push("rmg/config.rs");
+        } else if config_path.as_path().is_file() {
         } else {
-            return;
-        }
-
-        if config_path.as_path().is_file() {
-        } else {
-            return;
+            anyhow::bail!("")
         }
 
         debug!("config_path: {:?}", config_path);
 
-        self.parse(config_path.as_path());
+        self.parse(config_path.as_path())
     }
 
-    pub fn try_from_cli(&mut self) -> Res<()> {
+    pub fn try_from_cli(&mut self) -> anyhow::Result<()> {
         let mut parser = lexopt::Parser::from_env();
 
-        while let Some(arg) = parser.next()? {
+        while let Some(arg) = parser.next().unwrap() {
             match arg {
                 Long("config") | Short('c') => {
                     // parse from file
-                    let path = PathBuf::from(parser.value()?.into_string()?);
-                    self.parse(path.as_path());
+                    let path = PathBuf::from(parser.value().unwrap().into_string().unwrap());
+                    self.parse(path.as_path()).unwrap();
                 }
 
                 Long("size") | Short('s') => {
-                    let size = parser.value()?.into_string()?;
+                    let size = parser.value().unwrap().into_string().unwrap();
                     let size = size.as_str().split('x').collect::<Vec<&str>>();
 
                     let (w, h) = (
@@ -122,7 +126,7 @@ impl Config {
                 }
 
                 Long("mode") | Short('m') => {
-                    let mode = parser.value()?.into_string()?;
+                    let mode = parser.value().unwrap().into_string().unwrap();
 
                     self.base.view_mode = match mode.as_str() {
                         "s" | "scroll" => ViewMode::Scroll,
@@ -133,13 +137,13 @@ impl Config {
                 }
 
                 Long("pad") => {
-                    let pad = parser.value()?.into_string()?;
+                    let pad = parser.value().unwrap().into_string().unwrap();
 
-                    self.base.rename_pad = pad.parse::<u8>()?;
+                    self.base.rename_pad = pad.parse::<u8>().unwrap();
                 }
 
                 Value(v) => {
-                    self.cli.file_path = Some(v.into_string()?);
+                    self.cli.file_path = Some(v.into_string().unwrap());
                 }
 
                 _ => {
@@ -188,7 +192,7 @@ impl Default for Base {
     }
 }
 
-pub fn parse_rust(item: &syn::Item) -> Option<Config> {
+pub fn parse_config(item: &syn::Item) -> Option<Config> {
     // fn main() {
     // ...
     // }
@@ -204,26 +208,23 @@ pub fn parse_rust(item: &syn::Item) -> Option<Config> {
     }
 }
 
-pub fn parse_struct(block: &Box<syn::Block>) -> Option<Config> {
+pub fn parse_struct(block: &syn::Block) -> Option<Config> {
     let mut config = Config::default();
 
     for stmt in block.stmts.iter() {
-        match stmt {
-            syn::Stmt::Semi(syn::Expr::Struct(expr_struct), _token) => {
-                debug!("{:#?}", expr_struct);
+        if let syn::Stmt::Semi(syn::Expr::Struct(expr_struct), _token) = stmt {
+            debug!("{:#?}", expr_struct);
 
-                match match_struct_name(expr_struct) {
-                    ConfigType::Base => {
-                        config.base = parse_base(expr_struct);
-                    }
-                    ConfigType::Keymap => {
-                        config.keymap = parse_keymap(expr_struct);
-                    }
-
-                    _ => {}
+            match match_struct_name(expr_struct) {
+                ConfigType::Base => {
+                    config.base = parse_base(expr_struct);
                 }
+                ConfigType::Keymap => {
+                    config.keymap = parse_keymap(expr_struct);
+                }
+
+                _ => {}
             }
-            _ => {}
         }
     }
 

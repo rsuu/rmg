@@ -1,23 +1,33 @@
-use crate::utils::err::{Res};
+use crate::archive::utils::FileList;
+use std::path::Path;
 
-
-use std::{path::Path};
-
-
-pub fn load_file<_Path>(path: &_Path, idx: usize) -> Res<Vec<u8>>
+pub fn get_file<_Path>(path: &_Path, index: usize) -> anyhow::Result<Vec<u8>>
 where
     _Path: AsRef<Path> + ?Sized,
 {
     cfg_if::cfg_if! {
         if #[cfg(feature = "ex_zip")] {
-            feat::load_file(path.as_ref(), idx)
+            feat::get_file(path.as_ref(), index)
         } else {
-            Err(MyErr::FeatZip)
+            Err(anyhow::anyhow!(""))
         }
     }
 }
 
-pub fn extract<_Path>(from: &_Path, to: &_Path) -> Res<()>
+pub fn get_list<_Path>(path: &_Path) -> anyhow::Result<FileList>
+where
+    _Path: AsRef<Path> + ?Sized,
+{
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "ex_zip")] {
+            feat::get_list(path.as_ref())
+        } else {
+            Err(anyhow::anyhow!(""))
+        }
+    }
+}
+
+pub fn extract<_Path>(from: &_Path, to: &_Path) -> anyhow::Result<()>
 where
     _Path: AsRef<Path> + ?Sized,
 {
@@ -25,34 +35,21 @@ where
         if #[cfg(feature = "ex_zip")] {
             feat::extract(from.as_ref(), to.as_ref())
         } else {
-            Err(MyErr::FeatZip)
-        }
-    }
-}
-
-pub fn get_file_list<_Path>(path: &_Path) -> Res<Vec<(String, usize)>>
-where
-    _Path: AsRef<Path> + ?Sized,
-{
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "ex_zip")] {
-            feat::get_file_list(path.as_ref(), )
-        } else {
-            Err(MyErr::FeatZip)
+            Err(anyhow::anyhow!(""))
         }
     }
 }
 
 #[cfg(feature = "ex_zip")]
 mod feat {
-    use crate::utils::err::{Res};
+    use crate::archive::utils::{FileInfo, FileList};
     use std::io::prelude::*;
     use std::io::BufReader;
     use std::{fs::File, path::Path};
     use zip::ZipArchive;
 
     #[inline]
-    pub fn extract<_Path>(zip_path: &_Path, target: &_Path) -> Res<()>
+    pub fn extract<_Path>(zip_path: &_Path, target: &_Path) -> anyhow::Result<()>
     where
         _Path: AsRef<Path> + ?Sized,
     {
@@ -64,34 +61,34 @@ mod feat {
     }
 
     #[inline]
-    pub fn get_file_list<_Path>(path: &_Path) -> Res<Vec<(String, usize)>>
+    pub fn get_list<_Path>(path: &_Path) -> anyhow::Result<FileList>
     where
         _Path: AsRef<Path> + ?Sized,
     {
-        let mut res: Vec<(String, usize)> = Vec::new();
+        let mut res = FileList::new();
 
         let file = File::open(path.as_ref()).unwrap();
         let render = BufReader::new(file);
         let mut zip = zip::ZipArchive::new(render).unwrap();
 
-        for idx in 0..zip.len() {
-            let file = zip.by_index(idx).unwrap();
+        for index in 0..zip.len() {
+            let file = zip.by_index(index).unwrap();
 
-            res.push((file.name().to_string(), idx));
+            res.push(FileInfo::new(file.name().to_string(), index));
         }
 
         Ok(res)
     }
 
     #[inline]
-    pub fn load_file<_Path>(path: &_Path, idx: usize) -> Res<Vec<u8>>
+    pub fn get_file<_Path>(path: &_Path, index: usize) -> anyhow::Result<Vec<u8>>
     where
         _Path: AsRef<Path> + ?Sized,
     {
         let file = File::open(path.as_ref()).unwrap();
         let render = BufReader::new(file);
         let mut zip = zip::ZipArchive::new(render).unwrap();
-        let mut file = zip.by_index(idx).unwrap();
+        let mut file = zip.by_index(index).unwrap();
 
         let mut res = Vec::with_capacity(file.size() as usize);
         file.read_to_end(&mut res).unwrap();

@@ -12,18 +12,19 @@ pub struct Once {}
 
 impl Once {
     pub fn start(tmp: &mut Scroll, canvas: &mut Canvas, keymaps: &[KeyMap]) {
+        todo!();
+
         let mut time_start = std::time::Instant::now();
         let mut sleep = FPS;
 
         let buffer_max = tmp.buffer_max;
         let y_step = tmp.y_step;
-        let _end = tmp.end();
         let mut rng = 0;
         let page = tmp.page_list.get_mut(0);
-        let size = page.size();
+        let resize = page.get_resize().len();
 
-        let mut buffer = if size > buffer_max {
-            vec![0; size]
+        let mut buffer: Vec<u32> = if resize > buffer_max {
+            vec![0; resize]
         } else {
             vec![0; buffer_max]
         };
@@ -58,10 +59,7 @@ impl Once {
                 _ => {}
             }
 
-            for (idx, data) in page.data().iter().enumerate() {
-                buffer[idx] = *data;
-            }
-
+            //page.flush(&mut buffer,);
             canvas.flush(&buffer[rng..rng + buffer_max]);
             page.to_next_frame();
 

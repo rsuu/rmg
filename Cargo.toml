@@ -1,110 +1,123 @@
 [package]
 name = "rmg"
-version = "0.4.1"
 edition = "2021"
+version = "0.4.1"
+build = "build.rs"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Rust: Tiny And Fast Manga/Image Viewer"
-readme = "README.md"
 homepage = "https://crates.io/crates/rmg"
-repository = "https://github.com/rsuu/rmg"
-license = "MIT OR Apache-2.0"
-keywords = ["manga","comic","viewer"]
+readme = "README.md"
+keywords = ["manga", "comic", "viewer"]
 categories = ["Multimedia::Images"]
-autobenches = true
-build = "build.rs"
-exclude= ["tests", "benches"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rsuu/rmg"
 
 [dependencies]
-# fs
-#tempfile = "3.3.0"
-walkdir = "2.3.2"
+anyhow = "1.0.68"
+cfg-if = "1.0.0"
 dirs-next = "2.0.0"
-#   filetype
-infer = "0.11.0"
-#   archive
-tar = { version = "0.4.38", optional = true }
-#zstd = "0.11.2"
-zip = { version = "0.6.3", default-features = false, features = ["aes-crypto","bzip2","deflate", ], optional = true }
-
-# window
-minifb = { version = "0.23.0", features = ["x11", "wayland"] }
-
-# image
-image = "0.24.5"
-fir = { package = "fast_image_resize", version = "2.4.0" }
-libheif-rs = { version = "0.15.1", optional = true }
-asefile ={ version = "0.3.5", optional = true }
-#   gif
 gif = "0.12.0"
 gif-dispose = "4.0.0"
-#   svg
-usvg ={ version = "0.28.0", optional = true }
-tiny-skia ={ version = "0.8.2", optional = true }
-resvg ={ version = "0.28.0", optional = true }
-
-# args
-lexopt = "0.2.1"
-#argh = "0.1.9"
-
-# config
-syn = { version = "1.0.105", features = ["full", "extra-traits"] }
-
-# async
-#pollster = "0.2.5"
-
-# log
+image = "0.24.5"
+imagesize = "0.11.0"
+infer = "0.12.0"
+lexopt = "0.3.0"
 tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+walkdir = "2.3.2"
 
-# other
-cfg-if = "1.0.0"
-#palette = "0.6.1"
+[dependencies.asefile]
+version = "0.3.5"
+features = []
+optional = true
 
+[dependencies.fir]
+version = "2.5.0"
+features = []
+optional = false
+package = "fast_image_resize"
+
+[dependencies.libheif-rs]
+version = "0.15.1"
+features = []
+optional = true
+
+[dependencies.minifb]
+version = "0.23.0"
+features = ["x11", "wayland"]
+optional = false
+
+[dependencies.resvg]
+version = "0.28.0"
+features = []
+optional = true
+
+[dependencies.syn]
+version = "1.0.107"
+features = ["parsing", "extra-traits", "full"]
+optional = false
+default-features = false
+
+[dependencies.tar]
+version = "0.4.38"
+features = []
+optional = true
+
+[dependencies.tiny-skia]
+version = "0.8.2"
+features = []
+optional = true
+
+[dependencies.tracing-subscriber]
+version = "0.3.16"
+features = ["env-filter"]
+optional = false
+
+[dependencies.usvg]
+version = "0.28.0"
+features = []
+optional = true
+
+[dependencies.zip]
+version = "0.6.4"
+features = ["aes-crypto", "bzip2", "deflate"]
+optional = true
+default-features = false
 
 [dev-dependencies]
-# benchmark
 criterion = "0.4.0"
+
+[features]
+all = ["ex_zip", "ex_tar", "de_heic"]
+avx2 = []
+de_all = ["de_heic", "de_aseprite", "de_svg"]
+de_aseprite = ["dep:asefile"]
+de_heic = ["dep:libheif-rs"]
+de_svg = ["dep:usvg", "dep:tiny-skia", "dep:resvg"]
+default = ["ex_zip", "ex_tar"]
+ex_tar = ["dep:zip"]
+ex_zip = ["dep:tar"]
+sse4_1 = []
+[profile.release]
+opt-level = 2
+debug = false
+lto = "thin"
+debug-assertions = false
+codegen-units = 1
+panic = "abort"
+incremental = false
+overflow-checks = false
+strip = true
+[profile.release.package."*"]
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+opt-level = 2
+strip = true
 
 [[bench]]
 name = "bench_main"
+plugin = false
+proc-macro = false
 harness = false
-
-[features]
-default = ["ex_zip", "ex_tar"]
-all = ["ex_zip", "ex_tar", "de_heic"]
-
-# archive
-ex_zip = ["dep:tar"]
-ex_tar = ["dep:zip"]
-
-# resize
-sse4_1 = []
-avx2 = []
-
-
-# image
-de_all = ["de_heic", "de_aseprite", "de_svg"]
-de_heic = ["dep:libheif-rs"]
-de_aseprite = ["dep:asefile"]
-de_svg= ["dep:usvg", "dep:tiny-skia", "dep:resvg"]
-
-
-
-[profile.release]
-lto = "thin"
-opt-level = 2
-codegen-units = 1
-panic = "abort"
-strip = true
-debug = false
-debug-assertions = false
-incremental = false
-overflow-checks = false
-
-[profile.release.package."*"]
-opt-level = 2
-codegen-units = 1
-strip = true
-debug = false
-debug-assertions = false
-incremental = false
+required-features = []

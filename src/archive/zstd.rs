@@ -1,8 +1,8 @@
-use crate::utils::err::Res;
+use crate::::Res;
 use std::{fs::File, io, path::Path};
 use zstd;
 
-pub fn extract<_Path>(from: &_Path, to: &_Path) -> Res<()>
+pub fn extract<_Path>(from: &_Path, to: &_Path) -> anyhow::Result<()>
 where
     _Path: AsRef<Path> + ?Sized,
 {

@@ -1,25 +1,29 @@
 use crate::{
     color::rgba::TransRgba,
-    img::size::{MetaSize, TMetaSize},
-    utils::err::Res,
+    img::size::{Size, TMetaSize},
 };
 use cfg_if::cfg_if;
 use fir;
+use std::mem;
 use std::num::NonZeroU32;
 
 pub fn resize_rgba8(
-    bytes: Vec<u8>,
-    meta: &MetaSize<u32>,
+    bytes: &mut Vec<u8>,
+    from: &Size<u32>,
+    to: &Size<u32>,
     filter: &fir::FilterType,
-) -> Res<Vec<u8>> {
+) -> anyhow::Result<()> {
+    tracing::debug!("{:?}", from);
+    tracing::debug!("{:?}", to);
+
     let mut src_image = fir::Image::from_vec_u8(
-        NonZeroU32::new(meta.image.width).ok_or(())?,
-        NonZeroU32::new(meta.image.height).ok_or(())?,
-        bytes,
+        NonZeroU32::new(from.width).unwrap(),
+        NonZeroU32::new(from.height).unwrap(),
+        bytes.clone(),
         fir::PixelType::U8x4,
     )?;
-    let dst_width = NonZeroU32::new(meta.fix.width).ok_or(())?;
-    let dst_height = NonZeroU32::new(meta.fix.height).ok_or(())?;
+    let dst_width = NonZeroU32::new(to.width).unwrap();
+    let dst_height = NonZeroU32::new(to.height).unwrap();
 
     // FIXED: https://github.com/Cykooz/fast_image_resize/issues/9
     let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
@@ -41,8 +45,9 @@ pub fn resize_rgba8(
     alpha_mul_div.multiply_alpha_inplace(&mut src_image.view_mut())?;
     alpha_mul_div.divide_alpha_inplace(&mut dst_view)?;
 
-    //
-    Ok(dst_image.buffer().to_vec())
+    *bytes = mem::take(&mut dst_image.buffer().to_owned());
+
+    Ok(())
 }
 
 pub fn center_img(bg: &mut Vec<u32>, fg: &[u32], bw: usize, fw: usize, fh: usize, offset: usize) {
@@ -96,9 +101,10 @@ pub fn crop_img(
         i = (iw * y) + offset;
         o = ow * y;
 
-        for x in 0..ow {
-            buffer[o + x] = img[i + x];
-        }
+        // for x in 0..ow {
+        //     buffer[o + x] = img[i + x];
+        // }
+        buffer[o..(ow + o)].copy_from_slice(&img[i..(ow + i)]);
     }
 }
 

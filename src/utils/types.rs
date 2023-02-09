@@ -2,7 +2,7 @@
 pub type Names = Vec<String>;
 
 #[derive(Debug, Copy, Clone)]
-pub enum ArchiveType {
+pub enum utils::ArchiveType {
     Tar,
     Zip,
     Dir,

@@ -28,7 +28,7 @@ fn main() {
         bytes.extend_from_slice(img.planes().cr.unwrap().data);
         let width = img.planes().y.unwrap().width;
         let height = img.planes().y.unwrap().height;
-        let stride = img.planes().y.unwrap().stride;
+        let _stride = img.planes().y.unwrap().stride;
 
         let res = yuvi420_to_rgb8::<u8>(&bytes, width as usize, height as usize);
 

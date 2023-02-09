@@ -4,7 +4,7 @@ impl TransRgba {
     #[inline(always)]
     pub fn rgba_as_argb_u32(r: &u8, g: &u8, b: &u8, a: &u8) -> u32 {
         // (r, g, b, a) -> (a, r, g, b) -> u32
-        //  3  2  1  0      3  2  1  0
+        //  3  2  1  0      0  3  2  1
         u32::from_be_bytes([*a, *r, *g, *b])
     }
 
@@ -27,7 +27,8 @@ impl TransRgba {
         // ];
 
         // SAFETY:
-        unsafe { std::mem::transmute::<u32, [u8; 4]>(rgba.to_be()) }
+        //unsafe { std::mem::transmute::<u32, [u8; 4]>(rgba.to_be()) }
+        rgba.to_be().to_ne_bytes()
     }
 }
 
