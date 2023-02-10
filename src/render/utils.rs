@@ -1,9 +1,8 @@
 use crate::{archive::utils::*, img::utils::*, FPS};
 use fir::FilterType;
-use imagesize;
 use std::{
     mem,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
 
@@ -168,10 +167,6 @@ impl CropBlock {
 }
 
 // ==============================================
-pub trait ExtImageType {
-    fn as_fmt(&self) -> ImgFormat;
-}
-
 pub trait ForAsyncTask {
     fn new(list: Vec<TaskResize>) -> AsyncTask;
 
@@ -234,7 +229,7 @@ impl PageList {
             page.number = index;
         }
 
-        tracing::debug!("list: {:?}", &res);
+        log::debug!("list: {:?}", &res);
 
         Self {
             list: res,
@@ -344,12 +339,12 @@ impl Page {
     }
 
     #[inline(always)]
-    pub fn flush(&self, buffer: &mut Vec<u32>, slice: &[u32]) -> bool {
+    pub fn flush(&self, buffer: &mut Vec<u32>) -> bool {
         if self.is_ready {
             buffer.extend_from_slice(self.data[self.frame_index].as_slice());
             true
         } else {
-            buffer.extend_from_slice(&slice[0..self.resize.len()]);
+            //buffer.extend_from_slice(&slice[0..self.resize.len()]);
             false
         }
     }
@@ -383,7 +378,9 @@ impl Page {
     pub fn len(&self) -> usize {
         if self.is_ready {
             if self.ty == ImgType::Anim {
-                self.data[0].len() * self.data.len()
+                // FIXME: freeup memory
+                //self.data[0].len() * self.data.len()
+                self.data[0].len()
             } else {
                 self.data[0].len()
             }
@@ -409,11 +406,11 @@ impl Page {
                 self.timer += FPS as usize;
             }
 
-            tracing::debug!("self.timer = {}", self.timer);
-            tracing::debug!("self.frame_index = {}", self.frame_index);
-            tracing::debug!("self.miss = {}", self.miss);
-            tracing::debug!("self.pts() = {}", self.pts());
-            tracing::debug!(
+            log::debug!("self.timer = {}", self.timer);
+            log::debug!("self.frame_index = {}", self.frame_index);
+            log::debug!("self.miss = {}", self.miss);
+            log::debug!("self.pts() = {}", self.pts());
+            log::debug!(
                 "self.data.len() = {}
 
                          ",
@@ -433,7 +430,7 @@ impl Page {
         self.decode_img(&mut buffer, data)?;
         self.resize_img(&mut buffer, data)?;
 
-        tracing::trace!("{}", self.data.len());
+        log::trace!("{}", self.data.len());
 
         Ok(())
     }
@@ -448,18 +445,18 @@ impl Page {
         buffer[0] = data.archive_type.get_file(&data.path, self.archive_pos)?;
 
         let file = buffer[0].as_slice();
-        let fmt = imagesize::image_type(file)?.as_fmt();
+        let fmt = get_img_format(file);
 
         self.ty = ImgType::from(&fmt);
         self.fmt = fmt;
 
-        tracing::debug!("{}", file.len());
+        log::debug!("{}", file.len());
 
         match self.fmt {
             ImgFormat::Jpg | ImgFormat::Png => {
                 let img = image::load_from_memory(file)?;
 
-                tracing::info!("decode png");
+                log::info!("decode png");
 
                 self.set_size(img.width(), img.height());
 
@@ -517,12 +514,13 @@ impl Page {
 
             meta.fix
         };
+        self.is_ready = true;
 
         Ok(())
     }
 
     fn resize_img(&mut self, img: &mut Vec<Vec<u8>>, data: &Data) -> anyhow::Result<()> {
-        tracing::trace!("file_len: {}", img[0].len());
+        log::trace!("file_len: {}", img[0].len());
 
         self.frames_count = img.len();
 
@@ -565,7 +563,7 @@ impl Page {
                 } else if self.size.width <= data.meta.window.width {
                     let offset = ((data.meta.window.width - self.size.width) / 2) as usize;
 
-                    tracing::debug!(
+                    log::debug!(
                         "
 window:   {}
 anim:     {}
@@ -599,22 +597,6 @@ offset:   {}
 }
 
 // ==============================================
-impl ExtImageType for imagesize::ImageType {
-    fn as_fmt(&self) -> ImgFormat {
-        match *self {
-            Self::Aseprite => ImgFormat::Aseprite,
-            Self::Gif => ImgFormat::Gif,
-            Self::Jpeg => ImgFormat::Jpg,
-            Self::Png => ImgFormat::Png,
-            Self::Heif => ImgFormat::Heic,
-
-            // FIXME:rmg -t svg xxx.svg
-            // format = ImgFormat::Svg;
-            _ => ImgFormat::Unknown,
-        }
-    }
-}
-
 impl ForAsyncTask for AsyncTask {
     fn new(list: Vec<TaskResize>) -> AsyncTask {
         Arc::new(RwLock::new(Task::new(list)))
@@ -642,13 +624,12 @@ impl ForAsyncTask for AsyncTask {
         for (index, task) in inner.list.iter_mut().enumerate() {
             if task.state == State::Todo {
                 task.page.load_file(data).expect("ERROR: load_file()");
-
                 //inner.ram_usage += inner.get_ref(index).page.len();
                 task.state = State::Done;
 
                 return true;
             } else {
-                tracing::debug!("{} : {:?}", index, task.state);
+                log::debug!("{} : {:?}", index, task.state);
             }
         }
 
@@ -673,7 +654,7 @@ impl ForAsyncTask for AsyncTask {
         };
 
         for (index, page) in list.list.iter_mut().enumerate() {
-            tracing::debug!(
+            log::debug!(
                 "
 index: {}
 len: {}
@@ -687,7 +668,7 @@ state: {:?}
             if inner.get_ref(index).state == State::Done {
                 // base
                 page.data = mem::take(&mut inner.list[index].page.data);
-                page.is_ready = true;
+                page.is_ready = inner.list[index].page.is_ready;
                 page.size = inner.list[index].page.size;
                 page.resize = inner.list[index].page.resize;
 
