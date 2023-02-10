@@ -5,9 +5,9 @@ use crate::{
         utils::{Data, Page},
         window::Canvas,
     },
-    utils::sleep,
     FPS,
 };
+use std::thread::sleep_ms;
 
 #[derive(Debug)]
 pub struct Once {
@@ -31,12 +31,10 @@ impl Once {
         let mut time_start = std::time::Instant::now();
         let mut ms = FPS;
 
-        let mut rng = 0;
-
-        self.page.load_file(data).expect("");
-        let resize = self.page.get_resize().len();
+        self.page.load_file(data).expect("ERROR: load_file()");
 
         let mut buffer: Vec<u32> = vec![];
+        let mut rng = 0;
 
         'l1: while canvas.window.is_open() {
             match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
@@ -61,25 +59,31 @@ impl Once {
                 Map::Exit => {
                     println!("EXIT");
 
-                    // BUG: Miss Key::Escape
                     break 'l1;
                 }
 
                 _ => {}
             }
 
-            self.page.flush(&mut buffer, &self.page_loading);
-            self.page.to_next_frame();
+            buffer.clear();
+            if self.page.flush(&mut buffer) {
+                self.page.to_next_frame();
+            } else {
+                panic!("");
+            }
+
+            while buffer.len() < rng + self.buffer_max {
+                buffer.extend_from_slice(&self.page_loading);
+            }
 
             canvas.flush(&buffer[rng..rng + self.buffer_max]);
 
             let now = std::time::Instant::now();
-            let count = (now - time_start).as_millis() as u64;
-
+            let count = (now - time_start).as_millis() as u32;
             time_start = now;
             ms = FPS.checked_sub(count / 6).unwrap_or(10);
 
-            sleep(ms);
+            sleep_ms(ms);
         }
     }
 }

@@ -6,8 +6,9 @@ use crate::{
         utils::{AsyncTask, Buffer, Data, ForAsyncTask, Page, PageList},
         window::Canvas,
     },
-    utils, FPS,
+    FPS,
 };
+use std::thread::sleep_ms;
 
 #[derive(Debug)]
 pub struct Scroll {
@@ -62,7 +63,7 @@ impl Scroll {
             page_load_list: Vec::new(),
 
             page_number: 0,
-            page_loading: vec![TransRgba::rgba_as_argb_u32(&255, &238, &238, &238); buffer_max * 6],
+            page_loading: vec![TransRgba::rgba_as_argb_u32(&255, &238, &238, &238); buffer_max],
         }
     }
 
@@ -76,7 +77,7 @@ impl Scroll {
     ) {
         let mut time_start = std::time::Instant::now();
         let mut now = std::time::Instant::now();
-        let mut ms = 0;
+        let mut ms = 0_u32;
         let mut count = 0;
 
         arc_task.try_set_as_todo(0);
@@ -126,11 +127,11 @@ impl Scroll {
             self.map = Map::Stop;
 
             now = std::time::Instant::now();
-            count = (now - time_start).as_millis() as u64;
+            count = (now - time_start).as_millis() as u32;
             time_start = now;
             ms = FPS.checked_sub(count / 6).unwrap_or(10);
 
-            utils::sleep(ms);
+            sleep_ms(ms);
         }
     }
 
@@ -141,7 +142,7 @@ impl Scroll {
     fn mouse_input(&mut self, canvas: &mut Canvas, config: &Config) {
         // scroll
         if let Some((_, y)) = canvas.window.get_scroll_wheel() {
-            tracing::trace!("mouse_y == {}", y);
+            log::trace!("mouse_y == {}", y);
 
             if config.base.invert_mouse {
                 if y > 0.0 {
@@ -184,7 +185,7 @@ impl Scroll {
                 _ => *number,
             };
 
-            tracing::debug!("offset_y: {}", y);
+            log::debug!("offset_y: {}", y);
             //dbg!(number, self.page_number);
         }
     }
@@ -195,22 +196,21 @@ impl Scroll {
             self.buffer.free();
 
             for index in self.head..=self.cur {
-                if self
-                    .page_list
-                    .get_ref(index)
-                    .flush(&mut self.buffer.data, &self.page_loading)
-                {
+                if self.page_list.get_ref(index).flush(&mut self.buffer.data) {
                     self.page_list.get_mut(index).to_next_frame();
-                } else if arc_task.try_set_as_todo(index) {
-                    tracing::debug!("todo: {}", index);
                 } else {
+                    let _ = arc_task.try_set_as_todo(index);
+                    log::debug!("todo: {}", index);
+
+                    self.buffer
+                        .extend(&self.page_loading[0..self.page_list.get_ref(index).len()]);
                 }
 
-                tracing::trace!("{:?}, {:?}", self.map, self.page_list.get_ref(index).resize);
+                log::trace!("{:?}, {:?}", self.map, self.page_list.get_ref(index).resize);
             }
 
             if self.try_free_page(data, arc_task) {
-                tracing::info!("try_free()");
+                log::info!("try_free()");
             }
         }
 
@@ -237,7 +237,7 @@ impl Scroll {
     /// move down
     #[inline(always)]
     fn move_down(&mut self) {
-        tracing::debug!("{}, {}", self.rng, self.bit_len);
+        log::debug!("{}, {}", self.rng, self.bit_len);
 
         self.map = Map::Down;
 
@@ -274,8 +274,8 @@ impl Scroll {
         } else {
         }
 
-        tracing::debug!("start: {}", self.rng);
-        tracing::debug!("end: {}", self.end());
+        log::debug!("start: {}", self.rng);
+        log::debug!("end: {}", self.end());
     }
 
     /// move right
@@ -297,7 +297,7 @@ impl Scroll {
     }
 
     fn try_free_page(&mut self, _data: &Data, arc_task: &AsyncTask) -> bool {
-        tracing::debug!(
+        log::debug!(
             "
 {:?}
 bit_len:   {}
@@ -318,7 +318,7 @@ rng: {}
         //   max: len  - 1
         match self.map {
             Map::Down => {
-                tracing::trace!("down");
+                log::trace!("down");
 
                 let page_len = self.page_list.get_ref(self.head).len();
 
@@ -335,12 +335,12 @@ rng: {}
                     self.page_list.list[self.head].free();
                     self.head += 1;
 
-                    tracing::info!("free head");
+                    log::info!("free head");
                 }
             }
 
             Map::Up => {
-                tracing::trace!("up");
+                log::trace!("up");
 
                 let page_len = self.page_list.get_ref(self.cur).len();
 
@@ -356,7 +356,7 @@ rng: {}
                     self.page_list.list[self.cur].free();
                     self.cur -= 1;
 
-                    tracing::info!("free tail");
+                    log::info!("free tail");
                 }
             }
 

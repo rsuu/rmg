@@ -3,7 +3,7 @@ use dirs_next;
 use fir;
 use lexopt::{self, prelude::*};
 use std::{fs::File, io::Read, path::Path, path::PathBuf, process::exit};
-use tracing::debug;
+use log::debug;
 
 #[derive(Debug)]
 pub struct Config {

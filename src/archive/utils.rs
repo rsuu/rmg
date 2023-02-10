@@ -7,6 +7,29 @@ use crate::{
 use infer;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Copy, Clone)]
+pub enum ArchiveType {
+    Tar,
+    Zip,
+    Dir,
+    File,
+}
+
+#[derive(Debug)]
+pub struct FileList {
+    inner: Vec<FileInfo>,
+}
+
+#[derive(Debug)]
+pub struct FileInfo {
+    pub path: String,
+    pub index: usize,
+    //    pub fmt: ImgFormat,
+    //    pub ty: ImgType,
+    //    pub size: Size<u32>,
+    //    pub resize: Size<u32>,
+}
+
 pub trait ForExtract {
     fn get_list(&self, path: &Path) -> anyhow::Result<FileList>;
     fn get_file(&self, path: &Path, index: usize) -> anyhow::Result<Vec<u8>>;
@@ -61,48 +84,6 @@ impl ArchiveType {
     }
 }
 
-pub fn get_img_type(path: impl AsRef<Path>) -> ImgFormat {
-    let ty = infer::get_from_path(path.as_ref()).unwrap();
-
-    match ty {
-        Some(v) => ImgFormat::from(v.extension().to_string().as_str()),
-        None => ImgFormat::from(path.as_ref().extension().unwrap().to_str().unwrap()),
-    }
-}
-
-// e.g. width = 6
-//     '01.jpg'        -> '000001.jpg'     (pad  "0000")
-//     '000001.jpg'    -> '000001.jpg'     (do nothing)
-//     '000000001.jpg' -> '0000000001.jpg' (do nothing)
-pub fn pad_name(width: usize, name: &str) -> String {
-    let full = Path::new(name);
-
-    let mut path = full.parent().unwrap().to_str().unwrap().to_string();
-    let suffix = full.extension().unwrap().to_str().unwrap();
-    let filename = full.file_stem().unwrap().to_str().unwrap();
-
-    path.push('/');
-
-    if filename.len() < width {
-        path.extend(vec!['0'; (width - filename.len())]);
-    }
-
-    path.push_str(format!("{filename}.{suffix}").as_ref());
-
-    tracing::debug!("path = {:?}", path);
-
-    path
-}
-
-#[inline(always)]
-pub fn is_same_slice(foo: &[u8], bar: &[u8], start: usize, len: usize) -> anyhow::Result<bool> {
-    if foo.len() > start + len && &foo[start..start + len] == bar {
-        Ok(true)
-    } else {
-        Err(anyhow::anyhow!(""))
-    }
-}
-
 impl FileList {
     pub fn to_page_list(&self, rename_pad: usize) -> Vec<Page> {
         let mut res = Vec::new();
@@ -124,29 +105,6 @@ impl FileList {
 
         res
     }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum ArchiveType {
-    Tar,
-    Zip,
-    Dir,
-    File,
-}
-
-#[derive(Debug)]
-pub struct FileList {
-    inner: Vec<FileInfo>,
-}
-
-#[derive(Debug)]
-pub struct FileInfo {
-    pub path: String,
-    pub index: usize,
-    //    pub fmt: ImgFormat,
-    //    pub ty: ImgType,
-    //    pub size: Size<u32>,
-    //    pub resize: Size<u32>,
 }
 
 impl FileList {
@@ -191,13 +149,49 @@ impl FileInfo {
     }
 }
 
-pub fn get_filetype<T>(path: &T) -> String
-where
-    T: AsRef<Path> + ?Sized,
-{
-    infer::get_from_path(path.as_ref())
-        .expect("file read successfully")
-        .expect("file type is known")
-        .extension()
-        .to_string()
+// e.g. width = 6
+//     '01.jpg'        -> '000001.jpg'     (pad  "0000")
+//     '000001.jpg'    -> '000001.jpg'     (do nothing)
+//     '000000001.jpg' -> '0000000001.jpg' (do nothing)
+pub fn pad_name(width: usize, name: &str) -> String {
+    let full = Path::new(name);
+
+    let mut path = full.parent().unwrap().to_str().unwrap().to_string();
+    let suffix = full.extension().unwrap().to_str().unwrap();
+    let filename = full.file_stem().unwrap().to_str().unwrap();
+
+    path.push('/');
+
+    if filename.len() < width {
+        path.extend(vec!['0'; (width - filename.len())]);
+    }
+
+    path.push_str(format!("{filename}.{suffix}").as_ref());
+
+    log::debug!("path = {:?}", path);
+
+    path
+}
+
+pub fn is_same_slice(foo: &[u8], bar: &[u8], start: usize, len: usize) -> anyhow::Result<bool> {
+    if foo.len() > start + len && &foo[start..start + len] == bar {
+        Ok(true)
+    } else {
+        anyhow::bail!("")
+    }
+}
+
+pub fn get_img_format(file: &[u8]) -> ImgFormat {
+    let ty = infer::get(file);
+
+    match ty {
+        Some(v) => ImgFormat::from(v.extension().to_string().as_str()),
+        None => {
+            if is_same_slice(file, &[0xe0, 0xa5], 4, 2).is_ok() {
+                ImgFormat::Aseprite
+            } else {
+                panic!("Unknown Format")
+            }
+        }
+    }
 }

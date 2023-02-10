@@ -2,18 +2,13 @@
 
 // ==========================================
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const FPS: u64 = 1000 / 25;
+pub const FPS: u32 = 1000 / 25;
 pub const EXT_LIST: &[&str] = &[
     "jpg", "jpeg", "png", "heic", "heif", "avif", "ase", "aseprite", "gif", "svg",
 ];
 
 // ==========================================
 pub mod utils {
-    // ==========================================
-    pub fn sleep(ms: u64) {
-        std::thread::sleep(std::time::Duration::from_millis(ms));
-    }
-
     // ==========================================
     impl<AnyType: ?Sized> AutoTrait for AnyType {}
 

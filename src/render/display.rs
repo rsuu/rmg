@@ -81,7 +81,7 @@ pub fn cat_img(
         }
     }
 
-    tracing::info!("*** EXIT ***");
+    log::info!("*** EXIT ***");
 
     Ok(())
 }

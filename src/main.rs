@@ -7,19 +7,21 @@ use rmg::{
 use std::path::PathBuf;
 
 fn main() {
-    fn init_log() {
-        use tracing_subscriber::{fmt, prelude::*, registry, EnvFilter};
+    //    fn init_log() {
+    //        use log_subscriber::{fmt, prelude::*, registry, EnvFilter};
+    //
+    //        // e.g. RUST_LOG="rmg::render::scroll=debug"
+    //        let env_filter = EnvFilter::builder().with_regex(true).from_env_lossy();
+    //        let log_fmt = fmt::layer().without_time().with_thread_names(true);
+    //
+    //        registry().with(log_fmt).with(env_filter).init();
+    //
+    //        log::info!("init_log()");
+    //    }
+    //
+    //    init_log();
 
-        // e.g. RUST_LOG="rmg::render::scroll=debug"
-        let env_filter = EnvFilter::builder().with_regex(true).from_env_lossy();
-        let log_fmt = fmt::layer().without_time().with_thread_names(true);
-
-        registry().with(log_fmt).with(env_filter).init();
-
-        tracing::info!("init_log()");
-    }
-
-    init_log();
+    env_logger::init();
 
     let config = {
         let mut res = Config::new();
@@ -32,8 +34,8 @@ fn main() {
 
     let meta_size = MetaSize::new(0, 0, config.base.size.width, config.base.size.height, 0, 0);
 
-    tracing::trace!("{:#?}", config);
-    tracing::trace!("meta_size: {:#?}", &meta_size);
+    log::trace!("{:#?}", config);
+    log::trace!("meta_size: {:#?}", &meta_size);
 
     let path = {
         let Some(tmp)=&config.cli.file_path else { print_help() };
@@ -44,11 +46,11 @@ fn main() {
     let file_list = archive_type.get_list(path.as_path()).unwrap();
     let mut page_list = file_list.to_page_list(config.base.rename_pad as usize);
 
-    tracing::trace!("file_list: {:#?}", file_list);
-    tracing::trace!("page_list: {:#?}", page_list);
+    log::trace!("file_list: {:#?}", file_list);
+    log::trace!("page_list: {:#?}", page_list);
     println!("Open: {}", path.as_path().display());
 
     if let Err(_) = display::cat_img(&config, &mut page_list, meta_size, path, archive_type) {
-        tracing::debug!("err");
+        log::debug!("err");
     }
 }
