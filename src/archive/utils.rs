@@ -1,7 +1,7 @@
 use crate::{
     archive,
-    img::size::TMetaSize,
-    render::view::{ImgFormat, Page},
+    img::utils::TMetaSize,
+    render::utils::{ImgFormat, Page},
     EXT_LIST,
 };
 use infer;
@@ -189,4 +189,15 @@ impl FileInfo {
 
         false
     }
+}
+
+pub fn get_filetype<T>(path: &T) -> String
+where
+    T: AsRef<Path> + ?Sized,
+{
+    infer::get_from_path(path.as_ref())
+        .expect("file read successfully")
+        .expect("file type is known")
+        .extension()
+        .to_string()
 }

@@ -1,13 +1,13 @@
 use crate::{
     archive::utils::ArchiveType,
     config::rsconf::Config,
-    img::size::MetaSize,
+    img::utils::MetaSize,
     render::{
         keymap::KeyMap,
         once::Once,
         scroll::Scroll,
         turn::Turn,
-        view::{AsyncTask, Data, ForAsyncTask, Page, PageList, TaskResize, ViewMode},
+        utils::{AsyncTask, Data, ForAsyncTask, Page, PageList, TaskResize, ViewMode},
         window::Canvas,
     },
 };
@@ -68,7 +68,8 @@ pub fn cat_img(
         // Bit OR Anim
         ViewMode::Once => {
             // TODO: ?scale gif
-            //Once::start(&mut scroll, &mut canvas, &keymap);
+            let mut once = Once::from_scroll(scroll);
+            once.start(&mut canvas, &keymap, &data);
         }
 
         // Bit OR Anim

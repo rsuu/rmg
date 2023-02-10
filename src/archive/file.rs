@@ -1,8 +1,7 @@
+use crate::archive::utils::*;
 use std::fs::OpenOptions;
 use std::io::Read;
 use std::path::Path;
-
-use super::utils::{FileInfo, FileList};
 
 pub fn get_file(path: &Path) -> anyhow::Result<Vec<u8>> {
     let mut file = OpenOptions::new()

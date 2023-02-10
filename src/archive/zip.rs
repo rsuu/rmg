@@ -1,4 +1,4 @@
-use crate::archive::utils::FileList;
+use crate::archive::utils::*;
 use std::path::Path;
 
 pub fn get_file<_Path>(path: &_Path, index: usize) -> anyhow::Result<Vec<u8>>
@@ -42,10 +42,12 @@ where
 
 #[cfg(feature = "ex_zip")]
 mod feat {
-    use crate::archive::utils::{FileInfo, FileList};
-    use std::io::prelude::*;
-    use std::io::BufReader;
-    use std::{fs::File, path::Path};
+    use crate::archive::utils::*;
+    use std::{
+        fs::File,
+        io::{prelude::*, BufReader},
+        path::Path,
+    };
     use zip::ZipArchive;
 
     #[inline]

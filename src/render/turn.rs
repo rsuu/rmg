@@ -1,7 +1,7 @@
 use crate::render::{
     keymap::{KeyMap, Map},
     scroll::Scroll,
-    view::{Buffer, Data, PageList, State},
+    utils::*,
     window::Canvas,
 };
 use std::sync::{Arc, RwLock};

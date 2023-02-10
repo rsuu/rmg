@@ -41,7 +41,7 @@ rmg file.tar
 
 rmg --size 600x600 file.tar
 
-rmg --size 100x600 --config ./tests/files/config.rs file.tar
+rmg --size 100x600 --config ./tests/other/config.rs file.tar
 
 rmg file.gif
 ```
@@ -58,7 +58,7 @@ q | quit
 
 ### Configuration
 
-> config file: https://raw.githubusercontent.com/rsuu/rmg/main/tests/files/config.rs
+> config file: https://raw.githubusercontent.com/rsuu/rmg/main/tests/other/config.rs
 
 `WARN:` You have to create the file by yourself.
 
