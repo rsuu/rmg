@@ -1,9 +1,7 @@
 use rmg::{
-    archive::{
-        utils::{ArchiveType, ForExtract},
-    },
+    archive::utils::{ArchiveType, ForExtract},
     config::rsconf::{print_help, Config},
-    img::size::{MetaSize, TMetaSize},
+    img::utils::{MetaSize, TMetaSize},
     render::display,
 };
 use std::path::PathBuf;

@@ -1,13 +1,12 @@
 use crate::{
-    color::rgba::TransRgba,
     config::rsconf::Config,
-    img::size::TMetaSize,
+    img::utils::{TMetaSize, TransRgba},
     render::{
         keymap::{match_event, KeyMap, Map},
-        view::{AsyncTask, Buffer, Check, Data, ForAsyncTask, Page, PageList},
+        utils::{AsyncTask, Buffer, Data, ForAsyncTask, Page, PageList},
         window::Canvas,
     },
-    sleep, FPS,
+    utils, FPS,
 };
 
 #[derive(Debug)]
@@ -131,7 +130,7 @@ impl Scroll {
             time_start = now;
             ms = FPS.checked_sub(count / 6).unwrap_or(10);
 
-            sleep(ms);
+            utils::sleep(ms);
         }
     }
 
@@ -172,11 +171,11 @@ impl Scroll {
 
             // TODO: fix
             // page number + offset_y
-            for idx in self.page_load_list.iter() {
+            for index in self.page_load_list.iter() {
                 if *count as f32 >= self.rng as f32 + y {
-                    *number = self.page_list.get_ref(*idx).number;
+                    *number = self.page_list.get_ref(*index).number;
                 } else {
-                    *count += self.page_list.get_ref(*idx).len();
+                    *count += self.page_list.get_ref(*index).len();
                 }
             }
 
@@ -203,15 +202,16 @@ impl Scroll {
                 {
                     self.page_list.get_mut(index).to_next_frame();
                 } else if arc_task.try_set_as_todo(index) {
-                    tracing::debug!("{}", index);
+                    tracing::debug!("todo: {}", index);
                 } else {
-                    tracing::debug!("fuck");
                 }
 
                 tracing::trace!("{:?}, {:?}", self.map, self.page_list.get_ref(index).resize);
             }
 
-            let _ = self.try_free_page(data, arc_task);
+            if self.try_free_page(data, arc_task) {
+                tracing::info!("try_free()");
+            }
         }
 
         while self.buffer.len() < self.rng + self.buffer_max {
@@ -226,10 +226,10 @@ impl Scroll {
         self.page_load_list.clear();
         self.bit_len = 0;
 
-        for (idx, page) in self.page_list.list.iter().enumerate() {
+        for (index, page) in self.page_list.list.iter().enumerate() {
             if page.is_ready && page.len() > 0 {
                 self.bit_len += page.len();
-                self.page_load_list.push(idx);
+                self.page_load_list.push(index);
             }
         }
     }

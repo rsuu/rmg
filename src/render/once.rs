@@ -2,47 +2,56 @@ use crate::{
     render::{
         keymap::{self, KeyMap, Map},
         scroll::Scroll,
+        utils::{Data, Page},
         window::Canvas,
     },
+    utils::sleep,
     FPS,
 };
 
 #[derive(Debug)]
-pub struct Once {}
+pub struct Once {
+    buffer_max: usize,
+    y_step: usize,
+    page: Page,
+    page_loading: Vec<u32>,
+}
 
 impl Once {
-    pub fn start(tmp: &mut Scroll, canvas: &mut Canvas, keymaps: &[KeyMap]) {
-        todo!();
+    pub fn from_scroll(scroll: Scroll) -> Self {
+        Self {
+            buffer_max: scroll.buffer_max,
+            y_step: scroll.y_step,
+            page: scroll.page_list.list[0].clone(),
+            page_loading: scroll.page_loading,
+        }
+    }
 
+    pub fn start(&mut self, canvas: &mut Canvas, keymaps: &[KeyMap], data: &Data) {
         let mut time_start = std::time::Instant::now();
-        let mut sleep = FPS;
+        let mut ms = FPS;
 
-        let buffer_max = tmp.buffer_max;
-        let y_step = tmp.y_step;
         let mut rng = 0;
-        let page = tmp.page_list.get_mut(0);
-        let resize = page.get_resize().len();
 
-        let mut buffer: Vec<u32> = if resize > buffer_max {
-            vec![0; resize]
-        } else {
-            vec![0; buffer_max]
-        };
+        self.page.load_file(data).expect("");
+        let resize = self.page.get_resize().len();
+
+        let mut buffer: Vec<u32> = vec![];
 
         'l1: while canvas.window.is_open() {
             match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
                 Map::Down => {
                     // scrolling
-                    if rng + y_step <= buffer.len() - buffer_max {
-                        rng += y_step;
+                    if rng + self.y_step <= buffer.len() - self.buffer_max {
+                        rng += self.y_step;
                     } else {
-                        rng = buffer.len() - buffer_max;
+                        rng = buffer.len() - self.buffer_max;
                     };
                 }
 
                 Map::Up => {
-                    if rng >= y_step {
-                        rng -= y_step;
+                    if rng >= self.y_step {
+                        rng -= self.y_step;
                     } else {
                         // if (rng >= 0)
                         rng -= rng;
@@ -59,17 +68,18 @@ impl Once {
                 _ => {}
             }
 
-            //page.flush(&mut buffer,);
-            canvas.flush(&buffer[rng..rng + buffer_max]);
-            page.to_next_frame();
+            self.page.flush(&mut buffer, &self.page_loading);
+            self.page.to_next_frame();
+
+            canvas.flush(&buffer[rng..rng + self.buffer_max]);
 
             let now = std::time::Instant::now();
             let count = (now - time_start).as_millis() as u64;
 
             time_start = now;
-            sleep = FPS.checked_sub(count / 6).unwrap_or(10);
+            ms = FPS.checked_sub(count / 6).unwrap_or(10);
 
-            std::thread::sleep(std::time::Duration::from_millis(sleep));
+            sleep(ms);
         }
     }
 }

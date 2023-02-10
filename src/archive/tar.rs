@@ -1,4 +1,4 @@
-use crate::archive::utils::FileList;
+use crate::archive::utils::*;
 use std::path::Path;
 
 pub fn get_file(path: &Path, index: usize) -> anyhow::Result<Vec<u8>> {
@@ -23,7 +23,7 @@ pub fn get_list(path: &Path) -> anyhow::Result<FileList> {
 
 #[cfg(feature = "ex_tar")]
 mod feat {
-    use crate::archive::utils::{FileInfo, FileList};
+    use crate::archive::utils::*;
     use std::{fs::OpenOptions, io::Read, path::Path};
     use tar;
 

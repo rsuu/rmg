@@ -1,7 +1,7 @@
 [package]
 name = "rmg"
 edition = "2021"
-version = "0.4.1"
+version = "0.5.0"
 build = "build.rs"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Rust: Tiny And Fast Manga/Image Viewer"
@@ -12,108 +12,107 @@ categories = ["Multimedia::Images"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rsuu/rmg"
 
+[profile.release]
+lto = "thin"
+opt-level = 2
+codegen-units = 1
+panic = "abort"
+overflow-checks = false
+debug = false
+debug-assertions = false
+incremental = false
+strip = true
+
+[profile.release.package."*"]
+opt-level = 2
+codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
+strip = true
+
 [dependencies]
 anyhow = "1.0.68"
 cfg-if = "1.0.0"
-dirs-next = "2.0.0"
+dirs-next = "2.0.0"   # config
 gif = "0.12.0"
 gif-dispose = "4.0.0"
 image = "0.24.5"
 imagesize = "0.11.0"
-infer = "0.12.0"
-lexopt = "0.3.0"
-tracing = "0.1.37"
-walkdir = "2.3.2"
+infer = "0.12.0"      # filetype
+lexopt = "0.3.0"      # cli
+tracing = "0.1.37"    # log
+walkdir = "2.3.2"     # fs
 
+# image
 [dependencies.asefile]
 version = "0.3.5"
-features = []
 optional = true
 
+# image
 [dependencies.fir]
 version = "2.5.0"
-features = []
-optional = false
 package = "fast_image_resize"
 
+# image
 [dependencies.libheif-rs]
 version = "0.15.1"
-features = []
 optional = true
 
+# window
 [dependencies.minifb]
 version = "0.23.0"
 features = ["x11", "wayland"]
-optional = false
 
+# image
 [dependencies.resvg]
 version = "0.28.0"
-features = []
 optional = true
 
+# config
 [dependencies.syn]
 version = "1.0.107"
 features = ["parsing", "extra-traits", "full"]
-optional = false
 default-features = false
 
+# archive
 [dependencies.tar]
 version = "0.4.38"
-features = []
 optional = true
 
+# svg
 [dependencies.tiny-skia]
 version = "0.8.2"
-features = []
 optional = true
 
 [dependencies.tracing-subscriber]
 version = "0.3.16"
 features = ["env-filter"]
-optional = false
 
+# svg
 [dependencies.usvg]
 version = "0.28.0"
-features = []
 optional = true
 
+# archive
 [dependencies.zip]
 version = "0.6.4"
 features = ["aes-crypto", "bzip2", "deflate"]
 optional = true
 default-features = false
 
-[dev-dependencies]
-criterion = "0.4.0"
-
 [features]
-all = ["ex_zip", "ex_tar", "de_heic"]
-avx2 = []
+default = ["ex_zip", "ex_tar"]
+all = ["ex_all", "de_all"]
+ex_all = ["ex_tar", "ex_zip"]
 de_all = ["de_heic", "de_aseprite", "de_svg"]
 de_aseprite = ["dep:asefile"]
 de_heic = ["dep:libheif-rs"]
 de_svg = ["dep:usvg", "dep:tiny-skia", "dep:resvg"]
-default = ["ex_zip", "ex_tar"]
 ex_tar = ["dep:zip"]
 ex_zip = ["dep:tar"]
 sse4_1 = []
-[profile.release]
-opt-level = 2
-debug = false
-lto = "thin"
-debug-assertions = false
-codegen-units = 1
-panic = "abort"
-incremental = false
-overflow-checks = false
-strip = true
-[profile.release.package."*"]
-codegen-units = 1
-debug = false
-debug-assertions = false
-incremental = false
-opt-level = 2
-strip = true
+avx2 = []
 
 [[bench]]
 name = "bench_main"
@@ -121,3 +120,7 @@ plugin = false
 proc-macro = false
 harness = false
 required-features = []
+
+# bench
+[dev-dependencies]
+criterion = "0.4.0"
