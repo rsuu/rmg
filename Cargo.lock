@@ -1428,6 +1428,7 @@ dependencies = [
  "libheif-rs",
  "log",
  "minifb",
+ "num_cpus",
  "resvg",
  "syn",
  "tar",

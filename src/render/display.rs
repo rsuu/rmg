@@ -11,7 +11,10 @@ use crate::{
         window::Canvas,
     },
 };
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    thread::{self, sleep_ms},
+};
 
 /// display images
 pub fn cat_img(
@@ -25,7 +28,11 @@ pub fn cat_img(
     let buffer_max = meta.window.width as usize * meta.window.height as usize;
     let data = Data::new(archive_type, path, meta, config.base.filter); // use for resize image
 
-    let mut canvas = Canvas::new(meta.window.width as usize, meta.window.height as usize);
+    let mut canvas = Canvas::new(
+        meta.window.width as usize,
+        meta.window.height as usize,
+        config,
+    );
     let page_list = {
         // sort by filename
         page_list.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
@@ -34,7 +41,7 @@ pub fn cat_img(
     };
 
     // init
-    let mut scroll = Scroll::new(&data, page_list, buffer_max, config.base.step as usize);
+    let mut scroll = Scroll::new(&data, page_list, buffer_max, config);
 
     let arc_task = {
         let mut tmp: Vec<TaskResize> = vec![];
@@ -56,7 +63,9 @@ pub fn cat_img(
 
     // WARN: new thread
     // TODO: ?threadpool
-    new_thread(&arc_task, &data);
+    for _ in 0..num_cpus::get() {
+        new_thread(&arc_task, &data);
+    }
 
     match mode {
         // Bit
@@ -90,14 +99,19 @@ pub fn new_thread(arc_task: &AsyncTask, data: &Data) {
     let arc_task = arc_task.clone();
     let data = data.clone();
 
-    let thread = move || loop {
-        if arc_task.try_start(&data) {
-            // TODO: How about sleep()
-            std::thread::yield_now();
+    let f = move || loop {
+        if let Some(index) = arc_task.try_start(&data) {
+            log::info!(
+                "
+Thread: {:?}
+task: {index}",
+                thread::current().id(),
+            );
         } else {
-            std::thread::sleep(std::time::Duration::from_millis(30));
+            sleep_ms(10);
+            //thread::yield_now();
         }
     };
 
-    std::thread::spawn(thread);
+    thread::spawn(f);
 }

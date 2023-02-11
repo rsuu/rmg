@@ -38,11 +38,11 @@ pub struct Scroll {
 
 ///////////////////////////////////////
 impl Scroll {
-    pub fn new(data: &Data, page_list: PageList, buffer_max: usize, step: usize) -> Self {
+    pub fn new(data: &Data, page_list: PageList, buffer_max: usize, config: &Config) -> Self {
         Self {
             buffer: Buffer::new(),
             buffer_max,
-            mem_limit: buffer_max * 4,
+            mem_limit: buffer_max * config.base.limit as usize,
 
             cur: 0,
 
@@ -56,8 +56,8 @@ impl Scroll {
 
             map: Map::Down,
             page_list,
-            y_step: buffer_max / step, // drop 1/step part of image once
-            x_step: data.meta.window.width as usize / step,
+            y_step: buffer_max / config.base.step as usize, // drop 1/step part of image once
+            x_step: data.meta.window.width as usize / config.base.step as usize,
             window_position: (0, 0),
 
             page_load_list: Vec::new(),
@@ -193,6 +193,8 @@ impl Scroll {
     #[inline(always)]
     fn flush(&mut self, canvas: &mut Canvas, data: &Data, arc_task: &AsyncTask) {
         if arc_task.try_flush(&mut self.page_list) {
+            log::trace!("try_flush()");
+
             self.buffer.free();
 
             for index in self.head..=self.cur {
@@ -209,7 +211,7 @@ impl Scroll {
                 log::trace!("{:?}, {:?}", self.map, self.page_list.get_ref(index).resize);
             }
 
-            if self.try_free_page(data, arc_task) {
+            if self.try_free_page(arc_task) {
                 log::info!("try_free()");
             }
         }
@@ -296,7 +298,7 @@ impl Scroll {
         self.page_list.len()
     }
 
-    fn try_free_page(&mut self, _data: &Data, arc_task: &AsyncTask) -> bool {
+    fn try_free_page(&mut self, arc_task: &AsyncTask) -> bool {
         log::debug!(
             "
 {:?}
@@ -342,14 +344,11 @@ rng: {}
             Map::Up => {
                 log::trace!("up");
 
-                let page_len = self.page_list.get_ref(self.cur).len();
-
                 if self.bit_len < self.mem_limit && self.head > 0 {
                     self.head -= 1;
                 }
 
-                if self.bit_len >= self.mem_limit / 4 + page_len
-                    && self.bit_len > page_len
+                if self.bit_len >= self.mem_limit / 4
                     && self.cur > self.head
                     && arc_task.try_free(self.cur)
                 {

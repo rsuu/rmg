@@ -3,7 +3,11 @@ use fir::FilterType;
 use std::{
     mem,
     path::{Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, RwLock,
+    },
+    thread::{self, sleep_ms},
 };
 
 // ==============================================
@@ -171,7 +175,7 @@ pub trait ForAsyncTask {
     fn new(list: Vec<TaskResize>) -> AsyncTask;
 
     fn try_set_as_todo(&self, index: usize) -> bool;
-    fn try_start(&self, data: &Data) -> bool;
+    fn try_start(&self, data: &Data) -> Option<usize>;
     fn try_check(&self, index: usize) -> bool;
     fn try_flush(&self, list: &mut PageList) -> bool;
     fn try_free(&self, index: usize) -> bool;
@@ -603,23 +607,19 @@ impl ForAsyncTask for AsyncTask {
     }
 
     fn try_set_as_todo(&self, index: usize) -> bool {
-        if self.read().unwrap().list[index].state == State::Empty {
-            let Ok(mut inner) = self.try_write()else { return false;};
+        let Ok(mut inner) = self.try_write() else { return false; };
 
-            if inner.get_ref(index).state == State::Empty {
-                inner.list[index].state = State::Todo;
-            } else {
-                return false;
-            }
+        if inner.get_ref(index).state == State::Empty {
+            inner.list[index].state = State::Todo;
+
+            true
+        } else {
+            false
         }
-
-        false
     }
 
-    fn try_start(&self, data: &Data) -> bool {
-        let Ok(mut inner) =self.try_write()else {
-            return false;
-        };
+    fn try_start(&self, data: &Data) -> Option<usize> {
+        let Ok(mut inner) =self.try_write() else { return None; };
 
         for (index, task) in inner.list.iter_mut().enumerate() {
             if task.state == State::Todo {
@@ -627,13 +627,13 @@ impl ForAsyncTask for AsyncTask {
                 //inner.ram_usage += inner.get_ref(index).page.len();
                 task.state = State::Done;
 
-                return true;
+                return Some(index);
             } else {
                 log::debug!("{} : {:?}", index, task.state);
             }
         }
 
-        false
+        None
     }
 
     fn try_check(&self, index: usize) -> bool {

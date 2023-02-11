@@ -2,7 +2,7 @@
 name = "rmg"
 edition = "2021"
 version = "0.5.1"
-build = "build.rs"
+#build = "build.rs"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Rust: Tiny And Fast Manga/Image Viewer"
 homepage = "https://crates.io/crates/rmg"
@@ -42,6 +42,7 @@ infer = "0.12.0"      # filetype
 lexopt = "0.3.0"      # cli
 walkdir = "2.3.2"     # fs
 log = "0.4.17"
+num_cpus = "1.15.0"
 
 
 [dependencies.env_logger]
