@@ -1,4 +1,4 @@
-use crate::img::utils::Size;
+use crate::img::Size;
 
 pub fn load_ase(_bytes: &[u8]) -> anyhow::Result<(Size<u32>, Vec<Vec<u8>>, Vec<u32>)> {
     cfg_if::cfg_if! {
@@ -12,7 +12,7 @@ pub fn load_ase(_bytes: &[u8]) -> anyhow::Result<(Size<u32>, Vec<Vec<u8>>, Vec<u
 
 #[cfg(feature = "de_aseprite")]
 mod feat {
-    use crate::{img::utils::Size, FPS};
+    use crate::{img::Size, FPS};
     use asefile::AsepriteFile;
     use std::mem;
 
@@ -26,15 +26,15 @@ mod feat {
         let tail = ase.num_frames();
 
         let mut data = Vec::with_capacity(tail as usize);
-        let mut pts_list = Vec::with_capacity(tail as usize);
+        let mut pts = Vec::with_capacity(tail as usize);
 
         for index in head..tail {
             let frame = ase.frame(index);
-            pts_list.push(FPS as u32 + frame.duration());
+            pts.push(frame.duration());
 
             data.push(mem::take(&mut frame.image().to_vec()));
         }
 
-        Ok((size, data, pts_list))
+        Ok((size, data, pts))
     }
 }

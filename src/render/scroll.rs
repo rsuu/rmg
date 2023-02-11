@@ -1,10 +1,10 @@
 use crate::{
     config::rsconf::Config,
-    img::utils::{TMetaSize, TransRgba},
+    img::{TMetaSize, TransRgba},
     render::{
         keymap::{match_event, KeyMap, Map},
-        utils::{AsyncTask, Buffer, Data, ForAsyncTask, Page, PageList},
         window::Canvas,
+        {AsyncTask, Buffer, Data, ForAsyncTask, Img, Page, PageList},
     },
     FPS,
 };
@@ -14,40 +14,61 @@ use std::thread::sleep_ms;
 pub struct Scroll {
     pub buffer: Buffer,    //
     pub buffer_max: usize, //
-    pub bit_len: usize,    // free up Bit
+    pub bit_len: usize,    //
     pub mem_limit: usize,  //
-    pub map: Map,          // [UP, DOWN, QUIT, ...]
-    pub window_position: (i32, i32),
+    pub map: Map,          // user input
 
-    pub need_load_prev: bool, // =0
-    pub need_load_next: bool, // =0
-    //
-    pub cur: usize, // =0
-    //
-    pub rng: usize,    //
+    pub cur: usize,    // =0
+    pub rng: usize,    // =0
     pub head: usize,   // =0
-    pub tail: usize,   // =0
-    pub x_step: usize, // move_down AND move_up
-    pub y_step: usize, // move_left AND move_right
+    pub tail: usize,   // =1
+    pub y_step: usize, // move_down AND move_up
+    pub x_step: usize, // move_left AND move_right
 
-    pub page_list: PageList,        //
-    pub page_load_list: Vec<usize>, //
-    pub page_loading: Vec<u32>,     //
-    pub page_number: usize,         //
+    pub page_list: PageList,    //
+    pub page_loading: Vec<u32>, //
+    pub null_line_size: usize,
+
+    pub window_position: (i32, i32), //
 }
 
 ///////////////////////////////////////
 impl Scroll {
-    pub fn new(data: &Data, page_list: PageList, buffer_max: usize, step: usize) -> Self {
+    pub fn new(
+        data: &Data,
+        page_list: PageList,
+        buffer_max: usize,
+        config: &Config,
+        null_line_size: usize,
+    ) -> Self {
+        use sysinfo::SystemExt;
+
+        let sys = sysinfo::System::new_all();
+        let mem = sys.total_memory() as usize;
+
+        let mut mem_limit = buffer_max * config.base.limit as usize;
+
+        if mem_limit >= mem / 2 {
+            println!(
+                "WARN: mem_limit is {}, but total_memory is {}",
+                mem_limit, mem
+            );
+        } else if mem_limit >= mem {
+            println!(
+                "ERROR: mem_limit is {}, but total_memory is {}",
+                mem_limit, mem
+            );
+
+            mem_limit = mem / 2;
+        }
+
         Self {
             buffer: Buffer::new(),
             buffer_max,
-            mem_limit: buffer_max * 4,
+            mem_limit,
 
             cur: 0,
 
-            need_load_next: false,
-            need_load_prev: false,
             head: 0,
             tail: 0,
             rng: 0,
@@ -56,14 +77,12 @@ impl Scroll {
 
             map: Map::Down,
             page_list,
-            y_step: buffer_max / step, // drop 1/step part of image once
-            x_step: data.meta.window.width as usize / step,
+            y_step: buffer_max / config.base.step as usize, // drop 1/step part of image once
+            x_step: data.meta.window.width as usize / config.base.step as usize,
             window_position: (0, 0),
 
-            page_load_list: Vec::new(),
-
-            page_number: 0,
-            page_loading: vec![TransRgba::rgba_as_argb_u32(&255, &238, &238, &238); buffer_max],
+            null_line_size,
+            page_loading: vec![TransRgba::rgba_as_argb_u32(&238, &238, &238, &128); buffer_max],
         }
     }
 
@@ -75,11 +94,6 @@ impl Scroll {
         data: &Data,
         arc_task: &AsyncTask,
     ) {
-        let mut time_start = std::time::Instant::now();
-        let mut now = std::time::Instant::now();
-        let mut ms = 0_u32;
-        let mut count = 0;
-
         arc_task.try_set_as_todo(0);
         arc_task.try_set_as_todo(1);
 
@@ -126,23 +140,24 @@ impl Scroll {
             self.flush(canvas, data, arc_task);
             self.map = Map::Stop;
 
-            now = std::time::Instant::now();
-            count = (now - time_start).as_millis() as u32;
-            time_start = now;
-            ms = FPS.checked_sub(count / 6).unwrap_or(10);
+            // for page in self.page_list.list.iter_mut() {
+            //     if page.number < self.head || page.number > self.tail {
+            //         let _ = arc_task.try_free(page.number);
+            //     }
+            // }
 
-            sleep_ms(ms);
+            tracing::trace!("{} , {}", self.bit_len, self.mem_limit);
+
+            sleep_ms(1000 / 120);
         }
     }
-
-    fn load_page_number(&mut self, _page_number: usize) {}
 
     ///
     #[inline(always)]
     fn mouse_input(&mut self, canvas: &mut Canvas, config: &Config) {
         // scroll
         if let Some((_, y)) = canvas.window.get_scroll_wheel() {
-            log::trace!("mouse_y == {}", y);
+            tracing::trace!("mouse_y == {}", y);
 
             if config.base.invert_mouse {
                 if y > 0.0 {
@@ -161,90 +176,80 @@ impl Scroll {
             }
         }
 
-        //  TODO:
         // left click
         if canvas.window.get_mouse_down(minifb::MouseButton::Left) {
-            let (count, number) = &mut (0, 0);
-            let (_x, y) = canvas
-                .window
-                .get_mouse_pos(minifb::MouseMode::Clamp)
-                .unwrap();
+            let mut tmp = 0;
 
-            // TODO: fix
-            // page number + offset_y
-            for index in self.page_load_list.iter() {
-                if *count as f32 >= self.rng as f32 + y {
-                    *number = self.page_list.get_ref(*index).number;
+            for index in self.head..=self.tail {
+                if tmp <= self.rng {
+                    self.cur = self.page_list.get_ref(index).number;
+                    break;
                 } else {
-                    *count += self.page_list.get_ref(*index).len();
+                    tmp += self.page_list.get_ref(index).img.len();
                 }
             }
 
-            let _number = match *number {
-                0 => self.page_list.list.len() - 1,
-                _ => *number,
-            };
-
-            log::debug!("offset_y: {}", y);
-            //dbg!(number, self.page_number);
+            println!("mark: {}", self.cur);
         }
     }
 
     #[inline(always)]
     fn flush(&mut self, canvas: &mut Canvas, data: &Data, arc_task: &AsyncTask) {
         if arc_task.try_flush(&mut self.page_list) {
+            tracing::trace!("try_flush()");
+
             self.buffer.free();
 
-            for index in self.head..=self.cur {
+            for index in self.head..=self.tail {
                 if self.page_list.get_ref(index).flush(&mut self.buffer.data) {
-                    self.page_list.get_mut(index).to_next_frame();
-                } else {
-                    let _ = arc_task.try_set_as_todo(index);
-                    log::debug!("todo: {}", index);
+                    self.page_list.get_mut(index).img.to_next_frame();
+                } else if arc_task.try_set_as_todo(index) {
+                    let mut n = self.page_list.get_ref(index).img.len() as isize;
 
-                    self.buffer
-                        .extend(&self.page_loading[0..self.page_list.get_ref(index).len()]);
+                    while n > 0 {
+                        self.buffer
+                            .extend(&self.page_loading[0..self.null_line_size]);
+                        n -= self.null_line_size as isize
+                    }
                 }
-
-                log::trace!("{:?}, {:?}", self.map, self.page_list.get_ref(index).resize);
             }
 
-            if self.try_free_page(data, arc_task) {
-                log::info!("try_free()");
+            if self.map == Map::Down {
+                self.free_head(arc_task);
+            } else if self.map == Map::Up {
+                self.free_tail(arc_task);
             }
+
+            self.try_load_page(arc_task);
         }
 
-        while self.buffer.len() < self.rng + self.buffer_max {
-            self.buffer.extend(&self.page_loading);
+        while self.buffer.len() < self.end() {
+            self.buffer
+                .extend(&self.page_loading[0..self.null_line_size]);
         }
 
-        canvas.flush(&self.buffer.data[self.rng..self.rng + self.buffer_max]);
+        self.buffer.data.truncate(self.end());
+
+        canvas.flush(&self.buffer.data[self.rng..self.end()]);
     }
 
     #[inline(always)]
     fn pages_len(&mut self) {
-        self.page_load_list.clear();
         self.bit_len = 0;
 
-        for (index, page) in self.page_list.list.iter().enumerate() {
-            if page.is_ready && page.len() > 0 {
-                self.bit_len += page.len();
-                self.page_load_list.push(index);
-            }
+        for index in self.head..=self.tail {
+            self.bit_len += self.page_list.get_ref(index).img.len()
         }
     }
 
     /// move down
     #[inline(always)]
     fn move_down(&mut self) {
-        log::debug!("{}, {}", self.rng, self.bit_len);
-
         self.map = Map::Down;
 
-        // buffer = &[rng..rng+buffer_max]
-        if self.rng + self.buffer_max + self.y_step <= self.bit_len {
+        if self.end() + self.y_step <= self.bit_len {
             self.rng += self.y_step;
-        } else if self.rng + self.buffer_max <= self.bit_len {
+        } else if self.end() <= self.bit_len {
             self.rng = self.bit_len - self.buffer_max;
         } else {
         }
@@ -259,7 +264,7 @@ impl Scroll {
             self.rng -= self.y_step;
         } else {
             self.rng = 0;
-        };
+        }
     }
 
     /// move left
@@ -274,8 +279,8 @@ impl Scroll {
         } else {
         }
 
-        log::debug!("start: {}", self.rng);
-        log::debug!("end: {}", self.end());
+        tracing::debug!("start: {}", self.rng);
+        tracing::debug!("end: {}", self.end());
     }
 
     /// move right
@@ -292,19 +297,49 @@ impl Scroll {
         self.rng + self.buffer_max
     }
 
-    fn page_list_tail(&self) -> usize {
-        self.page_list.len()
+    fn free_head(&mut self, arc_task: &AsyncTask) {
+        let page_len = self.page_list.get_ref(self.head).img.len();
+
+        if self.bit_len >= self.mem_limit / 2 + page_len
+            && self.tail > self.head
+            && self.rng > page_len
+            && self.bit_len > page_len
+            && arc_task.try_free(self.head)
+        {
+            self.rng -= page_len;
+            self.page_list.free(self.head);
+            self.head += 1;
+            self.bit_len -= page_len;
+
+            tracing::info!("free head");
+        }
     }
 
-    fn try_free_page(&mut self, _data: &Data, arc_task: &AsyncTask) -> bool {
-        log::debug!(
+    fn free_tail(&mut self, arc_task: &AsyncTask) {
+        let page_len = self.page_list.get_ref(self.tail).img.len();
+
+        if self.bit_len >= self.mem_limit / 4
+            && self.tail > self.head
+            && self.bit_len > page_len
+            && arc_task.try_free(self.tail)
+        {
+            self.page_list.free(self.tail);
+            self.tail -= 1;
+            self.bit_len -= page_len;
+
+            tracing::info!("free tail");
+        }
+    }
+
+    fn try_load_page(&mut self, arc_task: &AsyncTask) {
+        tracing::debug!(
             "
 {:?}
 bit_len:   {}
 mem_limit: {}
 rng: {}
 ",
-            (self.head, self.cur),
+            (self.head, self.tail),
             self.bit_len,
             self.mem_limit,
             self.rng,
@@ -314,56 +349,38 @@ rng: {}
         //   min: 0
         //   max: tail - 1
         // tail
-        //   min: 1
+        //   min: head + 1
         //   max: len  - 1
         match self.map {
             Map::Down => {
-                log::trace!("down");
+                tracing::trace!("down");
 
-                let page_len = self.page_list.get_ref(self.head).len();
+                let page_len = self.page_list.get_ref(self.head).img.len();
 
-                if self.bit_len < self.mem_limit && self.cur + 1 < self.page_list.len() {
-                    self.cur += 1;
-                }
-
-                if self.bit_len >= self.mem_limit / 2 + page_len
-                    && self.rng > page_len
-                    && self.cur > self.head
-                    && arc_task.try_free(self.head)
+                if self.bit_len < self.mem_limit + page_len && self.tail + 1 < self.page_list.len()
                 {
-                    self.rng -= page_len;
-                    self.page_list.list[self.head].free();
-                    self.head += 1;
-
-                    log::info!("free head");
+                    self.tail += 1;
                 }
             }
 
             Map::Up => {
-                log::trace!("up");
+                tracing::trace!("up");
 
-                let page_len = self.page_list.get_ref(self.cur).len();
+                let page_len = self.page_list.get_ref(self.tail).img.len();
 
-                if self.bit_len < self.mem_limit && self.head > 0 {
+                if self.bit_len < self.mem_limit + page_len && self.head > 0 {
                     self.head -= 1;
-                }
-
-                if self.bit_len >= self.mem_limit / 4 + page_len
-                    && self.bit_len > page_len
-                    && self.cur > self.head
-                    && arc_task.try_free(self.cur)
-                {
-                    self.page_list.list[self.cur].free();
-                    self.cur -= 1;
-
-                    log::info!("free tail");
                 }
             }
 
             _ => {}
         }
+    }
 
-        true
+    pub fn load_from_mark(&mut self) {
+        // TODO:
+        self.tail = self.cur;
+        self.head = self.tail - 1;
     }
 }
 
@@ -383,17 +400,18 @@ rng: {}
 // }
 //
 //
-// pub fn free_head<T>(buffer: &mut Vec<T>, range: usize)
+// pub fn free_head<T>(buffer: &mut Vec<T>, len: usize)
 // where
 //     T: Sized + Clone,
 // {
-//     buffer.drain(..range);
+//     buffer.drain(0..len);
 // }
 //
 //
-// pub fn free_tail<T>(buffer: &mut Vec<T>, range: usize)
+// #[inline(always)]
+// pub fn free_tail<T>(buffer: &mut Vec<T>, len: usize)
 // where
 //     T: Sized,
 // {
-//     buffer.truncate(buffer.len() - range);
+//     buffer.truncate(buffer.len() - len);
 // }

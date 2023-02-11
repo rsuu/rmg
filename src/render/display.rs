@@ -1,17 +1,20 @@
 use crate::{
-    archive::utils::ArchiveType,
+    archive::ArchiveType,
     config::rsconf::Config,
-    img::utils::MetaSize,
+    img::MetaSize,
     render::{
         keymap::KeyMap,
         once::Once,
         scroll::Scroll,
         turn::Turn,
-        utils::{AsyncTask, Data, ForAsyncTask, Page, PageList, TaskResize, ViewMode},
         window::Canvas,
+        {self, AsyncTask, Data, ForAsyncTask, Page, PageList, TaskResize, ViewMode},
     },
 };
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    thread::{self, sleep_ms},
+};
 
 /// display images
 pub fn cat_img(
@@ -25,16 +28,21 @@ pub fn cat_img(
     let buffer_max = meta.window.width as usize * meta.window.height as usize;
     let data = Data::new(archive_type, path, meta, config.base.filter); // use for resize image
 
-    let mut canvas = Canvas::new(meta.window.width as usize, meta.window.height as usize);
-    let page_list = {
-        // sort by filename
-        page_list.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
-
-        PageList::new(page_list.to_owned())
-    };
+    let mut canvas = Canvas::new(
+        meta.window.width as usize,
+        meta.window.height as usize,
+        config,
+    );
+    let page_list = PageList::new(page_list);
 
     // init
-    let mut scroll = Scroll::new(&data, page_list, buffer_max, config.base.step as usize);
+    let mut scroll = Scroll::new(
+        &data,
+        page_list,
+        buffer_max,
+        config,
+        data.meta.window.width as usize,
+    );
 
     let arc_task = {
         let mut tmp: Vec<TaskResize> = vec![];
@@ -56,7 +64,9 @@ pub fn cat_img(
 
     // WARN: new thread
     // TODO: ?threadpool
-    new_thread(&arc_task, &data);
+    for _ in 0..num_cpus::get() / 2 {
+        render::new_thread(&arc_task, &data);
+    }
 
     match mode {
         // Bit
@@ -81,23 +91,7 @@ pub fn cat_img(
         }
     }
 
-    log::info!("*** EXIT ***");
+    tracing::info!("*** EXIT ***");
 
     Ok(())
-}
-
-pub fn new_thread(arc_task: &AsyncTask, data: &Data) {
-    let arc_task = arc_task.clone();
-    let data = data.clone();
-
-    let thread = move || loop {
-        if arc_task.try_start(&data) {
-            // TODO: How about sleep()
-            std::thread::yield_now();
-        } else {
-            std::thread::sleep(std::time::Duration::from_millis(30));
-        }
-    };
-
-    std::thread::spawn(thread);
 }

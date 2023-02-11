@@ -2,7 +2,7 @@ use crate::{
     render::{
         keymap::{self, KeyMap, Map},
         scroll::Scroll,
-        utils::{Data, Page},
+        {Data, Page},
         window::Canvas,
     },
     FPS,
@@ -28,9 +28,6 @@ impl Once {
     }
 
     pub fn start(&mut self, canvas: &mut Canvas, keymaps: &[KeyMap], data: &Data) {
-        let mut time_start = std::time::Instant::now();
-        let mut ms = FPS;
-
         self.page.load_file(data).expect("ERROR: load_file()");
 
         let mut buffer: Vec<u32> = vec![];
@@ -67,7 +64,7 @@ impl Once {
 
             buffer.clear();
             if self.page.flush(&mut buffer) {
-                self.page.to_next_frame();
+                self.page.img.to_next_frame();
             } else {
                 panic!("");
             }
@@ -76,14 +73,10 @@ impl Once {
                 buffer.extend_from_slice(&self.page_loading);
             }
 
+            buffer.truncate(rng + self.buffer_max);
             canvas.flush(&buffer[rng..rng + self.buffer_max]);
 
-            let now = std::time::Instant::now();
-            let count = (now - time_start).as_millis() as u32;
-            time_start = now;
-            ms = FPS.checked_sub(count / 6).unwrap_or(10);
-
-            sleep_ms(ms);
+            sleep_ms(6);
         }
     }
 }

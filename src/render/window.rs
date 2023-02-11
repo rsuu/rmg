@@ -1,3 +1,4 @@
+use crate::config::rsconf::Config;
 use minifb::{Scale, ScaleMode, Window};
 
 pub struct Canvas {
@@ -6,20 +7,20 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: usize, height: usize, config: &Config) -> Self {
         let windowoptions = minifb::WindowOptions {
-            borderless: false,
+            borderless: config.window.borderless,
             transparency: false,
             title: true,
-            resize: false,
+            resize: config.window.resize,
 
             // https://github.com/tauri-apps/tauri/issues/3117#issuecomment-1027910946
             // After a bit of research, a lot of resources seems to indicate that
             // Wayland doesn't have an api for setting alwayOnTop so we don't have
             // much choice but to wait for Wayland to add an api for it.
-            topmost: false,
+            topmost: config.window.topmost,
 
-            none: true,
+            none: config.window.none,
             scale_mode: ScaleMode::Center,
             scale: Scale::X1,
         };

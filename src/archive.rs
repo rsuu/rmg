@@ -1,7 +1,15 @@
+pub mod dir;
+pub mod file;
+
+// feature
+pub mod tar;
+pub mod zip;
+
+// ==============================================
 use crate::{
     archive,
-    img::utils::TMetaSize,
-    render::utils::{ImgFormat, Page},
+    img::TMetaSize,
+    render::{ImgFormat, Page},
     EXT_LIST,
 };
 use infer;
@@ -168,7 +176,7 @@ pub fn pad_name(width: usize, name: &str) -> String {
 
     path.push_str(format!("{filename}.{suffix}").as_ref());
 
-    log::debug!("path = {:?}", path);
+    tracing::debug!("path = {:?}", path);
 
     path
 }

@@ -1,3 +1,10 @@
+// feature
+pub mod ase;
+pub mod gif;
+pub mod heic;
+pub mod svg;
+
+// ==============================================
 use cfg_if::cfg_if;
 use fir;
 use image;
@@ -164,8 +171,8 @@ pub fn resize_rgba8(
     to: &Size<u32>,
     filter: &fir::FilterType,
 ) -> anyhow::Result<()> {
-    log::debug!("{:?}", from);
-    log::debug!("{:?}", to);
+    tracing::debug!("{:?}", from);
+    tracing::debug!("{:?}", to);
 
     let mut src_image = fir::Image::from_vec_u8(
         NonZeroU32::new(from.width).unwrap(),
@@ -208,8 +215,8 @@ pub fn center_img(
     fg_size: &Size<u32>,
     offset: usize,
 ) {
-    log::info!("{}, {}", bg.len(), fg.len());
-    log::info!("{:?}, {:?}", bg_size, fg_size);
+    tracing::info!("{}, {}", bg.len(), fg.len());
+    tracing::info!("{:?}, {:?}", bg_size, fg_size);
 
     let bg_w = bg_size.width as usize;
     let fg_w = fg_size.width as usize;
@@ -295,7 +302,7 @@ pub fn yuv420_u32() {}
 
 // ==============================================
 mod test {
-    pub use crate::img::utils::*;
+    pub use crate::img::*;
 
     #[test]
     fn _rgba_as_argb_u32() {}

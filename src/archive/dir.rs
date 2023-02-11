@@ -1,4 +1,4 @@
-use crate::archive::utils::*;
+use crate::archive::*;
 use std::{fs::OpenOptions, io::Read, path::Path};
 use walkdir::WalkDir;
 
@@ -16,7 +16,7 @@ pub fn get_file(path: &Path, index: usize) -> anyhow::Result<Vec<u8>> {
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer)?;
 
-            log::debug!("{}, {}", pos, index);
+            tracing::debug!("{}, {}", pos, index);
 
             return Ok(buffer);
         }
