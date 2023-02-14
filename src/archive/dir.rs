@@ -16,7 +16,7 @@ pub fn get_file(path: &Path, index: usize) -> anyhow::Result<Vec<u8>> {
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer)?;
 
-            log::debug!("{}, {}", pos, index);
+            tracing::debug!("{}, {}", pos, index);
 
             return Ok(buffer);
         }

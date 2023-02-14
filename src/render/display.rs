@@ -7,7 +7,7 @@ use crate::{
         once::Once,
         scroll::Scroll,
         turn::Turn,
-        utils::{AsyncTask, Data, ForAsyncTask, Page, PageList, TaskResize, ViewMode},
+        utils::{self, AsyncTask, Data, ForAsyncTask, Page, PageList, TaskResize, ViewMode},
         window::Canvas,
     },
 };
@@ -64,7 +64,7 @@ pub fn cat_img(
     // WARN: new thread
     // TODO: ?threadpool
     for _ in 0..num_cpus::get() {
-        new_thread(&arc_task, &data);
+        utils::new_thread(&arc_task, &data);
     }
 
     match mode {
@@ -90,28 +90,7 @@ pub fn cat_img(
         }
     }
 
-    log::info!("*** EXIT ***");
+    tracing::info!("*** EXIT ***");
 
     Ok(())
-}
-
-pub fn new_thread(arc_task: &AsyncTask, data: &Data) {
-    let arc_task = arc_task.clone();
-    let data = data.clone();
-
-    let f = move || loop {
-        if let Some(index) = arc_task.try_start(&data) {
-            log::info!(
-                "
-Thread: {:?}
-task: {index}",
-                thread::current().id(),
-            );
-        } else {
-            sleep_ms(10);
-            //thread::yield_now();
-        }
-    };
-
-    thread::spawn(f);
 }

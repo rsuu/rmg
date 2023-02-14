@@ -2,8 +2,8 @@ use crate::{img::utils::*, render::utils::ViewMode, VERSION};
 use dirs_next;
 use fir;
 use lexopt::{self, prelude::*};
-use log::debug;
 use std::{fs::File, io::Read, path::Path, path::PathBuf, process::exit};
+use tracing::debug;
 
 #[derive(Debug)]
 pub struct Config {
@@ -354,7 +354,6 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
 
             ("filter", syn::Expr::Lit(_expr_lit)) => {
                 // fir::FilterType
-                // eprintln!("{:#?}", fields);
 
                 let syn::Lit::Str(lit) = &_expr_lit.lit else {panic!()};
 
@@ -374,7 +373,6 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
 
             ("invert_mouse", syn::Expr::Lit(_expr_lit)) => {
                 // bool
-                // eprintln!("{:#?}", fields);
 
                 let syn::Lit::Bool(lit) = &_expr_lit.lit else {panic!()};
 
@@ -387,8 +385,6 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
             }
 
             ("font", syn::Expr::Lit(_expr_lit)) => {
-                //eprintln!("{:#?}", fields);
-
                 let syn::Lit::Str(lit) = &_expr_lit.lit else {panic!()}
 ;
                 let font_path = lit.token().to_string().trim_matches('"').to_string();
@@ -401,8 +397,6 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
             }
 
             ("size", syn::Expr::Tuple(tuple_)) => {
-                //eprintln!("{:#?}", fields);
-
                 let syn::Expr::Lit(_lhs) = &tuple_.elems[0] else {panic!()};
 
                 let syn::Expr::Lit(_rhs) = &tuple_.elems[1] else { panic!() };
@@ -424,7 +418,6 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
         }
     }
 
-    //eprintln!("{:#?}", base);
     base
 }
 
@@ -439,8 +432,6 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
         if let syn::Member::Named(_name) = &fields.member {
             match _name.to_string().as_str() {
                 "up" => {
-                    // eprintln!("{:#?}", fields);
-
                     if let syn::Expr::Lit(_expr_lit) = &fields.expr {
                         if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
                             keymap.up = _lit_char
@@ -455,8 +446,6 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                 }
 
                 "down" => {
-                    // eprintln!("{:#?}", fields);
-
                     if let syn::Expr::Lit(_expr_lit) = &fields.expr {
                         if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
                             keymap.down = _lit_char
@@ -471,8 +460,6 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                 }
 
                 "left" => {
-                    // eprintln!("{:#?}", fields);
-
                     if let syn::Expr::Lit(_expr_lit) = &fields.expr {
                         if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
                             keymap.left = _lit_char
@@ -487,8 +474,6 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                 }
 
                 "right" => {
-                    // eprintln!("{:#?}", fields);
-
                     if let syn::Expr::Lit(_expr_lit) = &fields.expr {
                         if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
                             keymap.right = _lit_char
@@ -503,8 +488,6 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
                 }
 
                 "exit" => {
-                    // eprintln!("{:#?}", fields);
-
                     if let syn::Expr::Lit(_expr_lit) = &fields.expr {
                         if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
                             keymap.exit = _lit_char
@@ -523,7 +506,6 @@ pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
         }
     }
 
-    //eprintln!("{:#?}", keymap);
     keymap
 }
 
@@ -585,7 +567,6 @@ pub fn parse_window(expr_struct: &syn::ExprStruct) -> Window {
         }
     }
 
-    //eprintln!("{:#?}", window);
     window
 }
 
@@ -611,8 +592,6 @@ FPAGS:
 OPTIONS:
     -h, --help
             Prints help information
-    -V, --version
-            Prints version information
     -s, --size
             Reset the width and the height of the buffer
             e.g. rmg --size 900x900

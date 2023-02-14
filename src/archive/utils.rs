@@ -168,7 +168,7 @@ pub fn pad_name(width: usize, name: &str) -> String {
 
     path.push_str(format!("{filename}.{suffix}").as_ref());
 
-    log::debug!("path = {:?}", path);
+    tracing::debug!("path = {:?}", path);
 
     path
 }

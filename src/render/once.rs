@@ -67,7 +67,7 @@ impl Once {
 
             buffer.clear();
             if self.page.flush(&mut buffer) {
-                self.page.to_next_frame();
+                self.page.img.to_next_frame();
             } else {
                 panic!("");
             }
@@ -75,6 +75,8 @@ impl Once {
             while buffer.len() < rng + self.buffer_max {
                 buffer.extend_from_slice(&self.page_loading);
             }
+
+            buffer.truncate(rng + self.buffer_max);
 
             canvas.flush(&buffer[rng..rng + self.buffer_max]);
 

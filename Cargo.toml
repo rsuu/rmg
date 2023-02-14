@@ -35,73 +35,42 @@ strip = true
 anyhow = "1.0.68"
 cfg-if = "1.0.0"
 dirs-next = "2.0.0"   # config
-gif = "0.12.0"
-gif-dispose = "4.0.0"
-image = "0.24.5"
 infer = "0.12.0"      # filetype
 lexopt = "0.3.0"      # cli
 walkdir = "2.3.2"     # fs
-log = "0.4.17"
+
 num_cpus = "1.15.0"
+sysinfo = {version="0.27.7" ,default-features = false}
 
+# log
+tracing = "0.1.37"
+tracing-subscriber = {version ="0.3.16",features=["env-filter"]}
 
-[dependencies.env_logger]
-version = "0.10.0"
-features = ["color"]
-default-features = false
-
-# image
-[dependencies.asefile]
-version = "0.3.5"
-optional = true
+#log = "0.4.17"
+#env_logger = {version = "0.10.0", features = ["color"], default-features = false}
 
 # image
-[dependencies.fir]
-version = "2.5.0"
-package = "fast_image_resize"
-
-# image
-[dependencies.libheif-rs]
-version = "0.15.1"
-optional = true
+fir = {version = "2.5.0", package = "fast_image_resize"}
+asefile={version = "0.3.5",optional = true}
+libheif-rs = {version = "0.15.1",optional = true}
+gif = "0.12.0"
+gif-dispose = "4.0.0"
+image = "0.24.5"
 
 # window
-[dependencies.minifb]
-version = "0.23.0"
-features = ["x11", "wayland"]
-
-# image
-[dependencies.resvg]
-version = "0.28.0"
-optional = true
+minifb={version = "0.23.0",features = ["x11", "wayland"]}
 
 # config
-[dependencies.syn]
-version = "1.0.107"
-features = ["parsing", "extra-traits", "full"]
-default-features = false
-
-# archive
-[dependencies.tar]
-version = "0.4.38"
-optional = true
+syn={version = "1.0.107",features = ["parsing", "extra-traits", "full"],default-features = false}
 
 # svg
-[dependencies.tiny-skia]
-version = "0.8.2"
-optional = true
-
-# svg
-[dependencies.usvg]
-version = "0.28.0"
-optional = true
+tiny-skia={version = "0.8.2",optional = true}
+usvg={version = "0.28.0",optional = true}
+resvg={version = "0.28.0",optional = true}
 
 # archive
-[dependencies.zip]
-version = "0.6.4"
-features = ["aes-crypto", "bzip2", "deflate"]
-optional = true
-default-features = false
+zip ={version = "0.6.4",features = ["aes-crypto", "bzip2", "deflate"],optional = true,default-features = false}
+tar ={version = "0.4.38",optional = true}
 
 [features]
 default = ["ex_zip", "ex_tar"]
