@@ -138,8 +138,8 @@ pub struct AnimData {
     pub frames_count: usize,
     pub frame_index: usize, // index of frame
     pub pts: Vec<u32>,      // pts = delay + fps
-    pub timer: usize,       //
-    pub miss: usize,        //
+    pub timer: u32,         //
+    pub miss: u32,          //
 }
 
 // read only
@@ -630,20 +630,19 @@ impl AnimData {
     }
 
     pub fn to_next_frame(&mut self) {
-        let pts = self.pts[self.frame_index] as usize;
+        let pts = self.pts[self.frame_index];
 
-        if self.timer >= (pts as isize - self.miss as isize).unsigned_abs() {
-            self.miss = self.timer.saturating_sub(pts);
+        if self.timer >= pts {
+            self.timer = self.timer.checked_sub(pts).unwrap_or(0);
 
             if self.frame_index + 1 < self.data.len() {
                 self.frame_index += 1;
             } else {
                 // reset
                 self.frame_index = 0;
-                self.timer = 0;
             }
         } else {
-            self.timer += FPS as usize;
+            self.timer += FPS;
         }
     }
 

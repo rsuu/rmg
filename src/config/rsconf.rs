@@ -581,7 +581,7 @@ Tiny And Fast Manga/Image Viewer
 USAGE:
     rmg [OPTIONS] file
 
-FPAGS:
+FLAGS:
     --invert-mouse
             e.g. rmg --invert-mouse true
     --window-borderless

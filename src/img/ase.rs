@@ -26,15 +26,15 @@ mod feat {
         let tail = ase.num_frames();
 
         let mut data = Vec::with_capacity(tail as usize);
-        let mut pts_list = Vec::with_capacity(tail as usize);
+        let mut pts = Vec::with_capacity(tail as usize);
 
         for index in head..tail {
             let frame = ase.frame(index);
-            pts_list.push(FPS as u32 + frame.duration());
+            pts.push(frame.duration());
 
             data.push(mem::take(&mut frame.image().to_vec()));
         }
 
-        Ok((size, data, pts_list))
+        Ok((size, data, pts))
     }
 }

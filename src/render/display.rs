@@ -41,7 +41,13 @@ pub fn cat_img(
     };
 
     // init
-    let mut scroll = Scroll::new(&data, page_list, buffer_max, config);
+    let mut scroll = Scroll::new(
+        &data,
+        page_list,
+        buffer_max,
+        config,
+        data.meta.window.width as usize,
+    );
 
     let arc_task = {
         let mut tmp: Vec<TaskResize> = vec![];

@@ -5,8 +5,8 @@ fn main() {
         rename_pad: 6,
         invert_mouse: false,
         filter: "Hamming",
-        step: 4,
-        limit: 20,
+        step: 5,
+        limit: 10,
     };
 
     Keymap {

@@ -27,13 +27,20 @@ pub struct Scroll {
 
     pub page_list: PageList,    //
     pub page_loading: Vec<u32>, //
+    pub null_line_size: usize,
 
     pub window_position: (i32, i32), //
 }
 
 ///////////////////////////////////////
 impl Scroll {
-    pub fn new(data: &Data, page_list: PageList, buffer_max: usize, config: &Config) -> Self {
+    pub fn new(
+        data: &Data,
+        page_list: PageList,
+        buffer_max: usize,
+        config: &Config,
+        null_line_size: usize,
+    ) -> Self {
         use sysinfo::SystemExt;
 
         let sys = sysinfo::System::new_all();
@@ -74,10 +81,8 @@ impl Scroll {
             x_step: data.meta.window.width as usize / config.base.step as usize,
             window_position: (0, 0),
 
-            page_loading: vec![
-                TransRgba::rgba_as_argb_u32(&238, &238, &238, &128);
-                2000 * 1000 * 10
-            ],
+            null_line_size,
+            page_loading: vec![TransRgba::rgba_as_argb_u32(&238, &238, &238, &128); buffer_max],
         }
     }
 
@@ -89,11 +94,6 @@ impl Scroll {
         data: &Data,
         arc_task: &AsyncTask,
     ) {
-        let mut time_start = std::time::Instant::now();
-        let mut now = std::time::Instant::now();
-        let mut ms = 0_u32;
-        let mut count = 0;
-
         arc_task.try_set_as_todo(0);
         arc_task.try_set_as_todo(1);
 
@@ -140,14 +140,9 @@ impl Scroll {
             self.flush(canvas, data, arc_task);
             self.map = Map::Stop;
 
-            now = std::time::Instant::now();
-            count = (now - time_start).as_millis() as u32;
-            time_start = now;
-            ms = FPS.checked_sub(count / 6).unwrap_or(10);
-
             tracing::trace!("{} , {}", self.bit_len, self.mem_limit);
 
-            sleep_ms(ms);
+            sleep_ms(6);
         }
     }
 
@@ -203,8 +198,13 @@ impl Scroll {
                 if self.page_list.get_ref(index).flush(&mut self.buffer.data) {
                     self.page_list.get_mut(index).img.to_next_frame();
                 } else if arc_task.try_set_as_todo(index) {
-                    self.buffer
-                        .extend(&self.page_loading[0..self.page_list.get_ref(index).img.len()]);
+                    let mut n = self.page_list.get_ref(index).img.len() as isize;
+
+                    while n > 0 {
+                        self.buffer
+                            .extend(&self.page_loading[0..self.null_line_size]);
+                        n -= self.null_line_size as isize
+                    }
                 } else {
                 }
             }
@@ -219,7 +219,8 @@ impl Scroll {
         }
 
         while self.buffer.len() < self.end() {
-            self.buffer.extend(&self.page_loading);
+            self.buffer
+                .extend(&self.page_loading[0..self.null_line_size]);
         }
 
         self.buffer.data.truncate(self.end());
@@ -372,6 +373,7 @@ rng: {}
     }
 
     pub fn load_from_mark(&mut self) {
+        // TODO:
         self.tail = self.cur;
         self.head = self.tail - 1;
     }

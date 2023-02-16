@@ -1,7 +1,7 @@
 [package]
 name = "rmg"
 edition = "2021"
-version="0.5.2"
+version= "0.5.6"
 #build = "build.rs"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Rust: Tiny And Fast Manga/Image Viewer"
@@ -33,14 +33,14 @@ strip = true
 
 [dependencies]
 anyhow = "1.0.68"
-cfg-if = "1.0.0"
-dirs-next = "2.0.0"   # config
 infer = "0.12.0"      # filetype
 lexopt = "0.3.0"      # cli
-walkdir = "2.3.2"     # fs
 
+walkdir = "2.3.2"     # fs
+dirs-next = "2.0.0"   # config
 num_cpus = "1.15.0"
 sysinfo = {version="0.27.7" ,default-features = false}
+cfg-if = "1"
 
 # log
 tracing = "0.1.37"
