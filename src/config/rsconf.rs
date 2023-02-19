@@ -3,7 +3,6 @@ use dirs_next;
 use fir;
 use lexopt::{self, prelude::*};
 use std::{fs::File, io::Read, path::Path, path::PathBuf, process::exit};
-use tracing::debug;
 
 #[derive(Debug)]
 pub struct Config {
@@ -102,7 +101,7 @@ impl Config {
             anyhow::bail!("")
         }
 
-        debug!("config_path: {:?}", config_path);
+        tracing::debug!("config_path: {:?}", config_path);
 
         self.parse(config_path.as_path())
     }
@@ -263,7 +262,7 @@ pub fn parse_struct(block: &syn::Block) -> Option<Config> {
 
     for stmt in block.stmts.iter() {
         if let syn::Stmt::Semi(syn::Expr::Struct(expr_struct), _token) = stmt {
-            debug!("{:#?}", expr_struct);
+            tracing::debug!("{:#?}", expr_struct);
 
             match match_struct_name(expr_struct) {
                 ConfigType::Base => {
@@ -359,7 +358,7 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
 
                 let ty = lit.token().to_string().trim_matches('"').to_string();
 
-                debug!("ty: {}", ty);
+                tracing::debug!("ty: {}", ty);
 
                 base.filter = match ty.as_str() {
                     "Box" => fir::FilterType::Box,
