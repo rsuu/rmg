@@ -41,21 +41,19 @@ impl Scroll {
         config: &Config,
         null_line_size: usize,
     ) -> Self {
-        use sysinfo::SystemExt;
+        let mem = {
+            use sysinfo::SystemExt;
 
-        let sys = sysinfo::System::new_all();
-        let mem = sys.total_memory() as usize;
+            let sys = sysinfo::System::new_all();
+
+            sys.total_memory() as usize
+        };
 
         let mut mem_limit = buffer_max * config.base.limit as usize;
 
-        if mem_limit >= mem / 2 {
+        if mem_limit >= mem {
             println!(
                 "WARN: mem_limit is {}, but total_memory is {}",
-                mem_limit, mem
-            );
-        } else if mem_limit >= mem {
-            println!(
-                "ERROR: mem_limit is {}, but total_memory is {}",
                 mem_limit, mem
             );
 
@@ -140,14 +138,6 @@ impl Scroll {
             self.flush(canvas, data, arc_task);
             self.map = Map::Stop;
 
-            // for page in self.page_list.list.iter_mut() {
-            //     if page.number < self.head || page.number > self.tail {
-            //         let _ = arc_task.try_free(page.number);
-            //     }
-            // }
-
-            tracing::trace!("{} , {}", self.bit_len, self.mem_limit);
-
             sleep_ms(1000 / 120);
         }
     }
@@ -157,7 +147,7 @@ impl Scroll {
     fn mouse_input(&mut self, canvas: &mut Canvas, config: &Config) {
         // scroll
         if let Some((_, y)) = canvas.window.get_scroll_wheel() {
-            tracing::trace!("mouse_y == {}", y);
+            //tracing::trace!("mouse_y == {}", y);
 
             if config.base.invert_mouse {
                 if y > 0.0 {
@@ -196,7 +186,7 @@ impl Scroll {
     #[inline(always)]
     fn flush(&mut self, canvas: &mut Canvas, data: &Data, arc_task: &AsyncTask) {
         if arc_task.try_flush(&mut self.page_list) {
-            tracing::trace!("try_flush()");
+            //tracing::trace!("try_flush()");
 
             self.buffer.free();
 
@@ -279,8 +269,8 @@ impl Scroll {
         } else {
         }
 
-        tracing::debug!("start: {}", self.rng);
-        tracing::debug!("end: {}", self.end());
+        //tracing::debug!("start: {}", self.rng);
+        //tracing::debug!("end: {}", self.end());
     }
 
     /// move right
@@ -311,7 +301,7 @@ impl Scroll {
             self.head += 1;
             self.bit_len -= page_len;
 
-            tracing::info!("free head");
+            //tracing::info!("free head");
         }
     }
 
@@ -327,23 +317,23 @@ impl Scroll {
             self.tail -= 1;
             self.bit_len -= page_len;
 
-            tracing::info!("free tail");
+            //tracing::info!("free tail");
         }
     }
 
     fn try_load_page(&mut self, arc_task: &AsyncTask) {
-        tracing::debug!(
-            "
-{:?}
-bit_len:   {}
-mem_limit: {}
-rng: {}
-",
-            (self.head, self.tail),
-            self.bit_len,
-            self.mem_limit,
-            self.rng,
-        );
+        //tracing::debug!(
+        //            "
+        //{:?}
+        //bit_len:   {}
+        //mem_limit: {}
+        //rng: {}
+        //",
+        //            (self.head, self.tail),
+        //            self.bit_len,
+        //            self.mem_limit,
+        //            self.rng,
+        //        );
 
         // head
         //   min: 0
@@ -353,7 +343,7 @@ rng: {}
         //   max: len  - 1
         match self.map {
             Map::Down => {
-                tracing::trace!("down");
+                //tracing::trace!("down");
 
                 let page_len = self.page_list.get_ref(self.head).img.len();
 
@@ -364,7 +354,7 @@ rng: {}
             }
 
             Map::Up => {
-                tracing::trace!("up");
+                //tracing::trace!("up");
 
                 let page_len = self.page_list.get_ref(self.tail).img.len();
 

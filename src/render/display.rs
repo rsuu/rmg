@@ -63,8 +63,15 @@ pub fn cat_img(
     };
 
     // WARN: new thread
-    // TODO: ?threadpool
-    for _ in 0..num_cpus::get() / 2 {
+
+    let num = {
+        use sysinfo::SystemExt;
+
+        let sys = sysinfo::System::new_all();
+        sys.physical_core_count().unwrap_or(1)
+    };
+
+    for _ in 0..num {
         render::new_thread(&arc_task, &data);
     }
 
@@ -91,7 +98,7 @@ pub fn cat_img(
         }
     }
 
-    tracing::info!("*** EXIT ***");
+    //tracing::info!("*** EXIT ***");
 
     Ok(())
 }

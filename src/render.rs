@@ -1,3 +1,5 @@
+// FIXME: can not free up memory
+
 pub mod display;
 pub mod keymap;
 pub mod window;
@@ -32,7 +34,7 @@ pub fn new_thread(arc_task: &AsyncTask, data: &Data) {
 
     let f = move || loop {
         if let Some(index) = arc_task.try_start(&data, &mut page) {
-            tracing::info!("Thread: {:?}   ---   task: {index}", thread::current().id(),);
+            //tracing::info!("Thread: {:?}   ---   task: {index}", thread::current().id(),);
         } else {
             sleep_ms(100);
         }
@@ -175,7 +177,6 @@ pub trait ForAsyncTask {
     fn try_start(&self, data: &Data, tmp: &mut Page) -> Option<usize>;
     fn try_flush(&self, list: &mut PageList) -> bool;
     fn try_free(&self, index: usize) -> bool;
-    fn try_check(&self, index: usize) -> bool;
 }
 
 // ==============================================
@@ -227,7 +228,7 @@ impl PageList {
             page.number = index;
         }
 
-        tracing::debug!("list: {:?}", &list);
+        //tracing::debug!("list: {:?}", &list);
 
         Self {
             list: list.to_owned(),
@@ -336,13 +337,13 @@ impl Page {
         let mut meta = data.meta;
         let mut pts = vec![];
 
-        tracing::debug!("{}", file.len());
+        //tracing::debug!("{}", file.len());
 
         match fmt {
             ImgFormat::Jpg | ImgFormat::Png => {
                 let img = image::load_from_memory(file)?;
 
-                tracing::info!("decode png");
+                //tracing::info!("decode png");
 
                 meta.image = Size::new(img.width(), img.height());
 
@@ -418,12 +419,14 @@ impl ForAsyncTask for AsyncTask {
     }
 
     fn try_set_as_todo(&self, index: usize) -> bool {
-        let Ok(mut inner) = self.try_write() else { return false; };
+        if let Ok(mut inner) = self.try_write() {
+            if inner.get_ref(index).state == State::Empty {
+                inner.list[index].state = State::Todo;
 
-        if inner.get_ref(index).state == State::Empty {
-            inner.list[index].state = State::Todo;
-
-            true
+                true
+            } else {
+                false
+            }
         } else {
             false
         }
@@ -471,46 +474,33 @@ impl ForAsyncTask for AsyncTask {
         None
     }
 
-    fn try_check(&self, index: usize) -> bool {
-        let Ok( inner) =self.try_read()else {
-            return false;
-        };
+    fn try_flush(&self, list: &mut PageList) -> bool {
+        if let Ok(mut inner) = self.try_write() {
+            for (index, page) in list.list.iter_mut().enumerate() {
+                if inner.get_ref(index).state == State::Done {
+                    inner.get_mut(index).state = State::Locked;
 
-        if inner.get_ref(index).state == State::Locked {
+                    page.img = mem::take(&mut inner.list[index].page.img);
+                }
+            }
+
             true
         } else {
             false
         }
     }
 
-    fn try_flush(&self, list: &mut PageList) -> bool {
-        let Ok(mut inner) = self.try_write() else {
-            return false;
-        };
-
-        for (index, page) in list.list.iter_mut().enumerate() {
-            if inner.get_ref(index).state == State::Done {
-                inner.get_mut(index).state = State::Locked;
-
-                page.img = mem::take(&mut inner.list[index].page.img);
-            }
-        }
-
-        true
-    }
-
     fn try_free(&self, index: usize) -> bool {
-        let Ok(mut inner) = self.try_write()else {
-            return false;
-        };
+        if let Ok(mut inner) = self.try_write() {
+            if inner.get_ref(index).state == State::Locked {
+                inner.get_mut(index).state = State::Empty;
+                inner.get_mut(index).page.img.free();
 
-        if inner.get_ref(index).state == State::Locked {
-            inner.get_mut(index).state = State::Empty;
-            inner.get_mut(index).page.img.free();
-
-            tracing::debug!("free: {}", index);
-
-            true
+                true
+                //tracing::debug!("free: {}", index);
+            } else {
+                false
+            }
         } else {
             false
         }
@@ -527,9 +517,9 @@ impl Img {
     }
 
     pub fn resize(&mut self, bytes: &mut Vec<Vec<u8>>, data: &Data) {
-        tracing::debug!("{}", &bytes[0].len());
-        tracing::debug!("{:?}", self.ref_size());
-        tracing::debug!("{:?}", self.ref_resize());
+        //tracing::debug!("{}", &bytes[0].len());
+        //tracing::debug!("{:?}", self.ref_size());
+        //tracing::debug!("{:?}", self.ref_resize());
 
         match *self {
             Img::Bit(ref mut img) => img.resize(&mut bytes[0], &data.filter),
@@ -675,16 +665,16 @@ impl AnimData {
         } else if self.size.width <= data.meta.window.width {
             let offset = ((data.meta.window.width - self.size.width) / 2) as usize;
 
-            tracing::debug!(
-                "
-window:   {}
-anim:     {}
-offset:   {}
-",
-                data.meta.window.width,
-                self.size.width,
-                offset
-            );
+            //tracing::debug!(
+            //                "
+            //window:   {}
+            //anim:     {}
+            //offset:   {}
+            //",
+            //                data.meta.window.width,
+            //                self.size.width,
+            //                offset
+            //            );
 
             let bg_size = &data.meta.window;
             let fg_size = self.size;

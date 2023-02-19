@@ -1450,7 +1450,7 @@ dependencies = [
 
 [[package]]
 name = "rmg"
-version = "0.5.6"
+version = "0.5.7"
 dependencies = [
  "anyhow",
  "asefile",
@@ -1465,7 +1465,6 @@ dependencies = [
  "lexopt",
  "libheif-rs",
  "minifb",
- "num_cpus",
  "resvg",
  "syn",
  "sysinfo",

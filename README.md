@@ -103,9 +103,8 @@ cargo run --release -F "sse4_1"
 
 ## TIPS
 
-+ > floating window in wayland
-  + `~/.config/sway/config`
-  + for_window [title="rmg"]  floating enable
++ floating window in wayland
+  + `~/.config/sway/config`: for_window [title="^rmg$"]  floating enable
 
 ## License
 

@@ -127,7 +127,7 @@ impl Turn {
     #[inline(always)]
     fn flush(&mut self, canvas: &mut Canvas, data: &Data, arc_task: &AsyncTask) {
         //        if arc_task.try_flush(&mut self.page_list) {
-        //            tracing::trace!("try_flush()");
+        //            //tracing::trace!("try_flush()");
         //
         //            self.buffer.free();
         //
@@ -136,17 +136,17 @@ impl Turn {
         //                    self.page_list.get_mut(index).to_next_frame();
         //                } else {
         //                    let _ = arc_task.try_set_as_todo(index);
-        //                    tracing::debug!("todo: {}", index);
+        //                    //tracing::debug!("todo: {}", index);
         //
         //                    self.buffer
         //                        .extend(&self.page_loading[0..self.page_list.get_ref(index).len()]);
         //                }
         //
-        //                tracing::trace!("{:?}, {:?}", self.map, self.page_list.get_ref(index).resize);
+        //                //tracing::trace!("{:?}, {:?}", self.map, self.page_list.get_ref(index).resize);
         //            }
         //
         //            if self.try_free_page(arc_task) {
-        //                tracing::info!("try_free()");
+        //                //tracing::info!("try_free()");
         //            }
         //        }
         //

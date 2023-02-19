@@ -18,7 +18,7 @@ fn main() {
 
         registry().with(fmt).with(filter).init();
 
-        tracing::info!("init_log()");
+        //tracing::info!("init_log()");
     }
 
     init_log();
@@ -34,8 +34,8 @@ fn main() {
 
     let meta_size = MetaSize::new(0, 0, config.base.size.width, config.base.size.height, 0, 0);
 
-    tracing::trace!("{:#?}", config);
-    tracing::trace!("meta_size: {:#?}", &meta_size);
+    //tracing::trace!("{:#?}", config);
+    //tracing::trace!("meta_size: {:#?}", &meta_size);
 
     let path = {
         let Some(tmp)=&config.cli.file_path else { print_help() };
@@ -46,11 +46,11 @@ fn main() {
     let file_list = archive_type.get_list(path.as_path()).unwrap();
     let mut page_list = file_list.to_page_list(config.base.rename_pad as usize);
 
-    tracing::trace!("file_list: {:#?}", file_list);
-    tracing::trace!("page_list: {:#?}", page_list);
+    //tracing::trace!("file_list: {:#?}", file_list);
+    //tracing::trace!("page_list: {:#?}", page_list);
     println!("Open: {}", path.as_path().display());
 
     if let Err(_) = display::cat_img(&config, &mut page_list, meta_size, path, archive_type) {
-        tracing::debug!("err");
+        //tracing::debug!("err");
     }
 }
