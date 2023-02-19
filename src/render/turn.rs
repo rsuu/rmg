@@ -3,7 +3,7 @@ use crate::{
     render::{
         keymap::{match_event, KeyMap, Map},
         scroll::Scroll,
-        utils::*,
+        *,
         window::Canvas,
     },
     FPS,

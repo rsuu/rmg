@@ -1,4 +1,3 @@
-// ==========================================
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const FPS: u32 = 1000 / 25;
 pub const EXT_LIST: &[&str] = &[
@@ -10,4 +9,3 @@ pub mod archive;
 pub mod config;
 pub mod img;
 pub mod render;
-pub mod utils;

@@ -1,4 +1,4 @@
-use crate::{img::utils::Size, FPS};
+use crate::{img::Size, FPS};
 use gif;
 use gif_dispose;
 use std::{io::Read, mem};

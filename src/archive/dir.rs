@@ -1,4 +1,4 @@
-use crate::archive::utils::*;
+use crate::archive::*;
 use std::{fs::OpenOptions, io::Read, path::Path};
 use walkdir::WalkDir;
 

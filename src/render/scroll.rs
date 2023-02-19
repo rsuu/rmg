@@ -1,10 +1,10 @@
 use crate::{
     config::rsconf::Config,
-    img::utils::{TMetaSize, TransRgba},
+    img::{TMetaSize, TransRgba},
     render::{
         keymap::{match_event, KeyMap, Map},
-        utils::{AsyncTask, Buffer, Data, ForAsyncTask, Img, Page, PageList},
         window::Canvas,
+        {AsyncTask, Buffer, Data, ForAsyncTask, Img, Page, PageList},
     },
     FPS,
 };
@@ -140,9 +140,15 @@ impl Scroll {
             self.flush(canvas, data, arc_task);
             self.map = Map::Stop;
 
+            // for page in self.page_list.list.iter_mut() {
+            //     if page.number < self.head || page.number > self.tail {
+            //         let _ = arc_task.try_free(page.number);
+            //     }
+            // }
+
             tracing::trace!("{} , {}", self.bit_len, self.mem_limit);
 
-            sleep_ms(6);
+            sleep_ms(1000 / 120);
         }
     }
 
@@ -205,7 +211,6 @@ impl Scroll {
                             .extend(&self.page_loading[0..self.null_line_size]);
                         n -= self.null_line_size as isize
                     }
-                } else {
                 }
             }
 

@@ -1,4 +1,4 @@
-use crate::archive::utils::*;
+use crate::archive::*;
 use std::path::Path;
 
 pub fn get_file<_Path>(path: &_Path, index: usize) -> anyhow::Result<Vec<u8>>
@@ -42,20 +42,20 @@ where
 
 #[cfg(feature = "ex_zip")]
 mod feat {
-    use crate::archive::utils::*;
+    use crate::archive::*;
     use std::{
         fs::File,
         io::{prelude::*, BufReader},
         path::Path,
     };
-    use zip::ZipArchive;
+    extern crate zip;
 
     #[inline]
     pub fn extract<_Path>(zip_path: &_Path, target: &_Path) -> anyhow::Result<()>
     where
         _Path: AsRef<Path> + ?Sized,
     {
-        let mut zip = ZipArchive::new(File::open(zip_path.as_ref())?).unwrap();
+        let mut zip = zip::ZipArchive::new(File::open(zip_path.as_ref())?).unwrap();
 
         zip.extract(target.as_ref()).unwrap();
 

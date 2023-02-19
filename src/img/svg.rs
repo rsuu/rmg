@@ -1,5 +1,5 @@
 use crate::{
-    img::utils::Size,
+    img::Size,
     
 };
 
@@ -16,7 +16,7 @@ pub fn load_svg(_bytes: &[u8]) -> anyhow::Result<(Size<u32>, Vec<Vec<u8>>)> {
 #[cfg(feature = "de_svg")]
 mod feat {
     use crate::{
-        img::utils::Size,
+        img::Size,
         
     };
 

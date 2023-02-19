@@ -1,4 +1,4 @@
-use crate::{img::utils::*, render::utils::ViewMode, VERSION};
+use crate::{img::*, render::ViewMode, VERSION};
 use dirs_next;
 use fir;
 use lexopt::{self, prelude::*};

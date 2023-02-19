@@ -2,7 +2,7 @@ use crate::{
     render::{
         keymap::{self, KeyMap, Map},
         scroll::Scroll,
-        utils::{Data, Page},
+        {Data, Page},
         window::Canvas,
     },
     FPS,

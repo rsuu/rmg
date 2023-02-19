@@ -1,14 +1,14 @@
 use crate::{
-    archive::utils::ArchiveType,
+    archive::ArchiveType,
     config::rsconf::Config,
-    img::utils::MetaSize,
+    img::MetaSize,
     render::{
         keymap::KeyMap,
         once::Once,
         scroll::Scroll,
         turn::Turn,
-        utils::{self, AsyncTask, Data, ForAsyncTask, Page, PageList, TaskResize, ViewMode},
         window::Canvas,
+        {self, AsyncTask, Data, ForAsyncTask, Page, PageList, TaskResize, ViewMode},
     },
 };
 use std::{
@@ -33,12 +33,7 @@ pub fn cat_img(
         meta.window.height as usize,
         config,
     );
-    let page_list = {
-        // sort by filename
-        page_list.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
-
-        PageList::new(page_list.to_owned())
-    };
+    let page_list = PageList::new(page_list);
 
     // init
     let mut scroll = Scroll::new(
@@ -69,8 +64,8 @@ pub fn cat_img(
 
     // WARN: new thread
     // TODO: ?threadpool
-    for _ in 0..num_cpus::get() {
-        utils::new_thread(&arc_task, &data);
+    for _ in 0..num_cpus::get() / 2 {
+        render::new_thread(&arc_task, &data);
     }
 
     match mode {
