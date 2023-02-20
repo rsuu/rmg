@@ -71,6 +71,7 @@ pub fn cat_img(
         sys.physical_core_count().unwrap_or(1)
     };
 
+
     for _ in 0..num {
         render::new_thread(&arc_task, &data);
     }

@@ -578,27 +578,35 @@ rmg {VERSION}
 Tiny And Fast Manga/Image Viewer
 
 USAGE:
-    rmg [OPTIONS] file
+    rmg [OPTIONS] [FLAGS] <path>
+
+ARGS:
+    <path>  A file or directory.
 
 FLAGS:
-    --invert-mouse
-            e.g. rmg --invert-mouse true
-    --window-borderless
-    --window-topmost
-    --window-resize
-    --window-none
+    --invert-mouse                  [default: false]
+        e.g. rmg --invert-mouse true.
+    --window-borderless             [default: false]
+        Display borderless.
+    --window-resize                 [default: false]
+        Resize window.
+    --window-topmost                [default: false]
+        Set as topmost.
+    --window-none                   [default: true]
+        Set as transparency.
+
 
 OPTIONS:
     -h, --help
-            Prints help information
+            Prints help information.
     -s, --size
-            Reset the width and the height of the buffer
+            Reset the width and the height of the buffer.
             e.g. rmg --size 900x900
     -c, --config
-            Specify the config file path
-    -m, --mode
-            (TODO)
+            Specify the config file path.
     -p, --rename-pad
+            Pad filename.
+    -m, --mode
             (TODO)
 "#,
     );
