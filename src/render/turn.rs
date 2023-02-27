@@ -3,8 +3,8 @@ use crate::{
     render::{
         keymap::{match_event, KeyMap, Map},
         scroll::Scroll,
-        *,
         window::Canvas,
+        *,
     },
     FPS,
 };
@@ -16,7 +16,7 @@ use std::{
 #[derive(Debug)]
 pub struct Turn {
     pub buffer: Buffer,
-    pub buffer_max: usize,
+    pub buffer_size: usize,
 
     pub page_list: PageList,
 
@@ -39,7 +39,7 @@ impl Turn {
     pub fn from_scroll(scroll: Scroll) -> Self {
         Self {
             buffer: Buffer::new(),
-            buffer_max: scroll.buffer_max,
+            buffer_size: scroll.buffer_size,
             page_list: scroll.page_list,
             cur: 1,
             map: Map::Stop,
@@ -150,11 +150,11 @@ impl Turn {
         //            }
         //        }
         //
-        //        while self.buffer.len() < self.rng + self.buffer_max {
+        //        while self.buffer.len() < self.rng + self.buffer_size {
         //            self.buffer.extend(&self.page_loading);
         //        }
         //
-        //        canvas.flush(&self.buffer.data[self.rng..self.rng + self.buffer_max]);
+        //        canvas.flush(&self.buffer.data[self.rng..self.rng + self.buffer_size]);
     }
 
     /// move down
@@ -162,8 +162,8 @@ impl Turn {
     fn move_down(&mut self) {
         self.map = Map::Down;
 
-        // buffer = &[rng..rng+buffer_max]
-        if self.rng + self.y_step <= self.buffer_max {
+        // buffer = &[rng..rng+buffer_size]
+        if self.rng + self.y_step <= self.buffer_size {
             self.rng += self.y_step;
         } else {
         }

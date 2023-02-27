@@ -1,5 +1,3 @@
-// FIXME: can not free up memory
-
 pub mod display;
 pub mod keymap;
 pub mod window;
@@ -34,7 +32,7 @@ pub fn new_thread(arc_task: &AsyncTask, data: &Data) {
 
     let f = move || loop {
         if let Some(index) = arc_task.try_start(&data, &mut page) {
-            //tracing::info!("Thread: {:?}   ---   task: {index}", thread::current().id(),);
+            tracing::info!("Thread: {:?}, task: {index}", thread::current().id(),);
         } else {
             sleep_ms(100);
         }
@@ -55,12 +53,25 @@ pub enum State {
     NeedFree,
 }
 
-// TODO:
 #[derive(Debug, Clone)]
 pub enum Img {
     Init,
-    Bit(BitData),
-    Anim(AnimData),
+    Bit {
+        img: Frame,
+        size: Size<u32>,
+        resize: Size<u32>,
+    },
+    Anim {
+        img: Frames,
+        size: Size<u32>,
+        resize: Size<u32>,
+
+        frames_count: usize, //
+        frame_index: usize,  // index of frame
+        pts: Vec<u32>,       //
+        timer: u32,          //
+        miss: u32,           //
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -158,7 +169,7 @@ pub struct PageList {
 #[derive(Debug)]
 pub struct Buffer {
     pub nums: usize,
-    pub data: Vec<u32>,
+    pub data: Frame,
     //scale:Scale,
 }
 
@@ -176,7 +187,7 @@ pub trait ForAsyncTask {
     fn try_set_as_todo(&self, index: usize) -> bool;
     fn try_start(&self, data: &Data, tmp: &mut Page) -> Option<usize>;
     fn try_flush(&self, list: &mut PageList) -> bool;
-    fn try_free(&self, index: usize) -> bool;
+    fn try_free(&self, index: usize, list: &mut PageList) -> bool;
 }
 
 // ==============================================
@@ -228,8 +239,6 @@ impl PageList {
             page.number = index;
         }
 
-        //tracing::debug!("list: {:?}", &list);
-
         Self {
             list: list.to_owned(),
             cur_dir: std::env::current_dir().expect(""),
@@ -271,7 +280,6 @@ impl Buffer {
 
     pub fn free(&mut self) {
         self.data.clear();
-        self.data.truncate(0);
     }
 
     pub fn extend(&mut self, slice: &[u32]) {
@@ -301,27 +309,21 @@ impl Page {
     }
 
     #[inline(always)]
-    pub fn flush(&self, buffer: &mut Vec<u32>) -> bool {
-        let slice = match self.img {
-            Img::Bit(ref bit) => bit.ref_data(),
-            Img::Anim(ref anim) => anim.ref_data(),
-            _ => return false,
-        };
+    pub fn flush(&self, buffer: &mut Frame) -> bool {
+        let slice = self.img.ref_data();
 
         if slice.is_empty() {
-            false
-        } else {
-            buffer.extend_from_slice(slice);
-
-            true
+            return false;
         }
+
+        buffer.extend_from_slice(slice);
+
+        true
     }
 
     // ===========================================
     ///
     pub fn load_file(&mut self, data: &Data) -> anyhow::Result<()> {
-        // FIXME: free up memory
-
         use crate::{
             archive::{self, ForExtract},
             img::*,
@@ -393,17 +395,13 @@ impl Page {
         meta.resize();
 
         self.img = match ImgType::from(&fmt) {
-            ImgType::Bit => Img::Bit(BitData::new(
-                Vec::with_capacity(buffer.len()),
-                meta.image,
-                meta.fix,
-            )),
-            ImgType::Anim => Img::Anim(AnimData::new(
+            ImgType::Bit => Img::new_bit(Vec::with_capacity(buffer.len()), meta.image, meta.fix),
+            ImgType::Anim => Img::new_anim(
                 Vec::with_capacity(buffer.len() * buffer[0].len()),
                 pts,
                 meta.image,
                 meta.fix,
-            )),
+            ),
         };
 
         self.img.resize(&mut buffer, &data);
@@ -419,14 +417,12 @@ impl ForAsyncTask for AsyncTask {
     }
 
     fn try_set_as_todo(&self, index: usize) -> bool {
-        if let Ok(mut inner) = self.try_write() {
-            if inner.get_ref(index).state == State::Empty {
-                inner.list[index].state = State::Todo;
+        let Ok(ref mut inner) = self.try_write() else {return false;};
 
-                true
-            } else {
-                false
-            }
+        if inner.get_ref(index).state == State::Empty {
+            inner.list[index].state = State::Todo;
+
+            true
         } else {
             false
         }
@@ -450,249 +446,58 @@ impl ForAsyncTask for AsyncTask {
         };
 
         let Some(index)=idx else {return None;};
-        let mut count = 0;
 
         tmp.load_file(data).expect("ERROR: load_file()");
 
-        while count < 5 {
-            if let Ok(ref mut inner) = self.try_write() {
-                //inner.ram_usage += tmp.img.len();
+        if let Ok(ref mut inner) = self.try_write() {
+            //inner.ram_usage += tmp.img.len();
 
-                let task = &mut inner.list[index];
+            let task = &mut inner.list[index];
 
-                mem::swap(&mut task.page, tmp);
-                task.state = State::Done;
-                *tmp = Page::default();
+            mem::swap(&mut task.page, tmp);
+            task.state = State::Done;
+            *tmp = Page::default();
 
-                return Some(task.page.number);
-            } else {
-                count += 1;
-                sleep_ms(10);
-            }
+            return Some(task.page.number);
         }
 
         None
     }
 
     fn try_flush(&self, list: &mut PageList) -> bool {
-        if let Ok(mut inner) = self.try_write() {
-            for (index, page) in list.list.iter_mut().enumerate() {
-                if inner.get_ref(index).state == State::Done {
-                    inner.get_mut(index).state = State::Locked;
+        let Ok(ref mut inner) = self.try_write() else {return false;};
 
+        for (index, page) in list.list.iter_mut().enumerate() {
+            match inner.get_ref(index).state {
+                State::Done => {
+                    inner.list[index].state = State::Locked;
+
+                    // NOTE: free up the memory
                     page.img = mem::take(&mut inner.list[index].page.img);
                 }
+
+                State::NeedFree => {
+                    // NOTE: free up the memory
+                    inner.list[index].page.img.free();
+                    inner.list[index].state = State::Empty
+                }
+                _ => {}
             }
+        }
+
+        return true;
+    }
+
+    fn try_free(&self, index: usize, list: &mut PageList) -> bool {
+        let Ok(ref mut inner) = self.try_write() else {return false;};
+
+        if inner.get_ref(index).state == State::Locked {
+            inner.list[index].state = State::NeedFree;
+            mem::swap(&mut inner.list[index].page.img, &mut list.list[index].img);
 
             true
         } else {
             false
-        }
-    }
-
-    fn try_free(&self, index: usize) -> bool {
-        if let Ok(mut inner) = self.try_write() {
-            if inner.get_ref(index).state == State::Locked {
-                inner.get_mut(index).state = State::Empty;
-                inner.get_mut(index).page.img.free();
-
-                true
-                //tracing::debug!("free: {}", index);
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    }
-}
-
-impl Img {
-    pub fn len(&self) -> usize {
-        match *self {
-            Img::Bit(ref img) => img.ref_resize().len(),
-            Img::Anim(ref img) => img.ref_resize().len(),
-            _ => 0,
-        }
-    }
-
-    pub fn resize(&mut self, bytes: &mut Vec<Vec<u8>>, data: &Data) {
-        //tracing::debug!("{}", &bytes[0].len());
-        //tracing::debug!("{:?}", self.ref_size());
-        //tracing::debug!("{:?}", self.ref_resize());
-
-        match *self {
-            Img::Bit(ref mut img) => img.resize(&mut bytes[0], &data.filter),
-            Img::Anim(ref mut img) => img.resize(bytes, &data),
-            _ => {}
-        }
-    }
-
-    pub fn free(&mut self) {
-        match *self {
-            Img::Bit(ref mut img) => {
-                img.data.clear();
-                img.data.truncate(0);
-            }
-            Img::Anim(ref mut img) => {
-                img.data.clear();
-                img.data.truncate(0);
-            }
-            _ => {}
-        }
-    }
-
-    pub fn ref_size(&self) -> &Size<u32> {
-        match *self {
-            Img::Bit(ref img) => img.ref_size(),
-            Img::Anim(ref img) => img.ref_size(),
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn ref_resize(&self) -> &Size<u32> {
-        match *self {
-            Img::Bit(ref img) => img.ref_resize(),
-            Img::Anim(ref img) => img.ref_resize(),
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn to_next_frame(&mut self) {
-        match *self {
-            Img::Anim(ref mut img) => img.to_next_frame(),
-            _ => {}
-        }
-    }
-}
-
-impl BitData {
-    pub fn new(data: Frame, size: Size<u32>, resize: Size<u32>) -> Self {
-        Self { size, data, resize }
-    }
-
-    pub fn ref_data(&self) -> &[u32] {
-        self.data.as_slice()
-    }
-
-    pub fn ref_size(&self) -> &Size<u32> {
-        &self.size
-    }
-
-    pub fn ref_resize(&self) -> &Size<u32> {
-        &self.resize
-    }
-
-    pub fn resize(&mut self, bytes: &mut Vec<u8>, filter: &fir::FilterType) {
-        resize_rgba8(bytes, &self.size, &self.resize, filter).expect("");
-        argb_u32(&mut self.data, bytes);
-    }
-
-    pub fn update(&mut self, data: Frame, size: Size<u32>, resize: Size<u32>) {
-        self.data = data;
-        self.size = size;
-        self.resize = resize;
-    }
-}
-
-impl AnimData {
-    pub fn new(data: Frames, pts: Vec<u32>, size: Size<u32>, resize: Size<u32>) -> Self {
-        Self {
-            frames_count: data.len(),
-            frame_index: 0,
-            timer: 0,
-            miss: 0,
-            resize,
-            data,
-            size,
-            pts,
-        }
-    }
-
-    pub fn ref_data(&self) -> &[u32] {
-        if self.data.is_empty() {
-            &[]
-        } else {
-            self.data[self.frame_index].as_slice()
-        }
-    }
-
-    pub fn update(&mut self, data: Frames, size: Size<u32>, resize: Size<u32>) {
-        self.data = data;
-        self.size = size;
-        self.resize = resize;
-    }
-
-    pub fn ref_size(&self) -> &Size<u32> {
-        &self.size
-    }
-
-    pub fn ref_resize(&self) -> &Size<u32> {
-        &self.resize
-    }
-
-    pub fn to_next_frame(&mut self) {
-        let pts = self.pts[self.frame_index];
-
-        if self.timer >= pts {
-            self.timer = self.timer.checked_sub(pts).unwrap_or(0);
-
-            if self.frame_index + 1 < self.data.len() {
-                self.frame_index += 1;
-            } else {
-                // reset
-                self.frame_index = 0;
-            }
-        } else {
-            self.timer += FPS;
-        }
-    }
-
-    pub fn resize(&mut self, bytes: &mut Vec<Vec<u8>>, data: &Data) {
-        // anim
-        self.data = vec![vec![]; bytes.len()];
-        self.frames_count = bytes.len();
-
-        if self.size.width > data.meta.window.width {
-            self.resize = Size::new(data.meta.window.width, self.size.height);
-
-            // WARN: unsafe
-            for (frame_index, frame) in bytes.iter_mut().enumerate() {
-                resize_rgba8(frame, &self.size, &self.resize, &data.filter).expect("");
-
-                argb_u32(&mut self.data[frame_index], &mem::take(frame));
-            }
-        } else if self.size.width <= data.meta.window.width {
-            let offset = ((data.meta.window.width - self.size.width) / 2) as usize;
-
-            //tracing::debug!(
-            //                "
-            //window:   {}
-            //anim:     {}
-            //offset:   {}
-            //",
-            //                data.meta.window.width,
-            //                self.size.width,
-            //                offset
-            //            );
-
-            let bg_size = &data.meta.window;
-            let fg_size = self.size;
-
-            let mut fg_buffer: Vec<u32> = Vec::with_capacity(fg_size.len());
-
-            for (frame_index, frame) in bytes.iter_mut().enumerate() {
-                argb_u32(&mut fg_buffer, frame.as_slice());
-                center_img(
-                    &mut self.data[frame_index],
-                    &mem::take(&mut fg_buffer),
-                    bg_size,
-                    &fg_size,
-                    offset,
-                );
-            }
-
-            self.resize = *bg_size;
         }
     }
 }
@@ -733,5 +538,180 @@ impl From<&ImgFormat> for ImgType {
 impl Default for Img {
     fn default() -> Self {
         Self::Init
+    }
+}
+
+impl Img {
+    pub fn new_bit(img: Frame, size: Size<u32>, resize: Size<u32>) -> Self {
+        Self::Bit { img, size, resize }
+    }
+
+    pub fn new_anim(img: Frames, pts: Vec<u32>, size: Size<u32>, resize: Size<u32>) -> Self {
+        Self::Anim {
+            frames_count: img.len(),
+            frame_index: 0,
+            timer: 0,
+            miss: 0,
+            resize,
+            img,
+            size,
+            pts,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match *self {
+            Img::Bit { ref resize, .. } => resize.len(),
+            Img::Anim { ref resize, .. } => resize.len(),
+            _ => 0,
+        }
+    }
+
+    pub fn resize(&mut self, bytes: &mut Vec<Vec<u8>>, data: &Data) {
+        tracing::debug!("{}", &bytes[0].len());
+        tracing::debug!("{:?}", self.ref_size());
+        tracing::debug!("{:?}", self.ref_resize());
+
+        match *self {
+            Img::Bit {
+                ref mut img,
+                ref resize,
+                ref size,
+                ..
+            } => {
+                resize_rgba8(&mut bytes[0], size, resize, &data.filter).expect("");
+                argb_u32(img, &mut bytes[0]);
+            }
+            Img::Anim {
+                ref mut img,
+                ref mut resize,
+                ref mut frames_count,
+                ref size,
+                ..
+            } => {
+                // anim
+                *img = vec![vec![]; bytes.len()];
+                *frames_count = bytes.len();
+
+                if size.width > data.meta.window.width {
+                    *resize = Size::new(data.meta.window.width, size.height);
+
+                    // WARN: unsafe
+                    for (frame_index, frame) in bytes.iter_mut().enumerate() {
+                        resize_rgba8(frame, &size, &resize, &data.filter).expect("");
+
+                        argb_u32(&mut img[frame_index], &mem::take(frame));
+                    }
+                } else if size.width <= data.meta.window.width {
+                    let offset = ((data.meta.window.width - size.width) / 2) as usize;
+
+                    //tracing::debug!(
+                    //                "
+                    //window:   {}
+                    //anim:     {}
+                    //offset:   {}
+                    //",
+                    //                data.meta.window.width,
+                    //                size.width,
+                    //                offset
+                    //            );
+
+                    let bg_size = &data.meta.window;
+                    let fg_size = size;
+
+                    let mut fg_buffer: Frame = Vec::with_capacity(fg_size.len());
+
+                    for (frame_index, frame) in bytes.iter_mut().enumerate() {
+                        argb_u32(&mut fg_buffer, frame.as_slice());
+                        center_img(&mut img[frame_index], &fg_buffer, bg_size, fg_size, offset);
+                    }
+
+                    *resize = *bg_size;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn free(&mut self) {
+        match *self {
+            Img::Bit { ref mut img, .. } => {
+                img.clear();
+                img.shrink_to(0);
+            }
+            Img::Anim { ref mut img, .. } => {
+                img.clear();
+                img.shrink_to(0);
+            }
+            _ => {}
+        }
+    }
+
+    pub fn ref_size(&self) -> &Size<u32> {
+        match *self {
+            Img::Bit { ref size, .. } => size,
+            Img::Anim { ref size, .. } => size,
+            _ => &Size {
+                width: 0,
+                height: 0,
+            },
+        }
+    }
+
+    pub fn ref_resize(&self) -> &Size<u32> {
+        match *self {
+            Img::Bit { ref resize, .. } => resize,
+            Img::Anim { ref resize, .. } => resize,
+            _ => &Size {
+                width: 0,
+                height: 0,
+            },
+        }
+    }
+
+    pub fn to_next_frame(&mut self) {
+        match *self {
+            Img::Anim {
+                ref img,
+                ref pts,
+                ref mut timer,
+                ref mut frame_index,
+                ..
+            } => {
+                let pts = pts[*frame_index];
+
+                if *timer >= pts {
+                    *timer = timer.checked_sub(pts).unwrap_or(0);
+
+                    if *frame_index + 1 < img.len() {
+                        *frame_index += 1;
+                    } else {
+                        // reset
+                        *frame_index = 0;
+                    }
+                } else {
+                    *timer += FPS;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn ref_data(&self) -> &[u32] {
+        match *self {
+            Img::Bit { ref img, .. } => img,
+            Img::Anim {
+                ref img,
+                ref frame_index,
+                ..
+            } => {
+                if img.is_empty() {
+                    &[]
+                } else {
+                    img[*frame_index].as_slice()
+                }
+            }
+            Img::Init => &[],
+        }
     }
 }

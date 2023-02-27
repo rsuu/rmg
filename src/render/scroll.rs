@@ -6,17 +6,16 @@ use crate::{
         window::Canvas,
         {AsyncTask, Buffer, Data, ForAsyncTask, Img, Page, PageList},
     },
-    FPS,
+    sleep,
 };
-use std::thread::sleep_ms;
 
 #[derive(Debug)]
 pub struct Scroll {
-    pub buffer: Buffer,    //
-    pub buffer_max: usize, //
-    pub bit_len: usize,    //
-    pub mem_limit: usize,  //
-    pub map: Map,          // user input
+    pub buffer: Buffer,      //
+    pub buffer_size: usize,  //
+    pub buffer_limit: usize, //
+    pub bit_len: usize,      //
+    pub map: Map,            // user input
 
     pub cur: usize,    // =0
     pub rng: usize,    // =0
@@ -37,7 +36,7 @@ impl Scroll {
     pub fn new(
         data: &Data,
         page_list: PageList,
-        buffer_max: usize,
+        buffer_size: usize,
         config: &Config,
         null_line_size: usize,
     ) -> Self {
@@ -49,21 +48,10 @@ impl Scroll {
             sys.total_memory() as usize
         };
 
-        let mut mem_limit = buffer_max * config.base.limit as usize;
-
-        if mem_limit >= mem {
-            println!(
-                "WARN: mem_limit is {}, but total_memory is {}",
-                mem_limit, mem
-            );
-
-            mem_limit = mem / 2;
-        }
-
         Self {
             buffer: Buffer::new(),
-            buffer_max,
-            mem_limit,
+            buffer_size,
+            buffer_limit: buffer_size * config.base.limit as usize,
 
             cur: 0,
 
@@ -75,12 +63,12 @@ impl Scroll {
 
             map: Map::Down,
             page_list,
-            y_step: buffer_max / config.base.step as usize, // drop 1/step part of image once
+            y_step: buffer_size / config.base.step as usize, // drop 1/step part of image once
             x_step: data.meta.window.width as usize / config.base.step as usize,
             window_position: (0, 0),
 
             null_line_size,
-            page_loading: vec![TransRgba::rgba_as_argb_u32(&238, &238, &238, &128); buffer_max],
+            page_loading: vec![TransRgba::rgba_as_argb_u32(&238, &238, &238, &128); buffer_size],
         }
     }
 
@@ -138,7 +126,7 @@ impl Scroll {
             self.flush(canvas, data, arc_task);
             self.map = Map::Stop;
 
-            sleep_ms(1000 / 120);
+            sleep();
         }
     }
 
@@ -149,20 +137,14 @@ impl Scroll {
         if let Some((_, y)) = canvas.window.get_scroll_wheel() {
             //tracing::trace!("mouse_y == {}", y);
 
-            if config.base.invert_mouse {
-                if y > 0.0 {
-                    self.move_up();
-                } else if y < 0.0 {
-                    self.move_down();
-                } else {
-                }
-            } else {
-                if y > 0.0 {
-                    self.move_down();
-                } else if y < 0.0 {
-                    self.move_up();
-                } else {
-                }
+            match config.base.invert_mouse {
+                true if y > 0.0 => self.move_up(),
+                true if y < 0.0 => self.move_down(),
+
+                false if y > 0.0 => self.move_down(),
+                false if y < 0.0 => self.move_up(),
+
+                _ => {}
             }
         }
 
@@ -186,38 +168,38 @@ impl Scroll {
     #[inline(always)]
     fn flush(&mut self, canvas: &mut Canvas, data: &Data, arc_task: &AsyncTask) {
         if arc_task.try_flush(&mut self.page_list) {
-            //tracing::trace!("try_flush()");
+        } else {
+            return;
+        }
 
-            self.buffer.free();
+        if self.map == Map::Down {
+            self.load_next(arc_task);
+            self.free_head(arc_task);
+        } else if self.map == Map::Up {
+            self.load_prev(arc_task);
+            self.free_tail(arc_task);
+        }
 
-            for index in self.head..=self.tail {
-                if self.page_list.get_ref(index).flush(&mut self.buffer.data) {
-                    self.page_list.get_mut(index).img.to_next_frame();
-                } else if arc_task.try_set_as_todo(index) {
-                    let mut n = self.page_list.get_ref(index).img.len() as isize;
+        self.buffer.free();
 
-                    while n > 0 {
-                        self.buffer
-                            .extend(&self.page_loading[0..self.null_line_size]);
-                        n -= self.null_line_size as isize
-                    }
+        for index in self.head..=self.tail {
+            let len = self.page_list.get_ref(index).img.len();
+
+            if self.page_list.get_ref(index).flush(&mut self.buffer.data) {
+                self.page_list.get_mut(index).img.to_next_frame();
+            } else if arc_task.try_set_as_todo(index) {
+                for _ in 0..(len / self.null_line_size) {
+                    self.buffer
+                        .extend(&self.page_loading[0..self.null_line_size]);
                 }
+            } else {
             }
-
-            if self.map == Map::Down {
-                self.free_head(arc_task);
-            } else if self.map == Map::Up {
-                self.free_tail(arc_task);
-            }
-
-            self.try_load_page(arc_task);
         }
 
         while self.buffer.len() < self.end() {
             self.buffer
                 .extend(&self.page_loading[0..self.null_line_size]);
         }
-
         self.buffer.data.truncate(self.end());
 
         canvas.flush(&self.buffer.data[self.rng..self.end()]);
@@ -237,11 +219,10 @@ impl Scroll {
     fn move_down(&mut self) {
         self.map = Map::Down;
 
-        if self.end() + self.y_step <= self.bit_len {
+        if self.bit_len >= self.end() + self.y_step {
             self.rng += self.y_step;
-        } else if self.end() <= self.bit_len {
-            self.rng = self.bit_len - self.buffer_max;
-        } else {
+        } else if self.bit_len >= self.buffer_size {
+            self.rng = self.bit_len - self.buffer_size;
         }
     }
 
@@ -259,10 +240,9 @@ impl Scroll {
 
     /// move left
     fn move_left(&mut self, data: &Data) {
-        // TODO:
         self.map = Map::Left;
 
-        // ??? How it works
+        // FIXME:
         if self.bit_len > self.end() + self.x_step && self.x_step <= data.meta.window.width as usize
         {
             self.rng += self.x_step;
@@ -277,100 +257,70 @@ impl Scroll {
     fn move_right(&mut self, data: &Data) {
         self.map = Map::Right;
 
+        // FIXME:
         if self.rng >= self.x_step && self.x_step <= data.meta.window.width as usize {
             self.rng -= self.x_step;
         } else {
         }
     }
 
+    #[inline(always)]
     fn end(&self) -> usize {
-        self.rng + self.buffer_max
+        self.rng + self.buffer_size
     }
 
     fn free_head(&mut self, arc_task: &AsyncTask) {
         let page_len = self.page_list.get_ref(self.head).img.len();
 
-        if self.bit_len >= self.mem_limit / 2 + page_len
+        if self.bit_len >= self.buffer_limit + page_len
             && self.tail > self.head
             && self.rng > page_len
-            && self.bit_len > page_len
-            && arc_task.try_free(self.head)
+            && arc_task.try_free(self.head, &mut self.page_list)
         {
-            self.rng -= page_len;
-            self.page_list.free(self.head);
+            tracing::info!("free head");
+
+            //self.page_list.free(self.head);
             self.head += 1;
             self.bit_len -= page_len;
-
-            //tracing::info!("free head");
+            self.rng -= page_len;
         }
     }
 
     fn free_tail(&mut self, arc_task: &AsyncTask) {
         let page_len = self.page_list.get_ref(self.tail).img.len();
 
-        if self.bit_len >= self.mem_limit / 4
+        if self.bit_len >= self.buffer_limit + page_len
             && self.tail > self.head
             && self.bit_len > page_len
-            && arc_task.try_free(self.tail)
+            && arc_task.try_free(self.tail, &mut self.page_list)
         {
-            self.page_list.free(self.tail);
+            tracing::info!("free tail");
+            tracing::debug!(self.rng, self.bit_len, page_len);
+
+            //self.page_list.free(self.tail);
             self.tail -= 1;
             self.bit_len -= page_len;
-
-            //tracing::info!("free tail");
         }
     }
 
-    fn try_load_page(&mut self, arc_task: &AsyncTask) {
-        //tracing::debug!(
-        //            "
-        //{:?}
-        //bit_len:   {}
-        //mem_limit: {}
-        //rng: {}
-        //",
-        //            (self.head, self.tail),
-        //            self.bit_len,
-        //            self.mem_limit,
-        //            self.rng,
-        //        );
+    fn load_next(&mut self, arc_task: &AsyncTask) {
+        let page_len = self.page_list.get_ref(self.head).img.len();
 
-        // head
-        //   min: 0
-        //   max: tail - 1
-        // tail
-        //   min: head + 1
-        //   max: len  - 1
-        match self.map {
-            Map::Down => {
-                //tracing::trace!("down");
-
-                let page_len = self.page_list.get_ref(self.head).img.len();
-
-                if self.bit_len < self.mem_limit + page_len && self.tail + 1 < self.page_list.len()
-                {
-                    self.tail += 1;
-                }
-            }
-
-            Map::Up => {
-                //tracing::trace!("up");
-
-                let page_len = self.page_list.get_ref(self.tail).img.len();
-
-                if self.bit_len < self.mem_limit + page_len && self.head > 0 {
-                    self.head -= 1;
-                }
-            }
-
-            _ => {}
+        if self.bit_len < self.buffer_limit + page_len && self.tail + 1 < self.page_list.len() {
+            self.tail += 1;
         }
     }
 
-    pub fn load_from_mark(&mut self) {
+    fn load_prev(&mut self, arc_task: &AsyncTask) {
+        let page_len = self.page_list.get_ref(self.tail).img.len();
+
+        if self.bit_len < self.buffer_limit + page_len && self.head > 0 {
+            self.head -= 1;
+        }
+    }
+
+    pub fn load_from_mark(&mut self, cur: usize) {
         // TODO:
-        self.tail = self.cur;
-        self.head = self.tail - 1;
     }
 }
 
