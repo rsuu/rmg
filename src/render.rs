@@ -438,7 +438,14 @@ impl ForAsyncTask for AsyncTask {
                     idx = Some(index);
                     task.state = State::Doing;
 
+                    // Just load only one page.
                     break;
+                } else if task.state == State::NeedFree {
+                    // NOTE: free up the memory.
+                    task.page.img.free();
+                    task.state = State::Empty;
+
+                    continue;
                 }
             }
         } else {
@@ -470,17 +477,11 @@ impl ForAsyncTask for AsyncTask {
         for (index, page) in list.list.iter_mut().enumerate() {
             match inner.get_ref(index).state {
                 State::Done => {
+                    // NOTE: We need to free up the memory in try_start().
                     inner.list[index].state = State::Locked;
-
-                    // NOTE: free up the memory
                     page.img = mem::take(&mut inner.list[index].page.img);
                 }
 
-                State::NeedFree => {
-                    // NOTE: free up the memory
-                    inner.list[index].page.img.free();
-                    inner.list[index].state = State::Empty
-                }
                 _ => {}
             }
         }
@@ -569,8 +570,8 @@ impl Img {
 
     pub fn resize(&mut self, bytes: &mut Vec<Vec<u8>>, data: &Data) {
         tracing::debug!("{}", &bytes[0].len());
-        tracing::debug!("{:?}", self.ref_size());
-        tracing::debug!("{:?}", self.ref_resize());
+        tracing::debug!("size:   {:?}", self.ref_size());
+        tracing::debug!("resize: {:?}", self.ref_resize());
 
         match *self {
             Img::Bit {
@@ -582,6 +583,7 @@ impl Img {
                 resize_rgba8(&mut bytes[0], size, resize, &data.filter).expect("");
                 argb_u32(img, &mut bytes[0]);
             }
+
             Img::Anim {
                 ref mut img,
                 ref mut resize,
@@ -589,47 +591,38 @@ impl Img {
                 ref size,
                 ..
             } => {
-                // anim
                 *img = vec![vec![]; bytes.len()];
                 *frames_count = bytes.len();
 
                 if size.width > data.meta.window.width {
                     *resize = Size::new(data.meta.window.width, size.height);
 
-                    // WARN: unsafe
                     for (frame_index, frame) in bytes.iter_mut().enumerate() {
                         resize_rgba8(frame, &size, &resize, &data.filter).expect("");
 
                         argb_u32(&mut img[frame_index], &mem::take(frame));
                     }
                 } else if size.width <= data.meta.window.width {
-                    let offset = ((data.meta.window.width - size.width) / 2) as usize;
-
-                    //tracing::debug!(
-                    //                "
-                    //window:   {}
-                    //anim:     {}
-                    //offset:   {}
-                    //",
-                    //                data.meta.window.width,
-                    //                size.width,
-                    //                offset
-                    //            );
-
                     let bg_size = &data.meta.window;
                     let fg_size = size;
-
                     let mut fg_buffer: Frame = Vec::with_capacity(fg_size.len());
 
+                    // center frames
                     for (frame_index, frame) in bytes.iter_mut().enumerate() {
                         argb_u32(&mut fg_buffer, frame.as_slice());
-                        center_img(&mut img[frame_index], &fg_buffer, bg_size, fg_size, offset);
+                        center_img(
+                            &mut img[frame_index],
+                            &fg_buffer,
+                            (bg_size.width as usize, bg_size.height as usize),
+                            (fg_size.width as usize, fg_size.height as usize),
+                        );
                     }
 
                     *resize = *bg_size;
                 }
             }
-            _ => {}
+
+            _ => unreachable!(),
         }
     }
 
@@ -672,10 +665,10 @@ impl Img {
     pub fn to_next_frame(&mut self) {
         match *self {
             Img::Anim {
+                ref mut frame_index,
+                ref mut timer,
                 ref img,
                 ref pts,
-                ref mut timer,
-                ref mut frame_index,
                 ..
             } => {
                 let pts = pts[*frame_index];

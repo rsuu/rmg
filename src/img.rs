@@ -208,77 +208,24 @@ pub fn resize_rgba8(
     Ok(())
 }
 
-pub fn center_img(
-    bg: &mut Vec<u32>,
-    fg: &[u32],
-    bg_size: &Size<u32>,
-    fg_size: &Size<u32>,
-    offset: usize,
-) {
-    //tracing::info!("{}, {}", bg.len(), fg.len());
-    //tracing::info!("{:?}, {:?}", bg_size, fg_size);
+pub fn center_img<T: Copy>(bg: &mut Vec<T>, fg: &[T], bgwh: (usize, usize), fgwh: (usize, usize)) {
+    let x_offset = ((bgwh.0 - fgwh.0) / 2);
+    let y_offset = ((bgwh.1 - fgwh.1) / 2);
 
-    let bg_w = bg_size.width as usize;
-    let fg_w = fg_size.width as usize;
-    let fg_h = fg_size.height as usize;
+    for y in 0..fgwh.1 {
+        for x in 0..fgwh.0 {
+            let fp = fgwh.0 * y + x;
+            let bp = bgwh.0 * (y + y_offset) + (x + x_offset);
 
-    *bg = vec![0_u32; bg_w * fg_h];
-
-    let mut index_fg = 0;
-    let mut index_bg = 0;
-
-    for y in 0..fg_h {
-        index_fg = fg_w * y;
-        index_bg = bg_w * y + offset;
-
-        for x in 0..fg_w {
-            bg[index_bg + x] = fg[index_fg + x];
+            /// SAFETY: Make sure fg.w AND fg.h are smaller than bg.w and bg.h.
+            unsafe {
+                (*bg.get_unchecked_mut(bp)) = *fg.get_unchecked(fp);
+            }
         }
     }
 }
 
-pub fn crop_img2(img: &[u32], offset: usize, iw: usize, ih: usize, ow: usize) -> Vec<u32> {
-    let mut buffer = vec![0; ow * ih];
-
-    let mut i = 0;
-    let mut o = 0;
-
-    for y in 0..ih {
-        i = (iw * y) + offset;
-        o = ow * y;
-
-        for x in 0..ow {
-            buffer[o + x] = img[i + x];
-        }
-    }
-
-    buffer
-}
-
-pub fn crop_img(
-    buffer: &mut Vec<u32>,
-    img: &[u32],
-    offset: usize,
-    fg_width: usize,
-    fg_height: usize,
-    bg_width: usize,
-) {
-    *buffer = vec![0; bg_width * fg_height];
-
-    let mut index_fg = 0;
-    let mut index_bg = 0;
-
-    for y in 0..fg_height {
-        index_fg = (fg_width * y) + offset;
-        index_bg = bg_width * y;
-
-        // for x in 0..bg_width {
-        //     buffer[o + x] = img[i + x];
-        // }
-        buffer[index_fg..(bg_width + index_bg)]
-            .copy_from_slice(&img[index_fg..(bg_width + index_fg)]);
-    }
-}
+//pub fn crop_img() {}
 
 pub fn argb_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
     *buffer = vec![0; bytes.len() / 4];
