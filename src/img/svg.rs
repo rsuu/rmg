@@ -1,27 +1,23 @@
-use crate::{
-    img::Size,
-    
-};
+use crate::img::Size;
 
 pub fn load_svg(_bytes: &[u8]) -> anyhow::Result<(Size<u32>, Vec<Vec<u8>>)> {
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "de_svg")] {
-            feat::load_svg(_bytes)
-        } else {
-           Err(anyhow::anyhow!(""))
-        }
+    #[cfg(feature = "de_svg")]
+    {
+        return feat::load_svg(_bytes);
     }
+
+    anyhow::bail!("")
 }
 
 #[cfg(feature = "de_svg")]
 mod feat {
-    use crate::{
-        img::Size,
-        
-    };
+    use crate::img::Size;
 
     pub fn load_svg(bytes: &[u8]) -> anyhow::Result<(Size<u32>, Vec<Vec<u8>>)> {
-        // BUG:
+        use usvg::TreeParsing;
+
+        // TODO: default (width, height)
+        // BUG: font
         let opt = usvg::Options::default();
         let rtree = usvg::Tree::from_data(bytes, &opt).unwrap();
         let pixmap_size = rtree.size.to_screen_size();
@@ -33,8 +29,7 @@ mod feat {
 
         resvg::render(
             &rtree,
-            usvg::FitTo::Original,
-            //usvg::FitTo::Height(size.height),
+            resvg::FitTo::Original,
             tiny_skia::Transform::default(),
             pixmap.as_mut(),
         )

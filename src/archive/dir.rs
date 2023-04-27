@@ -2,7 +2,10 @@ use crate::archive::*;
 use std::{fs::OpenOptions, io::Read, path::Path};
 use walkdir::WalkDir;
 
-pub fn get_file(path: &Path, index: usize) -> anyhow::Result<Vec<u8>> {
+pub fn get_file<P>(path: &P, index: usize) -> anyhow::Result<Vec<u8>>
+where
+    P: AsRef<Path> + ?Sized,
+{
     for (pos, tmp) in WalkDir::new(path).into_iter().enumerate() {
         let file = tmp?;
 
@@ -16,16 +19,25 @@ pub fn get_file(path: &Path, index: usize) -> anyhow::Result<Vec<u8>> {
             let mut buffer = Vec::new();
             file.read_to_end(&mut buffer)?;
 
-            //tracing::debug!("{}, {}", pos, index);
+            tracing::debug!(
+                "get_file():
+  pos = {}
+  index = {}",
+                pos,
+                index
+            );
 
             return Ok(buffer);
         }
     }
 
-    Err(anyhow::anyhow!(""))
+    anyhow::bail!("")
 }
 
-pub fn get_list(path: &Path) -> anyhow::Result<FileList> {
+pub fn get_list<P>(path: &P) -> anyhow::Result<FileList>
+where
+    P: AsRef<Path> + ?Sized,
+{
     let mut res = FileList::new();
 
     for (index, tmp) in WalkDir::new(path).into_iter().enumerate() {
@@ -36,7 +48,6 @@ pub fn get_list(path: &Path) -> anyhow::Result<FileList> {
                 file.path().to_str().unwrap().to_string(),
                 index,
             ));
-        } else {
         }
     }
 

@@ -5,11 +5,9 @@ pub mod heic;
 pub mod svg;
 
 // ==============================================
-use cfg_if::cfg_if;
 use fir;
 use image;
-use std::mem;
-use std::num::NonZeroU32;
+use std::{mem, num::NonZeroU32};
 
 pub struct TransRgb {}
 pub struct TransRgba {}
@@ -152,6 +150,7 @@ impl TMetaSize for MetaSize<u32> {
 
     fn resize(&mut self) {
         // WARN: DO NOT use odd numbers. (╯°Д°)╯︵ ┻━┻
+
         // e.g. width = 3, height = 4
         //      width  = (width /2)*2 = 2
         //      height = (height/2)*2 = 4
@@ -188,12 +187,16 @@ pub fn resize_rgba8(
     let mut dst_view = dst_image.view_mut();
     let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(*filter));
 
-    cfg_if! {
-        if #[cfg(feature="sse4_1")] {
-            unsafe { resizer.set_cpu_extensions(fir::CpuExtensions::Sse4_1); }
-        } else if #[cfg(feature="avx2")]{
-            unsafe { resizer.set_cpu_extensions(fir::CpuExtensions::Avx2); }
-        } else {}
+    unsafe {
+        #[cfg(feature = "sse4_1")]
+        {
+            resizer.set_cpu_extensions(fir::CpuExtensions::Sse4_1);
+        }
+
+        #[cfg(feature = "avx2")]
+        {
+            resizer.set_cpu_extensions(fir::CpuExtensions::Avx2);
+        }
     }
 
     resizer.resize(&src_image.view(), &mut dst_view)?;
@@ -208,19 +211,15 @@ pub fn resize_rgba8(
     Ok(())
 }
 
-pub fn center_img<T: Copy>(bg: &mut Vec<T>, fg: &[T], bgwh: (usize, usize), fgwh: (usize, usize)) {
-    let x_offset = ((bgwh.0 - fgwh.0) / 2);
-    let y_offset = ((bgwh.1 - fgwh.1) / 2);
+pub fn center_img<T: Copy>(bg: &mut Vec<T>, fg: &[T], bgw: usize, fgw: usize, h: usize) {
+    let x_offset = ((bgw - fgw) / 2);
 
-    for y in 0..fgwh.1 {
-        for x in 0..fgwh.0 {
-            let fp = fgwh.0 * y + x;
-            let bp = bgwh.0 * (y + y_offset) + (x + x_offset);
+    for y in 0..h {
+        let fp = fgw * y;
+        let bp = bgw * y + x_offset;
 
-            /// SAFETY: Make sure fg.w AND fg.h are smaller than bg.w and bg.h.
-            unsafe {
-                (*bg.get_unchecked_mut(bp)) = *fg.get_unchecked(fp);
-            }
+        for x in 0..fgw {
+            bg[bp + x] = fg[fp + x];
         }
     }
 }

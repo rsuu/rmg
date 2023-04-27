@@ -1,24 +1,28 @@
 use crate::archive::*;
 use std::path::Path;
 
-pub fn get_file(path: &Path, index: usize) -> anyhow::Result<Vec<u8>> {
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "ex_tar")] {
-            feat::get_file(path, index)
-        } else {
-            Err(anyhow::anyhow!(""))
-        }
+pub fn get_file<P>(path: &P, index: usize) -> anyhow::Result<Vec<u8>>
+where
+    P: AsRef<Path> + ?Sized,
+{
+    #[cfg(feature = "ex_tar")]
+    {
+        return feat::get_file(path, index);
     }
+
+    anyhow::bail!("")
 }
 
-pub fn get_list(path: &Path) -> anyhow::Result<FileList> {
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "ex_tar")] {
-            feat::get_list(path)
-        } else {
-            Err( anyhow::anyhow!(""))
-        }
+pub fn get_list<P>(path: &P) -> anyhow::Result<FileList>
+where
+    P: AsRef<Path> + ?Sized,
+{
+    #[cfg(feature = "ex_tar")]
+    {
+        return feat::get_list(path);
     }
+
+    anyhow::bail!("")
 }
 
 #[cfg(feature = "ex_tar")]
@@ -28,7 +32,10 @@ mod feat {
     extern crate tar;
 
     #[inline]
-    pub fn get_list(path: &Path) -> anyhow::Result<FileList> {
+    pub fn get_list<P>(path: &P) -> anyhow::Result<FileList>
+    where
+        P: AsRef<Path> + ?Sized,
+    {
         let mut tar = {
             let file = OpenOptions::new()
                 .read(true)
@@ -54,7 +61,10 @@ mod feat {
     }
 
     #[inline]
-    pub fn get_file(tar_file: &Path, index: usize) -> anyhow::Result<Vec<u8>> {
+    pub fn get_file<P>(tar_file: &P, index: usize) -> anyhow::Result<Vec<u8>>
+    where
+        P: AsRef<Path> + ?Sized,
+    {
         let file = OpenOptions::new()
             .write(false)
             .read(true)
@@ -68,10 +78,9 @@ mod feat {
                 file?.read_to_end(&mut buffer).expect("");
 
                 return Ok(buffer);
-            } else {
             }
         }
 
-        Err(anyhow::anyhow!(""))
+        anyhow::bail!("")
     }
 }

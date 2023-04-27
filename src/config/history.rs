@@ -26,7 +26,6 @@ impl History {
             if &history.path == &val.path {
                 self.inner[idx].freq_add();
                 return;
-            } else {
             }
         }
 

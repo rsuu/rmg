@@ -1,9 +1,10 @@
 use crate::archive::*;
-use std::fs::OpenOptions;
-use std::io::Read;
-use std::path::Path;
+use std::{fs::OpenOptions, io::Read, path::Path};
 
-pub fn get_file(path: &Path) -> anyhow::Result<Vec<u8>> {
+pub fn get_file<P>(path: &P) -> anyhow::Result<Vec<u8>>
+where
+    P: AsRef<Path> + ?Sized,
+{
     let mut file = OpenOptions::new()
         .read(true)
         .write(false)

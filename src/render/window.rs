@@ -1,4 +1,4 @@
-use crate::config::rsconf::Config;
+use crate::Config;
 use minifb::{Scale, ScaleMode, Window};
 
 pub struct Canvas {

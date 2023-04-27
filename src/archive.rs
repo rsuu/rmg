@@ -6,12 +6,7 @@ pub mod tar;
 pub mod zip;
 
 // ==============================================
-use crate::{
-    archive,
-    img::TMetaSize,
-    render::{ImgFormat, Page},
-    EXT_LIST,
-};
+use crate::{archive, ImgFormat, Page, TMetaSize, EXT_LIST};
 use infer;
 use std::path::{Path, PathBuf};
 
@@ -100,6 +95,7 @@ impl FileList {
             if info.has_supported() {
                 let page = {
                     if rename_pad == 0 {
+                        // do nothing
                         Page::new(info.path.clone(), info.index)
                     } else {
                         // rename
@@ -137,7 +133,6 @@ impl FileInfo {
     // TODO: rewrite
     pub fn has_supported(&self) -> bool {
         let path = PathBuf::from(self.path.as_str());
-
         if path.is_dir() {
             return false;
         }
@@ -176,7 +171,11 @@ pub fn pad_name(width: usize, name: &str) -> String {
 
     path.push_str(format!("{filename}.{suffix}").as_ref());
 
-    //tracing::debug!("path = {:?}", path);
+    tracing::trace!(
+        "pad_name():
+  path = {:?}",
+        path
+    );
 
     path
 }

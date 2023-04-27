@@ -1,12 +1,4 @@
-use crate::{
-    render::{
-        keymap::{self, KeyMap, Map},
-        scroll::Scroll,
-        window::Canvas,
-        {Data, Page},
-    },
-    sleep,
-};
+use crate::{keymap, sleep, Canvas, Config, Data, KeyMap, Map, Page, Scroll};
 
 #[derive(Debug)]
 pub struct Once {
@@ -33,7 +25,7 @@ impl Once {
         }
     }
 
-    pub fn start(&mut self, canvas: &mut Canvas, keymaps: &[KeyMap], data: &Data) {
+    pub fn start(&mut self, canvas: &mut Canvas, keymaps: &[KeyMap], data: &Data, config: &Config) {
         self.page.load_file(data).expect("ERROR: load_file()");
         self.bit_len = self.page.img.len();
 
@@ -53,10 +45,13 @@ impl Once {
                     break 'l1;
                 }
 
-                _ => {}
+                _ => {
+                    self.mouse_input(canvas, config);
+                }
             }
 
             self.buffer.clear();
+            //self.buffer.shrink_to(0);
 
             if self.page.flush(&mut self.buffer) {
                 self.page.img.to_next_frame();
@@ -65,8 +60,6 @@ impl Once {
             while self.buffer.len() < self.end() {
                 self.buffer.extend_from_slice(&self.page_loading);
             }
-            self.buffer.clear();
-            //self.buffer.shrink_to(0);
 
             canvas.flush(&self.buffer[self.rng..self.end()]);
 
@@ -94,5 +87,23 @@ impl Once {
 
     fn end(&self) -> usize {
         self.rng + self.buffer_size
+    }
+
+    #[inline(always)]
+    fn mouse_input(&mut self, canvas: &mut Canvas, config: &Config) {
+        // scroll
+        if let Some((_, y)) = canvas.window.get_scroll_wheel() {
+            //tracing::trace!("mouse_y == {}", y);
+
+            match config.base.invert_mouse {
+                true if y < 0.0 => self.move_up(),
+                true if y > 0.0 => self.move_down(),
+
+                false if y < 0.0 => self.move_down(),
+                false if y > 0.0 => self.move_up(),
+
+                _ => {}
+            }
+        }
     }
 }

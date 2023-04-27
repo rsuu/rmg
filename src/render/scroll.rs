@@ -1,12 +1,6 @@
 use crate::{
-    config::rsconf::Config,
-    img::{TMetaSize, TransRgba},
-    render::{
-        keymap::{match_event, KeyMap, Map},
-        window::Canvas,
-        {AsyncTask, Buffer, Data, ForAsyncTask, Img, Page, PageList},
-    },
-    sleep,
+    match_event, sleep, AsyncTask, Buffer, Canvas, Config, Data, ForAsyncTask, Img, KeyMap, Map,
+    Page, PageList, TMetaSize, TransRgba,
 };
 
 #[derive(Debug)]
@@ -138,11 +132,11 @@ impl Scroll {
             //tracing::trace!("mouse_y == {}", y);
 
             match config.base.invert_mouse {
-                true if y > 0.0 => self.move_up(),
-                true if y < 0.0 => self.move_down(),
+                true if y < 0.0 => self.move_up(),
+                true if y > 0.0 => self.move_down(),
 
-                false if y > 0.0 => self.move_down(),
-                false if y < 0.0 => self.move_up(),
+                false if y < 0.0 => self.move_down(),
+                false if y > 0.0 => self.move_up(),
 
                 _ => {}
             }

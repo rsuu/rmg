@@ -9,31 +9,37 @@ pub mod turn;
 pub mod draw;
 
 // ==============================================
-use crate::{archive::*, img::*, FPS};
-use fir::FilterType;
-use std::{
-    mem,
-    path::{Path, PathBuf},
-    sync::{Arc, RwLock},
-    thread::{self, sleep_ms},
+use crate::{
+    archive::*, img::*, mem, sleep_ms, thread, yield_now, Arc, FilterType, Path, PathBuf, RwLock,
+    FPS,
 };
 
 // ==============================================
 pub type Frame = Vec<u32>; // RGBA8
 pub type Frames = Vec<Frame>;
+
 pub type AsyncTask = Arc<RwLock<Task>>;
 
 // ==============================================
+/// Create a `loop thread`.
 pub fn new_thread(arc_task: &AsyncTask, data: &Data) {
     let arc_task = arc_task.clone();
     let data = data.clone();
-
-    let mut page = Page::default();
+    let mut tmp_page = Page::default();
 
     let f = move || loop {
-        if let Some(index) = arc_task.try_start(&data, &mut page) {
-            tracing::info!("Thread: {:?}, task: {index}", thread::current().id(),);
+        if let Some(index) = arc_task.try_start(&data, &mut tmp_page) {
+            tracing::info!(
+                "\
+Thread: {:?},
+  page_index: {}",
+                thread::current().id(),
+                index
+            );
+
+            //
         } else {
+            // ? yield_now();
             sleep_ms(100);
         }
     };
@@ -42,12 +48,60 @@ pub fn new_thread(arc_task: &AsyncTask, data: &Data) {
 }
 
 // ==============================================
+
+// read only
+#[derive(Debug, Clone)]
+pub struct Data {
+    pub archive_type: ArchiveType,
+    pub path: PathBuf,
+    pub meta: MetaSize<u32>,
+    pub filter: FilterType,
+}
+
+#[derive(Debug, Clone)]
+pub struct PageList {
+    pub list: Vec<Page>,
+    pub cur_dir: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub struct Page {
+    pub img: Img,
+    pub archive_pos: usize, // index of image in the archive file
+    pub name: String,       // path
+    pub number: usize,      // page number
+}
+
+#[derive(Debug)]
+pub struct Buffer {
+    pub nums: usize,
+    pub data: Frame,
+    //scale:Scale,
+}
+
 // async
+#[derive(Debug)]
+pub struct Task {
+    list: Vec<TaskResize>,
+    ram_usage: usize,
+}
+
+// async
+#[derive(Debug)]
+pub struct TaskResize {
+    pub state: State,
+    pub page: Page,
+}
+
+// ==============================================
+//  +--> Empty -> Todo -> ... -> NeedFree -->+
+//  |                                        |
+//  +--------------<---<---<-----------------+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum State {
     Empty,
     Todo,
-    Doing,
+    Ing,
     Done,
     Locked,
     NeedFree,
@@ -55,7 +109,8 @@ pub enum State {
 
 #[derive(Debug, Clone)]
 pub enum Img {
-    Init,
+    Unknown,
+
     Bit {
         img: Frame,
         size: Size<u32>,
@@ -66,11 +121,11 @@ pub enum Img {
         size: Size<u32>,
         resize: Size<u32>,
 
-        frames_count: usize, //
-        frame_index: usize,  // index of frame
-        pts: Vec<u32>,       //
-        timer: u32,          //
-        miss: u32,           //
+        frame_count: usize, //
+        frame_index: usize, //
+        pts: Vec<u32>,      //
+        timer: u32,         //
+        miss: u32,          //
     },
 }
 
@@ -82,6 +137,8 @@ pub enum ImgType {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ImgFormat {
+    Unknown,
+
     // bit
     Heic,
     Avif,
@@ -92,8 +149,6 @@ pub enum ImgFormat {
     // anim
     Aseprite,
     Gif,
-
-    Unknown,
 }
 
 #[derive(Debug, Default)]
@@ -113,72 +168,13 @@ pub enum ViewMode {
 
     Once, // image OR gif
 
-    Turn, //
-          // Manga: Left to Right
+    Turn, // Manga: Left to Right
           // Comic: Right to Left
 }
 
-// ==============================================
-#[derive(Debug)]
-pub struct Task {
-    list: Vec<TaskResize>,
-    ram_usage: usize,
-}
-
-#[derive(Debug)]
-pub struct TaskResize {
-    pub state: State,
-    pub page: Page,
-}
-
-#[derive(Debug, Clone)]
-pub struct BitData {
-    pub data: Frame,
-    pub size: Size<u32>,
-    pub resize: Size<u32>,
-}
-
-#[derive(Debug, Clone)]
-pub struct AnimData {
-    pub data: Frames,
-    pub size: Size<u32>,
-    pub resize: Size<u32>,
-
-    pub frames_count: usize,
-    pub frame_index: usize, // index of frame
-    pub pts: Vec<u32>,      // pts = delay + fps
-    pub timer: u32,         //
-    pub miss: u32,          //
-}
-
-// read only
-#[derive(Debug, Clone)]
-pub struct Data {
-    pub archive_type: ArchiveType,
-    pub path: PathBuf,
-    pub meta: MetaSize<u32>,
-    pub filter: FilterType,
-}
-
-#[derive(Debug, Clone)]
-pub struct PageList {
-    pub list: Vec<Page>,
-    pub cur_dir: PathBuf,
-}
-
-#[derive(Debug)]
-pub struct Buffer {
-    pub nums: usize,
-    pub data: Frame,
-    //scale:Scale,
-}
-
-#[derive(Debug, Clone)]
-pub struct Page {
-    pub img: Img,
-    pub archive_pos: usize, // index of image in the archive file
-    pub name: String,       // path
-    pub number: usize,      // page number
+#[derive(Debug, Clone, Copy)]
+enum CmdFn {
+    Crop,
 }
 
 // ==============================================
@@ -293,7 +289,7 @@ impl Default for Page {
             name: "".to_string(),
             number: 0,
             archive_pos: 0,
-            img: Img::Init,
+            img: Img::default(),
         }
     }
 }
@@ -304,7 +300,7 @@ impl Page {
             name,
             archive_pos,
             number: 0,
-            img: Img::Init,
+            img: Img::default(),
         }
     }
 
@@ -388,15 +384,21 @@ impl Page {
                 mem::swap(&mut buffer, &mut img.1);
             }
 
-            // TODO:
-            ImgFormat::Unknown => panic!(),
+            ImgFormat::Unknown => todo!(),
         }
 
         meta.resize();
 
         self.img = match ImgType::from(&fmt) {
-            ImgType::Bit => Img::new_bit(Vec::with_capacity(buffer.len()), meta.image, meta.fix),
+            ImgType::Bit => Img::new_bit(
+                //
+                Vec::with_capacity(buffer.len()),
+                meta.image,
+                meta.fix,
+            ),
+
             ImgType::Anim => Img::new_anim(
+                // frame_size * count
                 Vec::with_capacity(buffer.len() * buffer[0].len()),
                 pts,
                 meta.image,
@@ -429,14 +431,13 @@ impl ForAsyncTask for AsyncTask {
     }
 
     fn try_start(&self, data: &Data, tmp: &mut Page) -> Option<usize> {
-        let mut idx: Option<usize> = None;
-
+        let mut index: Option<usize> = None;
         if let Ok(ref mut inner) = self.try_write() {
-            for (index, task) in inner.list.iter_mut().enumerate() {
+            for (idx, task) in inner.list.iter_mut().enumerate() {
                 if task.state == State::Todo {
                     mem::swap(&mut task.page, tmp);
-                    idx = Some(index);
-                    task.state = State::Doing;
+                    task.state = State::Ing;
+                    index = Some(idx);
 
                     // Just load only one page.
                     break;
@@ -452,8 +453,9 @@ impl ForAsyncTask for AsyncTask {
             return None;
         };
 
-        let Some(index)=idx else {return None;};
+        let Some(index)=index else {return None;};
 
+        // decode AND resize image
         tmp.load_file(data).expect("ERROR: load_file()");
 
         if let Ok(ref mut inner) = self.try_write() {
@@ -465,6 +467,8 @@ impl ForAsyncTask for AsyncTask {
             task.state = State::Done;
             *tmp = Page::default();
 
+            tracing::info!("DONE: {}", index);
+
             return Some(task.page.number);
         }
 
@@ -474,19 +478,19 @@ impl ForAsyncTask for AsyncTask {
     fn try_flush(&self, list: &mut PageList) -> bool {
         let Ok(ref mut inner) = self.try_write() else {return false;};
 
-        for (index, page) in list.list.iter_mut().enumerate() {
+        for (index, task_page) in list.list.iter_mut().enumerate() {
             match inner.get_ref(index).state {
                 State::Done => {
-                    // NOTE: We need to free up the memory in try_start().
                     inner.list[index].state = State::Locked;
-                    page.img = mem::take(&mut inner.list[index].page.img);
+                    // Now, page.img is null.
+                    task_page.img = mem::take(&mut inner.list[index].page.img);
                 }
 
                 _ => {}
             }
         }
 
-        return true;
+        true
     }
 
     fn try_free(&self, index: usize, list: &mut PageList) -> bool {
@@ -494,51 +498,17 @@ impl ForAsyncTask for AsyncTask {
 
         if inner.get_ref(index).state == State::Locked {
             inner.list[index].state = State::NeedFree;
+
+            // move page.img to task.img
+            // (task.img, page.img)
             mem::swap(&mut inner.list[index].page.img, &mut list.list[index].img);
+
+            // NOTE: We need to free up the memory in try_start().
 
             true
         } else {
             false
         }
-    }
-}
-
-// ==============================================
-impl From<&str> for ImgFormat {
-    fn from(value: &str) -> Self {
-        match value {
-            "jpg" => Self::Jpg,
-            "png" => Self::Png,
-            "heic" | "heif" => Self::Heic,
-            "avif" => Self::Avif,
-            "ase" | "aseprite" => Self::Aseprite,
-            "gif" => Self::Gif,
-            "svg" | "xml" => Self::Svg,
-            _ => Self::Unknown,
-        }
-    }
-}
-
-impl From<&ImgFormat> for ImgType {
-    fn from(value: &ImgFormat) -> Self {
-        match value {
-            ImgFormat::Jpg => Self::Bit,
-            ImgFormat::Png => Self::Bit,
-            ImgFormat::Heic => Self::Bit,
-            ImgFormat::Avif => Self::Bit,
-            ImgFormat::Svg => Self::Bit,
-
-            ImgFormat::Aseprite => Self::Anim,
-            ImgFormat::Gif => Self::Anim,
-
-            ImgFormat::Unknown => panic!(),
-        }
-    }
-}
-
-impl Default for Img {
-    fn default() -> Self {
-        Self::Init
     }
 }
 
@@ -549,7 +519,7 @@ impl Img {
 
     pub fn new_anim(img: Frames, pts: Vec<u32>, size: Size<u32>, resize: Size<u32>) -> Self {
         Self::Anim {
-            frames_count: img.len(),
+            frame_count: img.len(),
             frame_index: 0,
             timer: 0,
             miss: 0,
@@ -587,12 +557,12 @@ impl Img {
             Img::Anim {
                 ref mut img,
                 ref mut resize,
-                ref mut frames_count,
+                ref mut frame_count,
                 ref size,
                 ..
             } => {
                 *img = vec![vec![]; bytes.len()];
-                *frames_count = bytes.len();
+                *frame_count = bytes.len();
 
                 if size.width > data.meta.window.width {
                     *resize = Size::new(data.meta.window.width, size.height);
@@ -602,23 +572,23 @@ impl Img {
 
                         argb_u32(&mut img[frame_index], &mem::take(frame));
                     }
-                } else if size.width <= data.meta.window.width {
-                    let bg_size = &data.meta.window;
-                    let fg_size = size;
-                    let mut fg_buffer: Frame = Vec::with_capacity(fg_size.len());
-
-                    // center frames
+                } else if size.width == data.meta.window.width {
                     for (frame_index, frame) in bytes.iter_mut().enumerate() {
-                        argb_u32(&mut fg_buffer, frame.as_slice());
-                        center_img(
-                            &mut img[frame_index],
-                            &fg_buffer,
-                            (bg_size.width as usize, bg_size.height as usize),
-                            (fg_size.width as usize, fg_size.height as usize),
-                        );
+                        argb_u32(&mut img[frame_index], frame.as_slice());
+                    }
+                } else if size.width < data.meta.window.width {
+                    let bgw = data.meta.window.width as usize;
+                    let fgw = size.width as usize;
+                    let h = size.height as usize;
+
+                    let mut fg: Frame = Vec::with_capacity(fgw * h);
+                    for (frame_index, frame) in bytes.iter_mut().enumerate() {
+                        argb_u32(&mut fg, frame.as_slice());
+                        img[frame_index] = vec![0; bgw * h];
+                        center_img(&mut img[frame_index], &fg, bgw, fgw, h);
                     }
 
-                    *resize = *bg_size;
+                    *resize = Size::new(bgw as u32, h as u32);
                 }
             }
 
@@ -662,6 +632,7 @@ impl Img {
         }
     }
 
+    #[inline(always)]
     pub fn to_next_frame(&mut self) {
         match *self {
             Img::Anim {
@@ -704,7 +675,48 @@ impl Img {
                     img[*frame_index].as_slice()
                 }
             }
-            Img::Init => &[],
+
+            _ => &[],
         }
+    }
+}
+
+// ==============================================
+impl From<&str> for ImgFormat {
+    fn from(value: &str) -> Self {
+        match value {
+            "jpg" => Self::Jpg,
+            "png" => Self::Png,
+            "heic" | "heif" => Self::Heic,
+            "avif" => Self::Avif,
+            "ase" | "aseprite" => Self::Aseprite,
+            "gif" => Self::Gif,
+            "svg" | "xml" => Self::Svg,
+
+            _ => Self::Unknown,
+        }
+    }
+}
+
+impl From<&ImgFormat> for ImgType {
+    fn from(value: &ImgFormat) -> Self {
+        match value {
+            ImgFormat::Jpg => Self::Bit,
+            ImgFormat::Png => Self::Bit,
+            ImgFormat::Heic => Self::Bit,
+            ImgFormat::Avif => Self::Bit,
+            ImgFormat::Svg => Self::Bit,
+
+            ImgFormat::Aseprite => Self::Anim,
+            ImgFormat::Gif => Self::Anim,
+
+            ImgFormat::Unknown => panic!(),
+        }
+    }
+}
+
+impl Default for Img {
+    fn default() -> Self {
+        Self::Unknown
     }
 }

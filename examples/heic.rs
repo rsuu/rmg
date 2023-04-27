@@ -1,11 +1,8 @@
-use cfg_if::cfg_if;
-
 fn main() {
-    cfg_if! { // decode heic
-    if #[cfg(feature="de_heic")] {
-
-    // cg ex heic -F de_heic
-    use libheif_rs;
+    #[cfg(feature = "de_heic")]
+    {
+        // cg ex heic -F de_heic
+        use libheif_rs;
 
         let ctx = libheif_rs::HeifContext::read_from_file("./tests/1.heic").unwrap();
         let handle = ctx.primary_image_handle().unwrap();
@@ -33,7 +30,7 @@ fn main() {
         let res = yuvi420_to_rgb8::<u8>(&bytes, width as usize, height as usize);
 
         image::save_buffer("w.png", &res, width, height, image::ColorType::Rgb8).unwrap();
-    }else {}}
+    }
 }
 
 fn yuvi420_to_rgb8<Yuv_>(img: &[Yuv_], w: usize, h: usize) -> Vec<u8>

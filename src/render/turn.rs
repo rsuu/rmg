@@ -1,12 +1,7 @@
 use crate::{
-    config::rsconf::Config,
-    render::{
-        keymap::{match_event, KeyMap, Map},
-        scroll::Scroll,
-        window::Canvas,
-        *,
-    },
-    FPS,
+    match_event,
+    render::{scroll::Scroll, *},
+    Canvas, Config, KeyMap, Map, FPS,
 };
 use std::{
     sync::{Arc, RwLock},

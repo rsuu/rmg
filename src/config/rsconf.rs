@@ -28,6 +28,7 @@ pub struct Base {
     pub step: u8,
     pub view_mode: ViewMode,
     pub limit: u8,
+    pub thread_limit: u8,
 }
 
 #[derive(Debug)]
@@ -225,6 +226,13 @@ impl Default for Keymap<char> {
 
 impl Default for Base {
     fn default() -> Self {
+        let thread_limit = {
+            use sysinfo::SystemExt;
+
+            let sys = sysinfo::System::new_all();
+            sys.physical_core_count().unwrap_or(1) as u8
+        };
+
         Base {
             size: Size::<u32> {
                 width: 600,
@@ -237,6 +245,7 @@ impl Default for Base {
             step: 10,
             view_mode: ViewMode::Scroll,
             limit: 10,
+            thread_limit,
         }
     }
 }

@@ -1,19 +1,6 @@
 use crate::{
-    archive::ArchiveType,
-    config::rsconf::Config,
-    img::MetaSize,
-    render::{
-        keymap::KeyMap,
-        once::Once,
-        scroll::Scroll,
-        turn::Turn,
-        window::Canvas,
-        {self, AsyncTask, Data, ForAsyncTask, Page, PageList, TaskResize, ViewMode},
-    },
-};
-use std::{
-    path::PathBuf,
-    thread::{self, sleep_ms},
+    render, sleep_ms, thread, ArchiveType, AsyncTask, Canvas, Config, Data, ForAsyncTask, KeyMap,
+    MetaSize, Once, Page, PageList, PathBuf, Scroll, TaskResize, Turn, ViewMode,
 };
 
 /// display images
@@ -62,17 +49,8 @@ pub fn cat_img(
         }
     };
 
-    // WARN: new thread
-
-    let num = {
-        use sysinfo::SystemExt;
-
-        let sys = sysinfo::System::new_all();
-        sys.physical_core_count().unwrap_or(1)
-    };
-
-
-    for _ in 0..num {
+    // NOTE: new threads
+    for _ in 0..(config.base.thread_limit) {
         render::new_thread(&arc_task, &data);
     }
 
@@ -87,7 +65,7 @@ pub fn cat_img(
         ViewMode::Once => {
             // TODO: ?scale gif
             let mut once = Once::from_scroll(scroll);
-            once.start(&mut canvas, &keymap, &data);
+            once.start(&mut canvas, &keymap, &data, config);
         }
 
         // Bit OR Anim
@@ -99,7 +77,7 @@ pub fn cat_img(
         }
     }
 
-    //tracing::info!("*** EXIT ***");
+    tracing::info!("*** EXIT ***");
 
     Ok(())
 }
