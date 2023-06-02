@@ -1,3 +1,4 @@
+use crate::config::rsconf::Config;
 use minifb::Key;
 
 pub trait TKeycode {
@@ -46,6 +47,23 @@ impl KeyMap {
             KeyMap::add('R', Map::Right),
             KeyMap::add('E', Map::Exit),
         ]
+    }
+
+    pub fn update(list: &mut Vec<Self>, config: &Config) {
+        //dbg!(&config);
+        let new = config.keymap;
+
+        for Self { key, map } in list.iter_mut() {
+            match map {
+                Map::Up => *key = new.up,
+                Map::Down => *key = new.down,
+                Map::Left => *key = new.left,
+                Map::Right => *key = new.right,
+                Map::Exit => *key = new.exit,
+
+                _ => {}
+            }
+        }
     }
 
     pub fn add(key: char, map: Map) -> Self {

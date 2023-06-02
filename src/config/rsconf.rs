@@ -39,7 +39,7 @@ pub struct Window {
     pub none: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Keymap<Char_> {
     pub up: Char_,    // page up
     pub down: Char_,  // page down
@@ -273,6 +273,8 @@ pub fn parse_struct(block: &syn::Block) -> Option<Config> {
         if let syn::Stmt::Semi(syn::Expr::Struct(expr_struct), _token) = stmt {
             tracing::debug!("{:#?}", expr_struct);
 
+            //dbg!(&expr_struct);
+
             match match_struct_name(expr_struct) {
                 ConfigType::Base => {
                     config.base = parse_base(expr_struct);
@@ -300,13 +302,13 @@ pub fn parse_struct(block: &syn::Block) -> Option<Config> {
 pub fn match_struct_name(expr_struct: &syn::ExprStruct) -> ConfigType {
     let name = expr_struct.path.segments.first().unwrap().ident.to_string();
 
+    //dbg!(&name);
+
     match name.as_str() {
         "Base" => ConfigType::Base,
         "Keymap" => ConfigType::Keymap,
-        "window" => ConfigType::Window,
-        _ => {
-            panic!()
-        }
+        "Window" => ConfigType::Window,
+        _ => panic!(),
     }
 }
 
@@ -521,7 +523,10 @@ pub fn parse_window(expr_struct: &syn::ExprStruct) -> Window {
     let mut window = Window::default();
 
     for fields in expr_struct.fields.iter() {
-        let syn::Member::Named(_name) = &fields.member else {todo!()};
+        let syn::Member::Named(_name) = &fields.member
+        else { todo!() };
+
+        //dbg!(&fields);
 
         match (_name.to_string().as_str(), &fields.expr) {
             // bool

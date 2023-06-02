@@ -11,7 +11,10 @@ pub fn cat_img(
     path: PathBuf,
     archive_type: ArchiveType,
 ) -> anyhow::Result<()> {
-    let keymap = KeyMap::new();
+    // BUG: update with config.keymap
+    let mut keymap = KeyMap::new();
+    KeyMap::update(&mut keymap, config);
+
     let buffer_max = meta.window.width as usize * meta.window.height as usize;
     let data = Data::new(archive_type, path, meta, config.base.filter); // use for resize image
 
