@@ -1,9 +1,17 @@
+use std::default;
+
 use crate::Config;
 use minifb::{Scale, ScaleMode, Window};
 
 pub struct Canvas {
     pub window: Window,
     pub size: (usize, usize),
+}
+
+#[derive(Debug)]
+pub struct WindowPosition {
+    pub x: isize,
+    pub y: isize,
 }
 
 impl Canvas {
@@ -26,6 +34,7 @@ impl Canvas {
         };
 
         let mut window = Window::new("rmg", width, height, windowoptions).unwrap();
+        window.set_position(config.window.postition.x, config.window.postition.y);
 
         //window.limit_update_rate(Some(std::time::Duration::from_micros(16600))); // Limit to max ~60 fps update rate
 
@@ -33,7 +42,6 @@ impl Canvas {
 
         Self {
             window,
-
             size: (width, height),
         }
     }

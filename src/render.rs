@@ -10,8 +10,7 @@ pub mod draw;
 
 // ==============================================
 use crate::{
-    archive::*, img::*, mem, sleep_ms, thread, yield_now, Arc, FilterType, Path, PathBuf, RwLock,
-    FPS,
+    archive::*, img::*, mem, sleep_ms, thread, Arc, FilterType, Path, PathBuf, RwLock, FPS,
 };
 
 // ==============================================
@@ -581,11 +580,11 @@ impl Img {
                     let fgw = size.width as usize;
                     let h = size.height as usize;
 
-                    let mut fg: Frame = Vec::with_capacity(fgw * h);
+                    let mut fg: Frame = vec![];
                     for (frame_index, frame) in bytes.iter_mut().enumerate() {
                         argb_u32(&mut fg, frame.as_slice());
                         img[frame_index] = vec![0; bgw * h];
-                        center_img(&mut img[frame_index], &fg, bgw, fgw, h);
+                        center_img(&mut img[frame_index], &mut fg, bgw, fgw, h);
                     }
 
                     *resize = Size::new(bgw as u32, h as u32);

@@ -1,4 +1,4 @@
-use crate::{img::*, render::ViewMode, VERSION};
+use crate::{img::*, render::ViewMode, WindowPosition, VERSION};
 use dirs_next;
 use fir;
 use lexopt::{self, prelude::*};
@@ -37,6 +37,7 @@ pub struct Window {
     pub topmost: bool,
     pub resize: bool,
     pub none: bool,
+    pub postition: WindowPosition,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -162,6 +163,19 @@ impl Config {
                     self.window.borderless = arg.parse::<bool>().unwrap();
                 }
 
+                // e.g. 0,0
+                Long("window-position") => {
+                    let size = parser.value().unwrap().into_string().unwrap();
+                    let size = size.as_str().split(',').collect::<Vec<&str>>();
+
+                    let (x, y) = (
+                        size[0].parse::<isize>().unwrap_or_default(),
+                        size[1].parse::<isize>().unwrap_or_default(),
+                    );
+
+                    self.window.postition = WindowPosition { x, y };
+                }
+
                 Long("window-topmost") => {
                     let arg = parser.value().unwrap().into_string().unwrap();
 
@@ -201,6 +215,7 @@ impl Default for Window {
             topmost: false,
             resize: false,
             none: true,
+            postition: WindowPosition { x: 0, y: 0 },
         }
     }
 }
@@ -276,17 +291,11 @@ pub fn parse_struct(block: &syn::Block) -> Option<Config> {
             //dbg!(&expr_struct);
 
             match match_struct_name(expr_struct) {
-                ConfigType::Base => {
-                    config.base = parse_base(expr_struct);
-                }
+                ConfigType::Base => config.base = parse_base(expr_struct),
 
-                ConfigType::Keymap => {
-                    config.keymap = parse_keymap(expr_struct);
-                }
+                ConfigType::Keymap => config.keymap = parse_keymap(expr_struct),
 
-                ConfigType::Window => {
-                    config.window = parse_window(expr_struct);
-                }
+                ConfigType::Window => config.window = parse_window(expr_struct),
 
                 _ => {}
             }
@@ -576,6 +585,27 @@ pub fn parse_window(expr_struct: &syn::ExprStruct) -> Window {
                     .parse::<bool>()
                     .unwrap_or_default();
             }
+
+            ("postition", syn::Expr::Tuple(tuple_)) => {
+                let syn::Expr::Lit(_lhs) = &tuple_.elems[0] else {panic!()};
+
+                let syn::Expr::Lit(_rhs) = &tuple_.elems[1] else { panic!() };
+
+                let x = if let syn::Lit::Int(x) = &_lhs.lit {
+                    x.token().to_string().parse::<isize>().unwrap_or_default()
+                } else {
+                    unreachable!()
+                };
+
+                let y = if let syn::Lit::Int(y) = &_rhs.lit {
+                    y.token().to_string().parse::<isize>().unwrap_or_default()
+                } else {
+                    unreachable!()
+                };
+
+                window.postition = WindowPosition { x, y };
+            }
+
             _ => {}
         }
     }
@@ -599,15 +629,18 @@ ARGS:
 
 FLAGS:
     --invert-mouse                  [default: false]
-        e.g. rmg --invert-mouse true.
+            e.g. `rmg --invert-mouse true`
     --window-borderless             [default: false]
-        Display borderless.
+            Display borderless
     --window-resize                 [default: false]
-        Resize window.
+            Resize window
     --window-topmost                [default: false]
-        Set as topmost.
+            Set as topmost
     --window-none                   [default: true]
-        Set as transparency.
+            Set as transparency
+    --window-position
+            Sets the position of the window
+            e.g. `rmg --window-position 500,0`
 
 
 OPTIONS:
@@ -615,11 +648,11 @@ OPTIONS:
             Prints help information.
     -s, --size
             Reset the width and the height of the buffer.
-            e.g. rmg --size 900x900
+            e.g. `rmg --size 900x900`
     -c, --config
-            Specify the config file path.
+            Specify the config file path
     -p, --rename-pad
-            Pad filename.
+            Padding 0 in filename
     -m, --mode
             (TODO)
 "#,

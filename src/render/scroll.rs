@@ -77,8 +77,8 @@ impl Scroll {
         arc_task.try_set_as_todo(0);
         arc_task.try_set_as_todo(1);
 
-        'l1: while canvas.window.is_open() {
-            self.pages_len();
+        while canvas.window.is_open() {
+            self.update_len();
 
             match match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
                 Map::Down => {
@@ -89,14 +89,6 @@ impl Scroll {
                     self.move_up();
                 }
 
-                Map::Reset => {
-                    todo!()
-                }
-
-                Map::FullScreen => {
-                    todo!()
-                }
-
                 Map::Left => {
                     self.move_left(data);
                 }
@@ -105,16 +97,22 @@ impl Scroll {
                     self.move_right(data);
                 }
 
+                Map::Reset => {
+                    todo!()
+                }
+
+                Map::FullScreen => {
+                    todo!()
+                }
+
                 Map::Exit => {
                     println!("EXIT");
 
                     // FIXME: Key::Escape
-                    break 'l1;
+                    break;
                 }
 
-                _ => {
-                    self.mouse_input(canvas, config);
-                }
+                _ => self.mouse_input(canvas, config),
             }
 
             self.flush(canvas, data, arc_task);
@@ -161,8 +159,8 @@ impl Scroll {
 
     #[inline(always)]
     fn flush(&mut self, canvas: &mut Canvas, data: &Data, arc_task: &AsyncTask) {
-        if arc_task.try_flush(&mut self.page_list) {
-        } else {
+        // false: do nothing
+        if !arc_task.try_flush(&mut self.page_list) {
             return;
         }
 
@@ -179,17 +177,20 @@ impl Scroll {
         for index in self.head..=self.tail {
             let len = self.page_list.get_ref(index).img.len();
 
+            // true: gif.to_next_frame()
             if self.page_list.get_ref(index).flush(&mut self.buffer.data) {
                 self.page_list.get_mut(index).img.to_next_frame();
+
+            // false: jpg.do_nothing()
             } else if arc_task.try_set_as_todo(index) {
                 for _ in 0..(len / self.null_line_size) {
                     self.buffer
                         .extend(&self.page_loading[0..self.null_line_size]);
                 }
-            } else {
             }
         }
 
+        // update
         while self.buffer.len() < self.end() {
             self.buffer
                 .extend(&self.page_loading[0..self.null_line_size]);
@@ -200,7 +201,7 @@ impl Scroll {
     }
 
     #[inline(always)]
-    fn pages_len(&mut self) {
+    fn update_len(&mut self) {
         self.bit_len = 0;
 
         for index in self.head..=self.tail {
@@ -211,6 +212,7 @@ impl Scroll {
     /// move down
     #[inline(always)]
     fn move_down(&mut self) {
+        // TODO: rewrite
         self.map = Map::Down;
 
         if self.bit_len >= self.end() + self.y_step {

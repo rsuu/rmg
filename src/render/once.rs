@@ -25,8 +25,14 @@ impl Once {
         }
     }
 
-    pub fn start(&mut self, canvas: &mut Canvas, keymaps: &[KeyMap], data: &Data, config: &Config) {
-        self.page.load_file(data).expect("ERROR: load_file()");
+    pub fn start(
+        &mut self,
+        canvas: &mut Canvas,
+        keymaps: &[KeyMap],
+        data: &Data,
+        config: &Config,
+    ) -> anyhow::Result<()> {
+        self.page.load_file(data)?;
         self.bit_len = self.page.img.len();
 
         'l1: while canvas.window.is_open() {
@@ -65,6 +71,8 @@ impl Once {
 
             sleep()
         }
+
+        Ok(())
     }
 
     /// move down
@@ -92,18 +100,21 @@ impl Once {
     #[inline(always)]
     fn mouse_input(&mut self, canvas: &mut Canvas, config: &Config) {
         // scroll
-        if let Some((_, y)) = canvas.window.get_scroll_wheel() {
-            //tracing::trace!("mouse_y == {}", y);
+        let Some((.., y)) = canvas.window.get_scroll_wheel()
+        else {
+            return;
+        };
 
-            match config.base.invert_mouse {
-                true if y < 0.0 => self.move_up(),
-                true if y > 0.0 => self.move_down(),
+        //tracing::trace!("mouse_y == {}", y);
 
-                false if y < 0.0 => self.move_down(),
-                false if y > 0.0 => self.move_up(),
+        match config.base.invert_mouse {
+            true if y < 0.0 => self.move_up(),
+            true if y > 0.0 => self.move_down(),
 
-                _ => {}
-            }
+            false if y < 0.0 => self.move_down(),
+            false if y > 0.0 => self.move_up(),
+
+            _ => {}
         }
     }
 }

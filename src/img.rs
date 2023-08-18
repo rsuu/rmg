@@ -149,11 +149,11 @@ impl TMetaSize for MetaSize<u32> {
     }
 
     fn resize(&mut self) {
-        // WARN: DO NOT use odd numbers. (╯°Д°)╯︵ ┻━┻
+        // BUG: NO odd numbers. (╯°Д°)╯︵ ┻━┻
 
-        // e.g. width = 3, height = 4
-        //      width  = (width /2)*2 = 2
-        //      height = (height/2)*2 = 4
+        // e.g. w = 3, h = 4
+        //      w = (w/2)*2 = 2
+        //      h = (h/2)*2 = 4
         let q = self.image.width as f32 / self.image.height as f32;
         let w = self.window.width as f32;
         let h = w / q;
@@ -170,9 +170,6 @@ pub fn resize_rgba8(
     to: &Size<u32>,
     filter: &fir::FilterType,
 ) -> anyhow::Result<()> {
-    //tracing::debug!("{:?}", from);
-    //tracing::debug!("{:?}", to);
-
     let mut src_image = fir::Image::from_vec_u8(
         NonZeroU32::new(from.width).unwrap(),
         NonZeroU32::new(from.height).unwrap(),
@@ -182,7 +179,6 @@ pub fn resize_rgba8(
     let dst_width = NonZeroU32::new(to.width).unwrap();
     let dst_height = NonZeroU32::new(to.height).unwrap();
 
-    // FIXED: https://github.com/Cykooz/fast_image_resize/issues/9
     let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
     let mut dst_view = dst_image.view_mut();
     let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(*filter));
@@ -211,21 +207,24 @@ pub fn resize_rgba8(
     Ok(())
 }
 
-pub fn center_img<T: Copy>(bg: &mut Vec<T>, fg: &[T], bgw: usize, fgw: usize, h: usize) {
-    let x_offset = ((bgw - fgw) / 2);
+#[inline]
+pub fn center_img<T>(bg: &mut Vec<T>, fg: &mut Vec<T>, bgw: usize, fgw: usize, h: usize) {
+    let x_offset = (bgw - fgw) / 2;
 
     for y in 0..h {
         let fp = fgw * y;
         let bp = bgw * y + x_offset;
 
         for x in 0..fgw {
-            bg[bp + x] = fg[fp + x];
+            mem::swap(&mut bg[bp + x], &mut fg[fp + x]);
         }
     }
 }
 
-//pub fn crop_img() {}
+pub fn crop_img() {}
 
+/// `Vec<u8> -> Vec<u32>`
+#[inline]
 pub fn argb_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
     *buffer = vec![0; bytes.len() / 4];
 
@@ -235,6 +234,7 @@ pub fn argb_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
     }
 }
 
+#[inline]
 pub fn rgba_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
     *buffer = vec![0; bytes.len() / 4];
 
@@ -243,8 +243,6 @@ pub fn rgba_u32(buffer: &mut Vec<u32>, bytes: &[u8]) {
             TransRgba::rgba_as_u32(&bytes[f], &bytes[f + 1], &bytes[f + 2], &bytes[f + 3]);
     }
 }
-
-pub fn yuv420_u32() {}
 
 // ==============================================
 mod test {

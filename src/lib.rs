@@ -1,6 +1,5 @@
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-pub const SLEEP_MS: u32 = 1000 / 120;
+pub const SLEEP_MS: u64 = 1000 / 120;
 pub const FPS: u32 = 1000 / 25;
 pub const EXT_LIST: &[&str] = &[
     "jpg", "jpeg", //
@@ -24,25 +23,36 @@ pub use std::{
     mem,
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
-    thread::{self, sleep_ms, yield_now},
-};
-pub use {
-    archive::{ArchiveType, FileInfo, FileList, ForExtract},
-    config::rsconf::{print_help, Config},
-    img::{MetaSize, Size, TMetaSize, TransRgb, TransRgba},
-    render::{
-        display::cat_img,
-        keymap::{self, match_event, KeyMap, Map},
-        once::Once,
-        scroll::Scroll,
-        turn::Turn,
-        window::Canvas,
-        AsyncTask, Buffer, Data, ForAsyncTask, Img, ImgFormat, Page, PageList, ReaderMode,
-        TaskResize, ViewMode,
-    },
+    thread,
 };
 
 // ==========================================
+// trait
+pub use {archive::ForExtract, img::TMetaSize, render::ForAsyncTask};
+// struct/enum
+pub use {
+    archive::{ArchiveType, FileInfo, FileList},
+    config::rsconf::Config,
+    img::{MetaSize, Size, TransRgb, TransRgba},
+    render::{
+        keymap::{self, KeyMap, Map},
+        once::Once,
+        scroll::Scroll,
+        turn::Turn,
+        window::{Canvas, WindowPosition},
+        AsyncTask, Buffer, Data, Img, ImgFormat, Page, PageList, ReaderMode, TaskResize, ViewMode,
+    },
+};
+// fn
+pub use {config::rsconf::print_help, render::display::cat_img, render::keymap::match_event};
+
+// ==========================================
+pub fn sleep_ms(ms: u64) {
+    use std::time::Duration;
+
+    std::thread::sleep(Duration::from_millis(ms));
+}
+
 pub fn sleep() {
-    std::thread::sleep_ms(SLEEP_MS);
+    sleep_ms(SLEEP_MS);
 }

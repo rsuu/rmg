@@ -11,7 +11,7 @@ pub fn cat_img(
     path: PathBuf,
     archive_type: ArchiveType,
 ) -> anyhow::Result<()> {
-    // BUG: update with config.keymap
+    //window.set_position(20, 20);
     let mut keymap = KeyMap::new();
     KeyMap::update(&mut keymap, config);
 
@@ -52,7 +52,6 @@ pub fn cat_img(
         }
     };
 
-    // NOTE: new threads
     for _ in 0..(config.base.thread_limit) {
         render::new_thread(&arc_task, &data);
     }

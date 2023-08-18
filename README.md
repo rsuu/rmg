@@ -102,3 +102,10 @@ cargo run --release -F "sse4_1"
 
 cargo run --release -F "full"
 ```
+
+## TODO
+
+- [ ] feat: double page
+- [ ] feat: turn page
+- [ ] feat: history
+- [ ] fix: scroll up

@@ -71,16 +71,16 @@ impl ArchiveType {
             anyhow::bail!("Unknown Type")
         };
 
-        let res = match ty {
-            Some(ext) => match ext.extension() {
-                "tar" => Self::Tar,
-                "zip" => Self::Zip,
-                // "rar"=>Self::Rar,
-                // "7z"=>Self::7z,
-                _ => Self::File,
-            },
-
-            None => Self::File,
+        let Some(ext) = ty
+        else {
+            return Ok(Self::File);
+        };
+        let res = match ext.extension() {
+            "tar" => Self::Tar,
+            "zip" => Self::Zip,
+            // "rar"=>Self::Rar,
+            // "7z"=>Self::7z,
+            _ => Self::File,
         };
 
         Ok(res)
@@ -92,7 +92,7 @@ impl FileList {
         let mut res = Vec::new();
 
         for info in self.iter() {
-            if info.has_supported() {
+            if info.is_supported() {
                 let page = {
                     if rename_pad == 0 {
                         // do nothing
@@ -130,20 +130,20 @@ impl FileInfo {
         Self { path, index }
     }
 
-    // TODO: rewrite
-    pub fn has_supported(&self) -> bool {
+    pub fn is_supported(&self) -> bool {
         let path = PathBuf::from(self.path.as_str());
-        if path.is_dir() {
-            return false;
-        }
+        // if path.is_dir() {
+        //     return false;
+        // }
 
-        for ext in EXT_LIST {
-            // WARN: allow non-UTF-8 path
-            if path
-                .display()
-                .to_string()
-                .ends_with(format!(".{ext}").as_str())
-            {
+        let Some(v) = path.extension()
+        else {
+            return false;
+        };
+        let v = v.to_str().unwrap();
+
+        for ext in EXT_LIST.iter() {
+            if *ext == v {
                 return true;
             }
         }
@@ -153,9 +153,9 @@ impl FileInfo {
 }
 
 // e.g. width = 6
-//     '01.jpg'        -> '000001.jpg'     (pad  "0000")
-//     '000001.jpg'    -> '000001.jpg'     (do nothing)
-//     '000000001.jpg' -> '0000000001.jpg' (do nothing)
+//     01.jpg        -> 000001.jpg     (pad  "0000")
+//     000001.jpg    -> 000001.jpg     (do nothing)
+//     000000001.jpg -> 0000000001.jpg (do nothing)
 pub fn pad_name(width: usize, name: &str) -> String {
     let full = Path::new(name);
 
@@ -163,42 +163,32 @@ pub fn pad_name(width: usize, name: &str) -> String {
     let suffix = full.extension().unwrap().to_str().unwrap();
     let filename = full.file_stem().unwrap().to_str().unwrap();
 
-    path.push('/');
-
-    if filename.len() < width {
-        path.extend(vec!['0'; (width - filename.len())]);
-    }
-
-    path.push_str(format!("{filename}.{suffix}").as_ref());
+    let tmp = format!("{0:0>width$}", filename);
+    let tmp = format!("/{tmp}.{suffix}");
+    path.push_str(tmp.as_str());
 
     tracing::trace!(
-        "pad_name():
+        "
+pad_name():
   path = {:?}",
-        path
+        &path
     );
 
     path
 }
 
-pub fn is_same_slice(foo: &[u8], bar: &[u8], start: usize, len: usize) -> anyhow::Result<bool> {
-    if foo.len() > start + len && &foo[start..start + len] == bar {
-        Ok(true)
-    } else {
-        anyhow::bail!("")
-    }
+pub fn is_same_slice(foo: &[u8], bar: &[u8], start: usize, len: usize) -> bool {
+    (foo.len() > start + len) && (&foo[start..start + len] == bar)
 }
 
 pub fn get_img_format(file: &[u8]) -> ImgFormat {
     let ty = infer::get(file);
 
-    match ty {
-        Some(v) => ImgFormat::from(v.extension().to_string().as_str()),
-        None => {
-            if is_same_slice(file, &[0xe0, 0xa5], 4, 2).is_ok() {
-                ImgFormat::Aseprite
-            } else {
-                panic!("Unknown Format")
-            }
-        }
+    if let Some(v) = ty {
+        ImgFormat::from(v.extension().to_string().as_str())
+    } else if is_same_slice(file, &[0xe0, 0xa5], 4, 2) {
+        ImgFormat::Aseprite
+    } else {
+        panic!("Unknown Format")
     }
 }

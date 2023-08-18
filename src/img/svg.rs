@@ -17,6 +17,7 @@ mod feat {
         use usvg::TreeParsing;
 
         // TODO: default (width, height)
+        // window w,h
         // BUG: font
         let opt = usvg::Options::default();
         let rtree = usvg::Tree::from_data(bytes, &opt).unwrap();
