@@ -3,6 +3,12 @@ use crate::{
     MetaSize, Once, Page, PageList, PathBuf, Scroll, TaskResize, Turn, ViewMode,
 };
 
+// TODO:
+// InitMode -> Scroll
+//          -> Once
+//          -> Turn
+pub struct InitMode {}
+
 /// display images
 pub fn cat_img(
     config: &Config,
@@ -11,12 +17,12 @@ pub fn cat_img(
     path: PathBuf,
     archive_type: ArchiveType,
 ) -> anyhow::Result<()> {
-    //window.set_position(20, 20);
+    // window.set_position(20, 20);
     let mut keymap = KeyMap::new();
     KeyMap::update(&mut keymap, config);
 
     let buffer_max = meta.window.width as usize * meta.window.height as usize;
-    let data = Data::new(archive_type, path, meta, config.base.filter); // use for resize image
+    let data = Data::new(archive_type, path, meta, config.base.filter);
 
     let mut canvas = Canvas::new(
         meta.window.width as usize,
@@ -25,7 +31,7 @@ pub fn cat_img(
     );
     let page_list = PageList::new(page_list);
 
-    // init
+    // TODO: InitMode
     let mut scroll = Scroll::new(
         &data,
         page_list,
@@ -34,18 +40,17 @@ pub fn cat_img(
         data.meta.window.width as usize,
     );
 
-    let arc_task = {
-        let mut tmp: Vec<TaskResize> = vec![];
+    let vec = scroll.page_list.list;
+    let page_len = vec.len();
 
-        for page in scroll.page_list.list.iter() {
-            tmp.push(TaskResize::new(page.clone()));
-        }
-
-        <AsyncTask as ForAsyncTask>::new(tmp)
-    };
+    let arc_task = <AsyncTask as ForAsyncTask>::new(
+        vec.iter()
+            .map(|page| TaskResize::new(page.clone()))
+            .collect(),
+    );
 
     let mode = {
-        if scroll.page_list.list.len() == 1 {
+        if page_len == 1 {
             ViewMode::Once
         } else {
             config.base.view_mode
@@ -59,13 +64,11 @@ pub fn cat_img(
     match mode {
         // Bit
         ViewMode::Scroll => {
-            // TODO: ?support Anim
             Scroll::start(&mut scroll, config, &mut canvas, &keymap, &data, &arc_task);
         }
 
         // Bit OR Anim
         ViewMode::Once => {
-            // TODO: ?scale gif
             let mut once = Once::from_scroll(scroll);
             once.start(&mut canvas, &keymap, &data, config);
         }

@@ -5,11 +5,11 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Scroll {
-    pub buffer: Buffer,      //
-    pub buffer_size: usize,  //
-    pub buffer_limit: usize, //
-    pub bit_len: usize,      //
-    pub map: Map,            // user input
+    pub buffer: Buffer,     //
+    pub buffer_len: usize, //
+    pub buffer_max: usize,  //
+    pub bit_len: usize,     //
+    pub map: Map,           // keymap
 
     pub cur: usize,    // =0
     pub rng: usize,    // =0
@@ -30,7 +30,7 @@ impl Scroll {
     pub fn new(
         data: &Data,
         page_list: PageList,
-        buffer_size: usize,
+        buffer_len: usize,
         config: &Config,
         null_line_size: usize,
     ) -> Self {
@@ -44,8 +44,8 @@ impl Scroll {
 
         Self {
             buffer: Buffer::new(),
-            buffer_size,
-            buffer_limit: buffer_size * config.base.limit as usize,
+            buffer_len,
+            buffer_max: buffer_len * config.base.limit as usize,
 
             cur: 0,
 
@@ -57,12 +57,12 @@ impl Scroll {
 
             map: Map::Down,
             page_list,
-            y_step: buffer_size / config.base.step as usize, // drop 1/step part of image once
+            y_step: buffer_len / config.base.step as usize, // drop 1/step part of image once
             x_step: data.meta.window.width as usize / config.base.step as usize,
             window_position: (0, 0),
 
             null_line_size,
-            page_loading: vec![TransRgba::rgba_as_argb_u32(&238, &238, &238, &128); buffer_size],
+            page_loading: vec![TransRgba::rgba_as_argb_u32(&238, &238, &238, &128); buffer_len],
         }
     }
 
@@ -149,7 +149,7 @@ impl Scroll {
                     self.cur = self.page_list.get_ref(index).number;
                     break;
                 } else {
-                    tmp += self.page_list.get_ref(index).img.len();
+                    tmp += self.page_list.get_ref(index).len();
                 }
             }
 
@@ -175,7 +175,7 @@ impl Scroll {
         self.buffer.free();
 
         for index in self.head..=self.tail {
-            let len = self.page_list.get_ref(index).img.len();
+            let len = self.page_list.get_ref(index).len();
 
             // true: gif.to_next_frame()
             if self.page_list.get_ref(index).flush(&mut self.buffer.data) {
@@ -205,7 +205,7 @@ impl Scroll {
         self.bit_len = 0;
 
         for index in self.head..=self.tail {
-            self.bit_len += self.page_list.get_ref(index).img.len()
+            self.bit_len += self.page_list.get_ref(index).len()
         }
     }
 
@@ -217,8 +217,8 @@ impl Scroll {
 
         if self.bit_len >= self.end() + self.y_step {
             self.rng += self.y_step;
-        } else if self.bit_len >= self.buffer_size {
-            self.rng = self.bit_len - self.buffer_size;
+        } else if self.bit_len >= self.buffer_len {
+            self.rng = self.bit_len - self.buffer_len;
         }
     }
 
@@ -238,7 +238,7 @@ impl Scroll {
     fn move_left(&mut self, data: &Data) {
         self.map = Map::Left;
 
-        // FIXME:
+        // FIXME: ???
         if self.bit_len > self.end() + self.x_step && self.x_step <= data.meta.window.width as usize
         {
             self.rng += self.x_step;
@@ -262,13 +262,13 @@ impl Scroll {
 
     #[inline(always)]
     fn end(&self) -> usize {
-        self.rng + self.buffer_size
+        self.rng + self.buffer_len
     }
 
     fn free_head(&mut self, arc_task: &AsyncTask) {
-        let page_len = self.page_list.get_ref(self.head).img.len();
+        let page_len = self.page_list.get_ref(self.head).len();
 
-        if self.bit_len >= self.buffer_limit + page_len
+        if self.bit_len >= self.buffer_max + page_len
             && self.tail > self.head
             && self.rng > page_len
             && arc_task.try_free(self.head, &mut self.page_list)
@@ -283,9 +283,9 @@ impl Scroll {
     }
 
     fn free_tail(&mut self, arc_task: &AsyncTask) {
-        let page_len = self.page_list.get_ref(self.tail).img.len();
+        let page_len = self.page_list.get_ref(self.tail).len();
 
-        if self.bit_len >= self.buffer_limit + page_len
+        if self.bit_len >= self.buffer_max + page_len
             && self.tail > self.head
             && self.bit_len > page_len
             && arc_task.try_free(self.tail, &mut self.page_list)
@@ -300,54 +300,22 @@ impl Scroll {
     }
 
     fn load_next(&mut self, arc_task: &AsyncTask) {
-        let page_len = self.page_list.get_ref(self.head).img.len();
+        let page_len = self.page_list.get_ref(self.head).len();
 
-        if self.bit_len < self.buffer_limit + page_len && self.tail + 1 < self.page_list.len() {
+        if self.bit_len < self.buffer_max + page_len && self.tail + 1 < self.page_list.len() {
             self.tail += 1;
         }
     }
 
     fn load_prev(&mut self, arc_task: &AsyncTask) {
-        let page_len = self.page_list.get_ref(self.tail).img.len();
+        let page_len = self.page_list.get_ref(self.tail).len();
 
-        if self.bit_len < self.buffer_limit + page_len && self.head > 0 {
+        if self.bit_len < self.buffer_max + page_len && self.head > 0 {
             self.head -= 1;
         }
     }
 
-    pub fn load_from_mark(&mut self, cur: usize) {
-        // TODO:
+    pub fn seek_to(&mut self, idx: usize) {
+        todo!()
     }
 }
-
-///////////////////////////////////////
-// pub fn push_front<T>(vec: &mut Vec<T>, slice: &[T]) {
-//     let amt = slice.len(); // [1, 2, 3]
-//     let len = vec.len(); // [4, 5, 6]
-//
-//     vec.reserve(amt);
-//
-//     unsafe {
-//         std::ptr::copy(vec.as_ptr(), vec.as_mut_ptr().offset((amt) as isize), len);
-//         std::ptr::copy(slice.as_ptr(), vec.as_mut_ptr(), amt);
-//
-//         vec.set_len(len + amt);
-//     }
-// }
-//
-//
-// pub fn free_head<T>(buffer: &mut Vec<T>, len: usize)
-// where
-//     T: Sized + Clone,
-// {
-//     buffer.drain(0..len);
-// }
-//
-//
-// #[inline(always)]
-// pub fn free_tail<T>(buffer: &mut Vec<T>, len: usize)
-// where
-//     T: Sized,
-// {
-//     buffer.truncate(buffer.len() - len);
-// }

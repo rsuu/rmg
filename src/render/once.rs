@@ -3,7 +3,7 @@ use crate::{keymap, sleep, Canvas, Config, Data, KeyMap, Map, Page, Scroll};
 #[derive(Debug)]
 pub struct Once {
     buffer: Vec<u32>,
-    buffer_size: usize,
+    buffer_len: usize,
     page: Page,
     page_loading: Vec<u32>,
 
@@ -15,7 +15,7 @@ pub struct Once {
 impl Once {
     pub fn from_scroll(scroll: Scroll) -> Self {
         Self {
-            buffer_size: scroll.buffer_size,
+            buffer_len: scroll.buffer_len,
             y_step: scroll.y_step,
             page: scroll.page_list.list[0].clone(),
             page_loading: scroll.page_loading,
@@ -33,7 +33,7 @@ impl Once {
         config: &Config,
     ) -> anyhow::Result<()> {
         self.page.load_file(data)?;
-        self.bit_len = self.page.img.len();
+        self.bit_len = self.page.len();
 
         'l1: while canvas.window.is_open() {
             match keymap::match_event(canvas.window.get_keys().iter().as_slice(), keymaps) {
@@ -79,8 +79,8 @@ impl Once {
     fn move_down(&mut self) {
         if self.bit_len >= self.end() + self.y_step {
             self.rng += self.y_step;
-        } else if self.bit_len >= self.buffer_size {
-            self.rng = self.bit_len - self.buffer_size;
+        } else if self.bit_len >= self.buffer_len {
+            self.rng = self.bit_len - self.buffer_len;
         }
     }
 
@@ -94,14 +94,13 @@ impl Once {
     }
 
     fn end(&self) -> usize {
-        self.rng + self.buffer_size
+        self.rng + self.buffer_len
     }
 
     #[inline(always)]
     fn mouse_input(&mut self, canvas: &mut Canvas, config: &Config) {
         // scroll
-        let Some((.., y)) = canvas.window.get_scroll_wheel()
-        else {
+        let Some((.., y)) = canvas.window.get_scroll_wheel() else {
             return;
         };
 

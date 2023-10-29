@@ -1,15 +1,10 @@
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const SLEEP_MS: u64 = 1000 / 120;
-pub const FPS: u32 = 1000 / 25;
-pub const EXT_LIST: &[&str] = &[
-    "jpg", "jpeg", //
-    "png",  //
-    "heic", "heif", //
-    "avif", //
-    "ase", "aseprite", //
-    "gif",      //
-    "svg",
-];
+// TODO:
+//
+// - [ ] feat: double page
+// - [ ] feat: turn page
+// - [ ] feat: history
+// - [ ] feat: bookmark
+// - [ ] fix: scroll up
 
 // ==========================================
 pub mod archive;
@@ -25,6 +20,20 @@ pub use std::{
     sync::{Arc, RwLock},
     thread,
 };
+
+// ==========================================
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const SLEEP_MS: u64 = 1000 / 120;
+pub const FPS: u32 = 1000 / 25;
+pub const EXT_LIST: &[&str] = &[
+    "jpg", "jpeg", //
+    "png",  //
+    "heic", "heif", //
+    "avif", //
+    "ase", "aseprite", //
+    "gif",      //
+    "svg",
+];
 
 // ==========================================
 // trait

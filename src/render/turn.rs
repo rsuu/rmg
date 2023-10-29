@@ -11,7 +11,7 @@ use std::{
 #[derive(Debug)]
 pub struct Turn {
     pub buffer: Buffer,
-    pub buffer_size: usize,
+    pub buffer_len: usize,
 
     pub page_list: PageList,
 
@@ -34,7 +34,7 @@ impl Turn {
     pub fn from_scroll(scroll: Scroll) -> Self {
         Self {
             buffer: Buffer::new(),
-            buffer_size: scroll.buffer_size,
+            buffer_len: scroll.buffer_len,
             page_list: scroll.page_list,
             cur: 1,
             map: Map::Stop,
@@ -145,11 +145,11 @@ impl Turn {
         //            }
         //        }
         //
-        //        while self.buffer.len() < self.rng + self.buffer_size {
+        //        while self.buffer.len() < self.rng + self.buffer_len {
         //            self.buffer.extend(&self.page_loading);
         //        }
         //
-        //        canvas.flush(&self.buffer.data[self.rng..self.rng + self.buffer_size]);
+        //        canvas.flush(&self.buffer.data[self.rng..self.rng + self.buffer_len]);
     }
 
     /// move down
@@ -157,8 +157,8 @@ impl Turn {
     fn move_down(&mut self) {
         self.map = Map::Down;
 
-        // buffer = &[rng..rng+buffer_size]
-        if self.rng + self.y_step <= self.buffer_size {
+        // buffer = &[rng..rng+buffer_len]
+        if self.rng + self.y_step <= self.buffer_len {
             self.rng += self.y_step;
         } else {
         }

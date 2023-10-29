@@ -156,18 +156,18 @@ pub enum ReaderMode {
     View,
 
     Crop, // TODO:
-
-    Command, // TODO:
+    Cmd,  // TODO:
 }
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum ViewMode {
     #[default]
-    Scroll,
+    Scroll, // Bit OR Anim
 
-    Once, // image OR gif
+    Once, // Bit OR Anim
 
-    Turn, // Manga: Left to Right
+    Turn, // Bit
+          // Manga: Left to Right
           // Comic: Right to Left
 }
 
@@ -303,6 +303,10 @@ impl Page {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.img.len()
+    }
+
     #[inline(always)]
     pub fn flush(&self, buffer: &mut Frame) -> bool {
         let slice = self.img.ref_data();
@@ -356,7 +360,6 @@ impl Page {
             }
 
             ImgFormat::Aseprite => {
-                // TODO: pts
                 let mut anim = ase::load_ase(file)?;
 
                 pts = anim.2;
@@ -366,7 +369,6 @@ impl Page {
             }
 
             ImgFormat::Gif => {
-                // TODO:
                 let mut anim = gif::load_gif(file)?;
 
                 meta.image = anim.0;
@@ -418,7 +420,9 @@ impl ForAsyncTask for AsyncTask {
     }
 
     fn try_set_as_todo(&self, index: usize) -> bool {
-        let Ok(ref mut inner) = self.try_write() else {return false;};
+        let Ok(ref mut inner) = self.try_write() else {
+            return false;
+        };
 
         if inner.get_ref(index).state == State::Empty {
             inner.list[index].state = State::Todo;
@@ -452,7 +456,9 @@ impl ForAsyncTask for AsyncTask {
             return None;
         };
 
-        let Some(index)=index else {return None;};
+        let Some(index) = index else {
+            return None;
+        };
 
         // decode AND resize image
         tmp.load_file(data).expect("ERROR: load_file()");
@@ -475,7 +481,9 @@ impl ForAsyncTask for AsyncTask {
     }
 
     fn try_flush(&self, list: &mut PageList) -> bool {
-        let Ok(ref mut inner) = self.try_write() else {return false;};
+        let Ok(ref mut inner) = self.try_write() else {
+            return false;
+        };
 
         for (index, task_page) in list.list.iter_mut().enumerate() {
             match inner.get_ref(index).state {
@@ -493,7 +501,9 @@ impl ForAsyncTask for AsyncTask {
     }
 
     fn try_free(&self, index: usize, list: &mut PageList) -> bool {
-        let Ok(ref mut inner) = self.try_write() else {return false;};
+        let Ok(ref mut inner) = self.try_write() else {
+            return false;
+        };
 
         if inner.get_ref(index).state == State::Locked {
             inner.list[index].state = State::NeedFree;
@@ -641,12 +651,13 @@ impl Img {
                 ref pts,
                 ..
             } => {
+                let end = img.len();
                 let pts = pts[*frame_index];
 
                 if *timer >= pts {
                     *timer = timer.checked_sub(pts).unwrap_or(0);
 
-                    if *frame_index + 1 < img.len() {
+                    if *frame_index + 1 < end {
                         *frame_index += 1;
                     } else {
                         // reset

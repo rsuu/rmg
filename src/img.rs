@@ -149,8 +149,6 @@ impl TMetaSize for MetaSize<u32> {
     }
 
     fn resize(&mut self) {
-        // BUG: NO odd numbers. (╯°Д°)╯︵ ┻━┻
-
         // e.g. w = 3, h = 4
         //      w = (w/2)*2 = 2
         //      h = (h/2)*2 = 4

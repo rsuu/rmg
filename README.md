@@ -9,17 +9,15 @@
 ## Install
 
 + Dependency
-  + Linux: x11 OR wayland
-  + Windows: None
-  + Mac: None(I DO NOT KNOW)
+  + Linux: x11 / wayland
+  + Windows:
+  + Mac:
 + Optional Dependency
-  + tar
-  + zip
   + libheif
 
 ```bash
 # github
-Check here: https://github.com/rsuu/rmg/releases/
+see: https://github.com/rsuu/rmg/releases
 
 # cargo
 cargo install rmg
@@ -46,21 +44,21 @@ rmg --size 600x600 file.tar
 rmg --size 100x600 --config ./tests/other/config.rs file.tar
 ```
 
-### KeyMap
+## KeyMap
 
 |Key| |
 |:-|:-|
-k/Up | move up
-j/Down | move down
-h/Left | move left
+k/Up    | move up
+j/Down  | move down
+h/Left  | move left
 r/Right | move right
-q | quit
+q       | quit
 
-### Configuration
+## Configuration
 
-> config file: https://raw.githubusercontent.com/rsuu/rmg/main/tests/other/config.rs
+> config: https://raw.githubusercontent.com/rsuu/rmg/main/tests/other/config.rs
 
-`NOTE:` You have to create the file first.
+NOTE: You must create the file first.
 
 + Config file path
   + Linux: `$HOME/.config/rmg/config.rs`
@@ -69,43 +67,37 @@ q | quit
 
 ## Supported Formats
 
-| Format | Supported | Default |Dependency | Mode
+| Format | Supported | Default | Dependency | Mode
 |:-|:-|:-|:-|:-|
-.jpg |✅ | ✅||Scroll/Once
-.png|✅| ✅||Scroll/Once
-.heic / .avif|🔬|❌|libheif|Scroll/Once
-.gif|🔬|✅||Once
-.aseprite|🔬|❌||Once
-.svg|🔬|❌||Scroll/Once
+.jpg          | ✔     | ✔ |         | Scroll/Once
+.png          | ✔     | ✔ |         | Scroll/Once
+.heic / .avif | ✔     | ✖ | libheif | Scroll/Once
+.gif          | ✔     | ✔ |         | Once
+.aseprite     | ✔     | ✖ |         | Once
+.svg          | (dev) | ✖ |         | Scroll/Once
 
----
-| Format | Supported | Default |Dependency
+| Format | Supported | Default | Dependency
 |:-|:-|:-|:-|
-directory |✅ | ✅|
-.tar |✅ | ✅| tar
-.zip / .cbz |✅ | ✅| zip
+directory   | ✔ | ✔ |
+.tar        | ✔ | ✔ |
+.zip / .cbz | ✔ | ✔ |
+.rar        | ✖ |   |
+.zst        | ✖ |   |
 
 ## Features
 
 ```bash
-# Add support for heic
+# HEIF/HEIC
 cargo run --release -F "de_heic"
 
-# for svg AND aseprite
+# SVG and Aseprite
 cargo run --release -F "de_svg" -F "de_aseprite"
 
-# [CpuExtensions](https://docs.rs/fast_image_resize/latest/fast_image_resize/index.html#resize-rgb8-image-u8x3-4928x3279--852x567)
+# see [CpuExtensions](https://docs.rs/fast_image_resize/latest/fast_image_resize/index.html#resize-rgb8-image-u8x3-4928x3279--852x567)
 cargo run --release -F "avx2"
-    # for avx2
+    # AVX2
 cargo run --release -F "sse4_1"
-    # for sse4_1
+    # SSE4_1
 
 cargo run --release -F "full"
 ```
-
-## TODO
-
-- [ ] feat: double page
-- [ ] feat: turn page
-- [ ] feat: history
-- [ ] fix: scroll up
