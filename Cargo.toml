@@ -1,7 +1,7 @@
 [package]
 name = "rmg"
 edition = "2021"
-version = "0.5.11"
+version = "0.6.0"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = "Rust: Tiny And Fast Manga/Image Viewer"
 homepage = "https://crates.io/crates/rmg"
@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 categories = ["Multimedia::Images"]
 keywords = ["manga", "comic", "viewer"]
-exclude = ["examples/", ".gitignore", ".github/","tests/"]
+exclude = ["examples/", ".gitignore", ".github/", "tests/"]
 
 [profile.release]
 lto = "thin"
@@ -32,18 +32,24 @@ incremental = false
 strip = true
 
 [dependencies]
-anyhow = "1.0.72"
-infer = "0.15.0"                                           # filetype
-lexopt = "0.3.0"                                           # cli
-walkdir = "2.3.3"                                          # fs
-dirs-next = "2.0.0"                                        # config
+# filetype
+infer = "0.15.0"
+
+# cli
+lexopt = "0.3.0"
+
+# fs
+walkdir = "2.3.3"
+
+# config
+dirs-next = "2.0.0"
 sysinfo = { version = "0.29.5", default-features = false }
 
 # log
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
-
-#log = "0.4.17"
+anyhow = "1.0.72"
+#log = "0.4.17" # not working in multi-thread
 #env_logger = {version = "0.10.0", features = ["color"], default-features = false}
 
 # image
@@ -54,11 +60,11 @@ gif = "0.12.0"
 gif-dispose = "4.0.0"
 image = { version = "0.24.6", default-features = false }
 
-
 # window
 minifb = { version = "0.24.0", default-features = false }
 
 # config
+esyn = "0.8.0"
 syn = { version = "1", features = [
   "parsing",
   "extra-traits",
@@ -72,25 +78,27 @@ resvg = { version = "0.35.0", optional = true }
 
 # archive
 zip = { version = "0.6.6", features = [
+  # "zstd", # NEVER
   "aes-crypto",
   "bzip2",
   "deflate",
 ], optional = true, default-features = false }
-tar = { version = "0.4.39", optional = true }
-esyn = "0.7.0"
+tar = { version = "0.4.40", optional = true }
+#zstd = "0.13.0"
+#unrar = "0.5.2"
+#sevenz-rust = "0.5.3"
 
 [features]
-default = ["ex_zip", "ex_tar", "x11"]
+default = ["ex_zip", "ex_tar", "minifb/x11","minifb/wayland", "minifb/dlopen"]
 full = ["ex_full", "de_full"]
-ex_full = ["ex_tar", "ex_zip"]
+arch_avx2 = []
+arch_sse4_1 = []
 de_full = ["de_heic", "de_ase", "de_svg"]
-wayland = ["minifb/wayland", "minifb/dlopen"]
-x11 = ["minifb/x11"]
-#web = ["minifb/web"]
 de_ase = ["dep:asefile"]
 de_heic = ["dep:libheif-rs"]
+de_avif = []
 de_svg = ["dep:usvg", "dep:tiny-skia", "dep:resvg"]
-ex_zip = ["dep:zip"]
+ex_full = ["ex_tar", "ex_zip"]
 ex_tar = ["dep:tar"]
-sse4_1 = []
-avx2 = []
+ex_zip = ["dep:zip"]
+web = ["minifb/web"]

@@ -7,19 +7,23 @@ pub mod scroll;
 pub mod turn;
 
 pub mod draw;
+pub mod layout;
 
 // ==============================================
 use crate::{
     archive::*, img::*, mem, sleep_ms, thread, Arc, FilterType, Path, PathBuf, RwLock, FPS,
 };
+use std::sync::Arc;
 
 // ==============================================
 pub type Frame = Vec<u32>; // RGBA8
 pub type Frames = Vec<Frame>;
 
 pub type AsyncTask = Arc<RwLock<Task>>;
+pub type ReadOnly<T> = Arc<T>;
 
 // ==============================================
+// TODO: Fn
 /// Create a `loop thread`.
 pub fn new_thread(arc_task: &AsyncTask, data: &Data) {
     let arc_task = arc_task.clone();
@@ -28,15 +32,8 @@ pub fn new_thread(arc_task: &AsyncTask, data: &Data) {
 
     let f = move || loop {
         if let Some(index) = arc_task.try_start(&data, &mut tmp_page) {
-            tracing::info!(
-                "\
-Thread: {:?},
-  page_index: {}",
-                thread::current().id(),
-                index
-            );
-
-            //
+            let id = thread::current().id();
+            tracing::info!("Thread: {id:?},\n  page_index: {index}");
         } else {
             // ? yield_now();
             sleep_ms(100);
@@ -66,7 +63,7 @@ pub struct PageList {
 #[derive(Debug, Clone)]
 pub struct Page {
     pub img: Img,
-    pub archive_pos: usize, // index of image in the archive file
+    pub archive_pos: usize, // index of image in archive file
     pub name: String,       // path
     pub number: usize,      // page number
 }
@@ -89,13 +86,15 @@ pub struct Task {
 #[derive(Debug)]
 pub struct TaskResize {
     pub state: State,
+    // TODO: drop page
     pub page: Page,
 }
 
-// ==============================================
+//
 //  +--> Empty -> Todo -> ... -> NeedFree -->+
 //  |                                        |
 //  +--------------<---<---<-----------------+
+//
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum State {
     Empty,
@@ -235,8 +234,8 @@ impl PageList {
         }
 
         Self {
-            list: list.to_owned(),
-            cur_dir: std::env::current_dir().expect(""),
+            list,
+            cur_dir: std::env::current_dir().unwrap(),
         }
     }
 

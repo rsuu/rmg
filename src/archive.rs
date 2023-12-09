@@ -1,3 +1,5 @@
+// TODO: [7z, rar, zstd]
+
 pub mod dir;
 pub mod file;
 
@@ -10,27 +12,29 @@ use crate::{archive, ImgFormat, Page, TMetaSize, EXT_LIST};
 use infer;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Copy, Clone)]
-pub enum ArchiveType {
-    Tar,
-    Zip,
-    Dir,
-    File,
-}
-
 #[derive(Debug)]
 pub struct FileList {
     inner: Vec<FileInfo>,
+    // TODO: ?anymore
 }
 
 #[derive(Debug)]
 pub struct FileInfo {
     pub path: String,
     pub index: usize,
-    //    pub fmt: ImgFormat,
-    //    pub ty: ImgType,
-    //    pub size: Size<u32>,
-    //    pub resize: Size<u32>,
+    // TODO: ?
+    // pub fmt: ImgFormat,
+    // pub ty: ImgType,
+    // pub size: Size<u32>,
+    // pub resize: Size<u32>,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum ArchiveType {
+    Tar,
+    Zip,
+    Dir,
+    File,
 }
 
 pub trait ForExtract {
@@ -66,20 +70,22 @@ impl ArchiveType {
             return Ok(ArchiveType::Dir);
         }
 
+        // BUG: remove space in the path
         let Ok(ty) = infer::get_from_path(path) else {
-            // BUG: has space in the path
             anyhow::bail!("Unknown Type")
         };
 
-        let Some(ext) = ty
-        else {
+        let Some(ext) = ty else {
+            // Not archive.
             return Ok(Self::File);
         };
+
         let res = match ext.extension() {
             "tar" => Self::Tar,
             "zip" => Self::Zip,
             // "rar"=>Self::Rar,
             // "7z"=>Self::7z,
+            // "tzst" | "zst"=>Self::Zstd,
             _ => Self::File,
         };
 
@@ -89,22 +95,25 @@ impl ArchiveType {
 
 impl FileList {
     pub fn to_page_list(&self, rename_pad: usize) -> Vec<Page> {
-        let mut res = Vec::new();
+        let mut res = Vec::with_capacity(self.len());
 
         for info in self.iter() {
-            if info.is_supported() {
-                let page = {
-                    if rename_pad == 0 {
-                        // do nothing
-                        Page::new(info.path.clone(), info.index)
-                    } else {
-                        // rename
-                        Page::new(pad_name(rename_pad, info.path.as_str()), info.index)
-                    }
-                };
-
-                res.push(page);
+            if !info.is_supported() {
+                continue;
             }
+
+            let path = {
+                if rename_pad == 0 {
+                    // as-is
+                    info.path.clone()
+                } else {
+                    // rename
+                    pad_name(rename_pad, info.path.as_str())
+                }
+            };
+            let page = Page::new(path, info.index);
+
+            res.push(page);
         }
 
         res
@@ -123,6 +132,10 @@ impl FileList {
     pub fn iter(&self) -> std::slice::Iter<'_, FileInfo> {
         self.inner.iter()
     }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
 }
 
 impl FileInfo {
@@ -132,37 +145,33 @@ impl FileInfo {
 
     pub fn is_supported(&self) -> bool {
         let path = PathBuf::from(self.path.as_str());
+
         // if path.is_dir() {
         //     return false;
         // }
 
-        let Some(v) = path.extension()
-        else {
+        let Some(val) = path.extension() else {
             return false;
         };
-        let v = v.to_str().unwrap();
+        let val = val.to_str().unwrap();
 
-        for ext in EXT_LIST.iter() {
-            if *ext == v {
-                return true;
-            }
-        }
-
-        false
+        EXT_LIST.contains(&val)
     }
 }
 
 // e.g. width = 6
-//     01.jpg        -> 000001.jpg     (pad  "0000")
-//     000001.jpg    -> 000001.jpg     (do nothing)
-//     000000001.jpg -> 0000000001.jpg (do nothing)
+//     01.jpg        -> 000001.jpg     (rename)
+//     000001.jpg    -> 000001.jpg     (as-is)
+//     000000001.jpg -> 0000000001.jpg (as-is)
 pub fn pad_name(width: usize, name: &str) -> String {
     let full = Path::new(name);
 
+    // TODO: rewrite(shit)
     let mut path = full.parent().unwrap().to_str().unwrap().to_string();
     let suffix = full.extension().unwrap().to_str().unwrap();
     let filename = full.file_stem().unwrap().to_str().unwrap();
 
+    // padding with `0`
     let tmp = format!("{0:0>width$}", filename);
     let tmp = format!("/{tmp}.{suffix}");
     path.push_str(tmp.as_str());
@@ -181,6 +190,8 @@ pub fn is_same_slice(foo: &[u8], bar: &[u8], start: usize, len: usize) -> bool {
     (foo.len() > start + len) && (&foo[start..start + len] == bar)
 }
 
+// TODO: with crate
+//       ?svg
 pub fn get_img_format(file: &[u8]) -> ImgFormat {
     let ty = infer::get(file);
 

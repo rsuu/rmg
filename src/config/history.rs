@@ -13,7 +13,7 @@ struct MangaHistory {
     path: PathBuf,
     freq: u32,
     page_number: u32,
-    page_bookmark: Option<u32>,
+    page_mark: Option<u32>,
 }
 
 impl History {
@@ -38,13 +38,13 @@ impl MangaHistory {
         Self {
             path: path.to_path_buf(),
             freq,
-            page_bookmark: None,
+            page_mark: None,
             page_number,
         }
     }
 
-    fn set_page_bookmark(&mut self, idx: usize) {
-        self.page_bookmark = Some(idx as u32);
+    fn set_page_mark(&mut self, idx: usize) {
+        self.page_mark = Some(idx as u32);
     }
 
     fn set_page_number(&mut self, idx: usize) {

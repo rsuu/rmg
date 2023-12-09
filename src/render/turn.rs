@@ -1,3 +1,24 @@
+// comic:
+//   [0, 1, 2, 3, 4, 5]
+//
+// manga:
+//   .step_by(2).map(|g| g.swap( left, right ));
+//   [0, 1, 2, 3, 4, 5]
+//
+//
+// comic + double:
+//   [0, 1, 2, 3, 4, 5]
+//    ^^^^  ^^^^  ^^^^
+//     g1    g2    g3
+//
+// manga + double:
+//   .map(|g| g.swap( left, right ));
+//   [1, 0, 3, 2, 5, 4]
+//    ^^^^  ^^^^  ^^^^
+//     g1    g2    g3
+//
+//
+
 use crate::{
     match_event,
     render::{scroll::Scroll, *},
@@ -22,7 +43,7 @@ pub struct Turn {
     pub y_step: usize,
 
     pub is_double_page: bool,
-    pub is_manga: bool,
+    pub is_manga_mode: bool,
 
     pub page_max: usize,
 
@@ -43,7 +64,7 @@ impl Turn {
 
             page_max: 3,
             is_double_page: false,
-            is_manga: false,
+            is_manga_mode: false,
 
             head: 1,
             tail: 2,
@@ -174,5 +195,61 @@ impl Turn {
         } else {
             self.rng = 0;
         };
+    }
+}
+
+struct VecPage {
+    inner: Vec<Page>,
+}
+
+struct VecGroup {
+    inner: Vec<Group>,
+}
+
+struct Group {
+    l: Page,
+    r: Page,
+}
+
+impl VecPage {
+    // manga
+    fn swap_page(&mut self) {
+        swap_page(&mut self.inner);
+    }
+}
+
+impl VecGroup {
+    // manga + double
+    fn swap_group(&mut self) {
+        for Group { l, r } in self.inner.iter_mut() {
+            std::mem::swap(l, r);
+        }
+    }
+}
+
+fn swap_page<T>(vec: &mut Vec<T>) {
+    let len = vec.len();
+    let n = len / 2;
+
+    let mut i = 0;
+    for _ in 0..n {
+        vec.swap(i, i + 1);
+
+        i += 2;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_swap_page() {
+        let mut vec = vec![1, 2, 3, 4, 5, 6];
+        let expected = vec![2, 1, 4, 3, 6, 5];
+
+        swap_page(&mut vec);
+
+        assert_eq!(vec, expected);
     }
 }

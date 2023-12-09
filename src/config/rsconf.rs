@@ -1,10 +1,13 @@
+// TODO: rewrite
+
 use crate::{img::*, render::ViewMode, WindowPosition, VERSION};
 use dirs_next;
+use esyn::*;
 use fir;
 use lexopt::{self, prelude::*};
 use std::{fs::File, io::Read, path::Path, path::PathBuf, process::exit};
 
-#[derive(Debug)]
+#[derive(Debug, EsynDe)]
 pub struct Config {
     pub base: Base,
     pub keymap: Keymap<char>,
@@ -12,13 +15,13 @@ pub struct Config {
     pub cli: Cli,
 }
 
-#[derive(Debug)]
+#[derive(Debug, EsynDe)]
 pub struct Cli {
     pub file_path: Option<String>,
     pub is_debug: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, EsynDe)]
 pub struct Base {
     pub size: Size<u32>,      // window size
     pub font: Option<String>, // font file
@@ -31,7 +34,7 @@ pub struct Base {
     pub thread_limit: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, EsynDe)]
 pub struct Window {
     pub borderless: bool,
     pub topmost: bool,
@@ -40,7 +43,8 @@ pub struct Window {
     pub postition: WindowPosition,
 }
 
-#[derive(Debug, Copy, Clone)]
+// rewrite
+#[derive(Debug, EsynDe, Copy, Clone)]
 pub struct Keymap<Char_> {
     pub up: Char_,    // page up
     pub down: Char_,  // page down
@@ -50,7 +54,7 @@ pub struct Keymap<Char_> {
     pub fullscreen: Char_,
 }
 
-#[derive(Debug)]
+#[derive(Debug, EsynDe)]
 pub enum ConfigType {
     Base,
     Keymap,
@@ -72,7 +76,9 @@ impl Config {
 
     fn parse(&mut self, path: impl AsRef<Path>) -> anyhow::Result<()> {
         let ast = {
-            let Ok(mut file) = File::open(path.as_ref()) else { return Err(anyhow::anyhow!("")); };
+            let Ok(mut file) = File::open(path.as_ref()) else {
+                return Err(anyhow::anyhow!(""));
+            };
             let mut code = String::new();
             file.read_to_string(&mut code)?;
 
@@ -329,13 +335,17 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
     let mut base = Base::default();
 
     for fields in expr_struct.fields.iter() {
-        let syn::Member::Named(_name) = &fields.member else {todo!()};
+        let syn::Member::Named(_name) = &fields.member else {
+            todo!()
+        };
 
         match (_name.to_string().as_str(), &fields.expr) {
             ("rename_pad", syn::Expr::Lit(_expr_lit)) => {
                 // u8
                 // dbg!(fields);
-                let syn::Lit::Int(lit) = &_expr_lit.lit else {panic!()};
+                let syn::Lit::Int(lit) = &_expr_lit.lit else {
+                    panic!()
+                };
 
                 base.rename_pad = lit
                     .token()
@@ -348,7 +358,9 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
             ("step", syn::Expr::Lit(_expr_lit)) => {
                 // u8
                 // dbg!(fields);
-                let syn::Lit::Int(lit) = &_expr_lit.lit else {panic!()};
+                let syn::Lit::Int(lit) = &_expr_lit.lit else {
+                    panic!()
+                };
 
                 base.step = lit
                     .token()
@@ -361,7 +373,9 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
             // u8
             ("limit", syn::Expr::Lit(_expr_lit)) => {
                 // dbg!(fields);
-                let syn::Lit::Int(lit) = &_expr_lit.lit else {panic!()};
+                let syn::Lit::Int(lit) = &_expr_lit.lit else {
+                    panic!()
+                };
 
                 base.limit = lit
                     .token()
@@ -374,7 +388,9 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
             ("filter", syn::Expr::Lit(_expr_lit)) => {
                 // fir::FilterType
 
-                let syn::Lit::Str(lit) = &_expr_lit.lit else {panic!()};
+                let syn::Lit::Str(lit) = &_expr_lit.lit else {
+                    panic!()
+                };
 
                 let ty = lit.token().to_string().trim_matches('"').to_string();
 
@@ -393,7 +409,9 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
             ("invert_mouse", syn::Expr::Lit(_expr_lit)) => {
                 // bool
 
-                let syn::Lit::Bool(lit) = &_expr_lit.lit else {panic!()};
+                let syn::Lit::Bool(lit) = &_expr_lit.lit else {
+                    panic!()
+                };
 
                 base.invert_mouse = lit
                     .token()
@@ -404,8 +422,9 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
             }
 
             ("font", syn::Expr::Lit(_expr_lit)) => {
-                let syn::Lit::Str(lit) = &_expr_lit.lit else {panic!()}
-;
+                let syn::Lit::Str(lit) = &_expr_lit.lit else {
+                    panic!()
+                };
                 let font_path = lit.token().to_string().trim_matches('"').to_string();
 
                 if std::path::Path::new(font_path.as_str()).is_file() {
@@ -416,9 +435,13 @@ pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
             }
 
             ("size", syn::Expr::Tuple(tuple_)) => {
-                let syn::Expr::Lit(_lhs) = &tuple_.elems[0] else {panic!()};
+                let syn::Expr::Lit(_lhs) = &tuple_.elems[0] else {
+                    panic!()
+                };
 
-                let syn::Expr::Lit(_rhs) = &tuple_.elems[1] else { panic!() };
+                let syn::Expr::Lit(_rhs) = &tuple_.elems[1] else {
+                    panic!()
+                };
 
                 if let syn::Lit::Int(width) = &_lhs.lit {
                     base.size.width = width.token().to_string().parse::<u32>().unwrap_or_default();
@@ -532,15 +555,18 @@ pub fn parse_window(expr_struct: &syn::ExprStruct) -> Window {
     let mut window = Window::default();
 
     for fields in expr_struct.fields.iter() {
-        let syn::Member::Named(_name) = &fields.member
-        else { todo!() };
+        let syn::Member::Named(_name) = &fields.member else {
+            todo!()
+        };
 
         //dbg!(&fields);
 
         match (_name.to_string().as_str(), &fields.expr) {
             // bool
             ("borderless", syn::Expr::Lit(_expr_lit)) => {
-                let syn::Lit::Bool(lit) = &_expr_lit.lit else {panic!()};
+                let syn::Lit::Bool(lit) = &_expr_lit.lit else {
+                    panic!()
+                };
 
                 window.borderless = lit
                     .token()
@@ -552,7 +578,9 @@ pub fn parse_window(expr_struct: &syn::ExprStruct) -> Window {
 
             // bool
             ("topmost", syn::Expr::Lit(_expr_lit)) => {
-                let syn::Lit::Bool(lit) = &_expr_lit.lit else {panic!()};
+                let syn::Lit::Bool(lit) = &_expr_lit.lit else {
+                    panic!()
+                };
 
                 window.topmost = lit
                     .token()
@@ -564,7 +592,9 @@ pub fn parse_window(expr_struct: &syn::ExprStruct) -> Window {
 
             // bool
             ("none", syn::Expr::Lit(_expr_lit)) => {
-                let syn::Lit::Bool(lit) = &_expr_lit.lit else {panic!()};
+                let syn::Lit::Bool(lit) = &_expr_lit.lit else {
+                    panic!()
+                };
 
                 window.none = lit
                     .token()
@@ -576,7 +606,9 @@ pub fn parse_window(expr_struct: &syn::ExprStruct) -> Window {
 
             // bool
             ("resize", syn::Expr::Lit(_expr_lit)) => {
-                let syn::Lit::Bool(lit) = &_expr_lit.lit else {panic!()};
+                let syn::Lit::Bool(lit) = &_expr_lit.lit else {
+                    panic!()
+                };
 
                 window.resize = lit
                     .token()
@@ -587,9 +619,13 @@ pub fn parse_window(expr_struct: &syn::ExprStruct) -> Window {
             }
 
             ("postition", syn::Expr::Tuple(tuple_)) => {
-                let syn::Expr::Lit(_lhs) = &tuple_.elems[0] else {panic!()};
+                let syn::Expr::Lit(_lhs) = &tuple_.elems[0] else {
+                    panic!()
+                };
 
-                let syn::Expr::Lit(_rhs) = &tuple_.elems[1] else { panic!() };
+                let syn::Expr::Lit(_rhs) = &tuple_.elems[1] else {
+                    panic!()
+                };
 
                 let x = if let syn::Lit::Int(x) = &_lhs.lit {
                     x.token().to_string().parse::<isize>().unwrap_or_default()

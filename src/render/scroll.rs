@@ -5,11 +5,11 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Scroll {
-    pub buffer: Buffer,     //
+    pub buffer: Buffer,    //
     pub buffer_len: usize, //
-    pub buffer_max: usize,  //
-    pub bit_len: usize,     //
-    pub map: Map,           // keymap
+    pub buffer_max: usize, //
+    pub bit_len: usize,    //
+    pub map: Map,          // keymap
 
     pub cur: usize,    // =0
     pub rng: usize,    // =0
@@ -20,19 +20,18 @@ pub struct Scroll {
 
     pub page_list: PageList,    //
     pub page_loading: Vec<u32>, //
-    pub null_line_size: usize,
+    pub empty_x_size: usize,    //
 
     pub window_position: (i32, i32), //
 }
 
-///////////////////////////////////////
 impl Scroll {
     pub fn new(
         data: &Data,
         page_list: PageList,
         buffer_len: usize,
         config: &Config,
-        null_line_size: usize,
+        empty_x_size: usize,
     ) -> Self {
         let mem = {
             use sysinfo::SystemExt;
@@ -57,11 +56,14 @@ impl Scroll {
 
             map: Map::Down,
             page_list,
-            y_step: buffer_len / config.base.step as usize, // drop 1/step part of image once
+            // drop 1/step part of image once
+            y_step: buffer_len / config.base.step as usize,
             x_step: data.meta.window.width as usize / config.base.step as usize,
             window_position: (0, 0),
 
-            null_line_size,
+            empty_x_size,
+
+            // TODO: ?Anime
             page_loading: vec![TransRgba::rgba_as_argb_u32(&238, &238, &238, &128); buffer_len],
         }
     }
@@ -106,8 +108,6 @@ impl Scroll {
                 }
 
                 Map::Exit => {
-                    println!("EXIT");
-
                     // FIXME: Key::Escape
                     break;
                 }
@@ -133,8 +133,8 @@ impl Scroll {
                 true if y < 0.0 => self.move_up(),
                 true if y > 0.0 => self.move_down(),
 
-                false if y < 0.0 => self.move_down(),
                 false if y > 0.0 => self.move_up(),
+                false if y < 0.0 => self.move_down(),
 
                 _ => {}
             }
@@ -177,23 +177,21 @@ impl Scroll {
         for index in self.head..=self.tail {
             let len = self.page_list.get_ref(index).len();
 
-            // true: gif.to_next_frame()
+            // true: Anim.to_next_frame()
             if self.page_list.get_ref(index).flush(&mut self.buffer.data) {
                 self.page_list.get_mut(index).img.to_next_frame();
 
-            // false: jpg.do_nothing()
+            // false: empty page
             } else if arc_task.try_set_as_todo(index) {
-                for _ in 0..(len / self.null_line_size) {
-                    self.buffer
-                        .extend(&self.page_loading[0..self.null_line_size]);
+                for _ in 0..(len / self.empty_x_size) {
+                    self.buffer.extend(&self.page_loading[0..self.empty_x_size]);
                 }
             }
         }
 
         // update
         while self.buffer.len() < self.end() {
-            self.buffer
-                .extend(&self.page_loading[0..self.null_line_size]);
+            self.buffer.extend(&self.page_loading[0..self.empty_x_size]);
         }
         self.buffer.data.truncate(self.end());
 

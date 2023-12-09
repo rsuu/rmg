@@ -3,6 +3,26 @@ use gif;
 use gif_dispose;
 use std::{io::Read, mem};
 
+// TODO: ? Frame: AsyncTask
+//                TaskToRGB
+//
+#[derive(Debug)]
+struct LazyFrame {
+    w: u32,
+    h: u32,
+    data: Frame,
+
+    // fn get() { .. }
+    // if is_null {
+    //   self.task_start();
+    //
+    //   &self.default()
+    // } else {
+    //   &self.data
+    // }
+    is_null: bool,
+}
+
 pub fn load_gif(bytes: impl Read) -> anyhow::Result<(Size<u32>, Vec<Vec<u8>>, Vec<u32>)> {
     let mut gif_opts = gif::DecodeOptions::new();
     gif_opts.set_color_output(gif::ColorOutput::Indexed);

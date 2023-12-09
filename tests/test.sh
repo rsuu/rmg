@@ -1,5 +1,7 @@
 #!/bin/#!/bin/bash
 
+# https://www.brendangregg.com/perf.html
+
 top() {
     perf top -p $(pidof rmg)
 }
@@ -14,7 +16,6 @@ gra() {
     perf report -g graph --no-children
 }
 
-#https://www.brendangregg.com/perf.html
 
 #   4.88%  [kernel]                     [k] copy_user_generic_string
 #   3.90%  rmg                          [.] 0x00000000002006b0
@@ -41,3 +42,9 @@ gra() {
 #
 # cat /proc/sys/kernel/threads-max
 # echo 10000 > /proc/sys/kernel/threads-max
+#
+#
+#
+# https://stackoverflow.com/questions/7031210/linux-perf-how-to-interpret-and-find-hotspots
+# perf record --call-graph rmg
+# perf report -g graph --no-children

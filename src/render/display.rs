@@ -31,7 +31,7 @@ pub fn cat_img(
     );
     let page_list = PageList::new(page_list);
 
-    // TODO: InitMode
+    // TODO: Scroll -> InitMode
     let mut scroll = Scroll::new(
         &data,
         page_list,
@@ -43,6 +43,7 @@ pub fn cat_img(
     let vec = scroll.page_list.list;
     let page_len = vec.len();
 
+    // Vec<Page> -> Vec<TaskResize>
     let arc_task = <AsyncTask as ForAsyncTask>::new(
         vec.iter()
             .map(|page| TaskResize::new(page.clone()))
@@ -67,13 +68,13 @@ pub fn cat_img(
             Scroll::start(&mut scroll, config, &mut canvas, &keymap, &data, &arc_task);
         }
 
-        // Bit OR Anim
+        // Bit/Anim
         ViewMode::Once => {
             let mut once = Once::from_scroll(scroll);
             once.start(&mut canvas, &keymap, &data, config);
         }
 
-        // Bit OR Anim
+        // Bit/Anim
         ViewMode::Turn => {
             todo!();
 

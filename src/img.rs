@@ -1,5 +1,9 @@
+// TODO: ?AVIF/HEIC -> Anim
+
+// ==============================================
 // feature
 pub mod ase;
+pub mod avif;
 pub mod gif;
 pub mod heic;
 pub mod svg;
@@ -37,6 +41,8 @@ pub trait TMetaSize {
 
 // ==============================================
 impl<T> Size<T> {
+    // TOOD: fn resize()
+    // TOOD: fn get_resize()
     pub fn new(width: T, height: T) -> Self {
         Size { width, height }
     }
@@ -182,12 +188,12 @@ pub fn resize_rgba8(
     let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(*filter));
 
     unsafe {
-        #[cfg(feature = "sse4_1")]
+        #[cfg(feature = "arch_sse4_1")]
         {
             resizer.set_cpu_extensions(fir::CpuExtensions::Sse4_1);
         }
 
-        #[cfg(feature = "avx2")]
+        #[cfg(feature = "arch_avx2")]
         {
             resizer.set_cpu_extensions(fir::CpuExtensions::Avx2);
         }

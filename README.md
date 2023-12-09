@@ -10,8 +10,8 @@
 
 + Dependency
   + Linux: x11 / wayland
-  + Windows:
-  + Mac:
+  + Windows: None
+  + Mac: None
 + Optional Dependency
   + libheif
 
@@ -94,9 +94,9 @@ cargo run --release -F "de_heic"
 cargo run --release -F "de_svg" -F "de_aseprite"
 
 # see [CpuExtensions](https://docs.rs/fast_image_resize/latest/fast_image_resize/index.html#resize-rgb8-image-u8x3-4928x3279--852x567)
-cargo run --release -F "avx2"
+cargo run --release -F "arch_avx2"
     # AVX2
-cargo run --release -F "sse4_1"
+cargo run --release -F "arch_sse4_1"
     # SSE4_1
 
 cargo run --release -F "full"

@@ -1,10 +1,10 @@
 // TODO:
 //
-// - [ ] feat: double page
-// - [ ] feat: turn page
+// - [ ] feat: {turn,jump,mark} page
 // - [ ] feat: history
-// - [ ] feat: bookmark
-// - [ ] fix: scroll up
+// - [ ] feat: scroll {double page, up}
+// - [ ] feat: fullscreen
+// - [ ] ?feat: padding L/R VS resize BG and FG
 
 // ==========================================
 pub mod archive;
@@ -21,21 +21,6 @@ pub use std::{
     thread,
 };
 
-// ==========================================
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const SLEEP_MS: u64 = 1000 / 120;
-pub const FPS: u32 = 1000 / 25;
-pub const EXT_LIST: &[&str] = &[
-    "jpg", "jpeg", //
-    "png",  //
-    "heic", "heif", //
-    "avif", //
-    "ase", "aseprite", //
-    "gif",      //
-    "svg",
-];
-
-// ==========================================
 // trait
 pub use {archive::ForExtract, img::TMetaSize, render::ForAsyncTask};
 // struct/enum
@@ -54,6 +39,20 @@ pub use {
 };
 // fn
 pub use {config::rsconf::print_help, render::display::cat_img, render::keymap::match_event};
+
+// ==========================================
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const SLEEP_MS: u64 = 1000 / 120;
+pub const FPS: u32 = 1000 / 25;
+pub const EXT_LIST: &[&str] = &[
+    "jpg", "jpeg", //
+    "png",  //
+    "heic", "heif", //
+    "avif", //
+    "ase", "aseprite", //
+    "gif",      //
+    "svg",
+];
 
 // ==========================================
 pub fn sleep_ms(ms: u64) {
