@@ -1,0 +1,31 @@
+{
+  "name": "rmg",
+  "collaborators": [
+    "RSUU <rsuuyu@gmail.com>"
+  ],
+  "description": "Rust: Tiny And Fast Manga/Image Viewer",
+  "version": "0.6.0",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rsuu/rmg"
+  },
+  "files": [
+    "rmg.wasm_bg.wasm",
+    "rmg.wasm.js",
+    "rmg.wasm.d.ts",
+    "LICENSE-APACHE",
+    "LICENSE-MIT"
+  ],
+  "module": "rmg.wasm.js",
+  "homepage": "https://crates.io/crates/rmg",
+  "types": "rmg.wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ],
+  "keywords": [
+    "manga",
+    "comic",
+    "viewer"
+  ]
+}
