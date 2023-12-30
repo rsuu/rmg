@@ -32,9 +32,9 @@ jobs:
         shell: bash
         run: |
           export RUSTFLAGS="-Awarnings"
-          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          pwd
-          PATH="$PATH:/home/runner/.cargo/bin/"
+          #curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          cargo install wasm-pack
+          export PATH="$PATH:/home/runner/.cargo/bin/"
           bash build_web.zsh
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3

@@ -9,7 +9,7 @@ build() {
         --release \
         -d ./www/wasm \
         --out-name rmg.wasm \
-        -- --no-default-features -F "web"
+        -- --no-default-features -F "web,ex_tar,ex_zip"
 }
 
 build-ts() {
