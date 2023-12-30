@@ -10,6 +10,8 @@ build() {
         -d ./www/wasm \
         --out-name rmg.wasm \
         -- --no-default-features -F "web,ex_tar,ex_zip"
+
+    rm ./www/wasm/.gitignore
 }
 
 build-ts() {
@@ -24,4 +26,4 @@ server(){
         #--enable-cors \
 }
 
-build &&  server
+build && server

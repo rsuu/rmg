@@ -1,4 +1,4 @@
-name: build
+name: test
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-build:
-    name: build-build
+    name: test
     strategy:
       matrix:
         build: [linux, linux-arm, macos, win-msvc, win-gnu, win32-msvc]

@@ -1,4 +1,4 @@
-name: gh-page
+name: wasm
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-build:
-    name: gh-page
+    name: wasm
     strategy:
       matrix:
         build: [linux]
