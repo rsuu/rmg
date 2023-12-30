@@ -234,9 +234,11 @@ impl Config {
         if let Some(v) = args.opt_value_from_str::<_, String>("--config-path")? {
             self.cli.config_path = Some(v);
         }
-        if let Some(v) = args.free_from_str()? {
+        if let Ok(v) = args.free_from_str() {
             self.cli.file_path = Some(v);
         }
+
+        args.finish();
 
         Ok(())
     }
