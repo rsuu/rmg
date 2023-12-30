@@ -16,13 +16,11 @@ fn main() {
     tracing::info!("config: {:#?}", &config);
     tracing::info!("meta_size = {:#?}", &meta_size);
 
-    let path = {
-        if let Some(ref tmp) = config.cli.file_path {
-            PathBuf::from(tmp)
-        } else {
-            print_help();
-        }
+    let Some(ref tmp) = config.cli.file_path else {
+        print_help();
     };
+
+    let path = PathBuf::from(tmp);
     let archive_type = ArchiveType::new(path.as_path()).unwrap();
     let file_list = archive_type.get_list(path.as_path()).unwrap();
     let mut page_list = file_list.to_page_list(config.base.rename_pad as usize);

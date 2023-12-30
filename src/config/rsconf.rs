@@ -19,6 +19,7 @@ pub struct Config {
 #[derive(Debug, EsynDe)]
 pub struct Cli {
     pub config_path: Option<String>,
+    pub file_path: Option<String>,
 }
 
 #[derive(Debug, EsynDe)]
@@ -99,7 +100,7 @@ OPTIONS:
             Reset the width and the height of the buffer.
             e.g. `rmg --size 900x900`
     -c, --config
-            Specify the config config_path
+            Specify the config path
     -p, --rename-pad
             Padding 0 in filename
     -m, --mode
@@ -115,7 +116,10 @@ impl Config {
         Config {
             base: Base::default(),
             keymap: Keymap::default(),
-            cli: Cli { config_path: None },
+            cli: Cli {
+                config_path: None,
+                file_path: None,
+            },
             window: Window::default(),
         }
     }
@@ -229,6 +233,9 @@ impl Config {
         // cli
         if let Some(v) = args.opt_value_from_str::<_, String>("--config-path")? {
             self.cli.config_path = Some(v);
+        }
+        if let Some(v) = args.free_from_str()? {
+            self.cli.file_path = Some(v);
         }
 
         Ok(())

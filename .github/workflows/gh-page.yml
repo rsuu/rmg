@@ -34,7 +34,8 @@ jobs:
           export RUSTFLAGS="-Awarnings"
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
           pwd
-          cd rmg && bash build.zsh
+          PATH="$PATH:/home/runner/.cargo/bin/"
+          bash build_web.zsh
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         if: github.ref == 'refs/heads/main'

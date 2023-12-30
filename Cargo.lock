@@ -322,6 +322,8 @@ dependencies = [
 [[package]]
 name = "esyn"
 version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e96a09b1b1b08c18573ac12ed61fdd5570c5dc0824b5d5ae0546f5e98fea8e3"
 dependencies = [
  "esyn-derive",
  "prettyplease",
@@ -334,6 +336,8 @@ dependencies = [
 [[package]]
 name = "esyn-derive"
 version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ddab14cd580ee26e7c7fd1739cfd41bbbce9d7d99cd8b1a566b139fb5f67ef38"
 dependencies = [
  "proc-macro2",
  "quote",
