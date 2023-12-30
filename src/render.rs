@@ -9,13 +9,15 @@ pub mod turn;
 pub mod draw;
 pub mod layout;
 
+use esyn::EsynDe;
+
 // ==============================================
 use crate::{
     archive::*, img::*, mem, sleep_ms, thread, Arc, FilterType, Path, PathBuf, RwLock, FPS,
 };
-use std::sync::Arc;
 
 // ==============================================
+// TODO: ?u32 as RGBA
 pub type Frame = Vec<u32>; // RGBA8
 pub type Frames = Vec<Frame>;
 
@@ -137,9 +139,12 @@ pub enum ImgType {
 pub enum ImgFormat {
     Unknown,
 
-    // bit
+    // NEVER: ?sequence
+    //   Use mkv/mp4 please.
     Heic,
     Avif,
+
+    // bit
     Jpg,
     Png,
     Svg,
@@ -147,6 +152,9 @@ pub enum ImgFormat {
     // anim
     Aseprite,
     Gif,
+    // NOTE: THIS IS NOT A VIDEO SUPPORT.
+    //       IT IS A IMAGE VIEWER ON VIDEO FORMAT.
+    // Mp4,
 }
 
 #[derive(Debug, Default)]
@@ -158,7 +166,7 @@ pub enum ReaderMode {
     Cmd,  // TODO:
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, EsynDe)]
 pub enum ViewMode {
     #[default]
     Scroll, // Bit OR Anim
@@ -234,7 +242,7 @@ impl PageList {
         }
 
         Self {
-            list,
+            list: list.to_vec(),
             cur_dir: std::env::current_dir().unwrap(),
         }
     }
@@ -686,6 +694,17 @@ impl Img {
             }
 
             _ => &[],
+        }
+    }
+}
+
+impl ViewMode {
+    pub fn from_str(v: &str) -> Self {
+        match v {
+            "scroll" => Self::Scroll,
+            "turn" => Self::Turn,
+            "once" => Self::Once,
+            _ => unreachable!(),
         }
     }
 }

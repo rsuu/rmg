@@ -6,7 +6,7 @@ fn main() {
     let config = {
         let mut res = Config::new();
 
-        let _ = res.try_from_config_file().unwrap_or_else(|_| {});
+        let _ = res.try_from_file().unwrap_or_else(|_| {});
         let _ = res.try_from_cli().unwrap_or_else(|_| {});
 
         res

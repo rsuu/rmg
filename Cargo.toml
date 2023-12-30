@@ -12,6 +12,9 @@ categories = ["Multimedia::Images"]
 keywords = ["manga", "comic", "viewer"]
 exclude = ["examples/", ".gitignore", ".github/", "tests/"]
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [profile.release]
 lto = "thin"
 opt-level = 2
@@ -39,66 +42,75 @@ infer = "0.15.0"
 lexopt = "0.3.0"
 
 # fs
-walkdir = "2.3.3"
+walkdir = "2.4.0"
 
 # config
 dirs-next = "2.0.0"
-sysinfo = { version = "0.29.5", default-features = false }
+sysinfo = { version = "0.30.3", default-features = false }
 
 # log
 tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
-anyhow = "1.0.72"
-#log = "0.4.17" # not working in multi-thread
-#env_logger = {version = "0.10.0", features = ["color"], default-features = false}
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+anyhow = "1.0.77"
 
 # image
 fir = { version = "2.7.3", package = "fast_image_resize" }
 asefile = { version = "0.3.6", optional = true }
-libheif-rs = { version = "0.20.0", optional = true }
+libheif-rs = { version = "0.20.0", optional = true } # heif/avif
 gif = "0.12.0"
-gif-dispose = "4.0.0"
-image = { version = "0.24.6", default-features = false }
+gif-dispose = "4.0.1"
+image = { version = "0.24.7", default-features = false, features = [
+  "jpeg",
+  "png",
+  # ?avif
+] }
+#ravif = "0.11.3" # rust avif
 
 # window
-minifb = { version = "0.24.0", default-features = false }
+minifb = { version = "0.25.0", default-features = false }
 
 # config
-esyn = "0.8.0"
-syn = { version = "1", features = [
-  "parsing",
-  "extra-traits",
-  "full",
-], default-features = false }
+esyn = "0.8.1"
 
 # svg
-tiny-skia = { version = "0.11.1", optional = true }
+tiny-skia = { version = "0.11.3", optional = true }
 usvg = { version = "0.35.0", optional = true }
 resvg = { version = "0.35.0", optional = true }
 
 # archive
-zip = { version = "0.6.6", features = [
+# well: workspace dependencies cannot be optional
+zip = { version = "0.6.6", optional = true, default-features = false, features = [
   # "zstd", # NEVER
   "aes-crypto",
   "bzip2",
   "deflate",
-], optional = true, default-features = false }
+] }
 tar = { version = "0.4.40", optional = true }
 #zstd = "0.13.0"
 #unrar = "0.5.2"
 #sevenz-rust = "0.5.3"
 
+# web
+console_error_panic_hook = {version="0.1.7",optional=true}
+wasm-bindgen ={version= "0.2.89",optional=true}
+web-sys ={version= "0.3.66",optional=true}
+pico-args = "0.5.0"
+
+
 [features]
-default = ["ex_zip", "ex_tar", "minifb/x11","minifb/wayland", "minifb/dlopen"]
+default = ["ex_zip", "ex_tar", "minifb/x11", "minifb/wayland", "minifb/dlopen"]
 full = ["ex_full", "de_full"]
 arch_avx2 = []
 arch_sse4_1 = []
 de_full = ["de_heic", "de_ase", "de_svg"]
 de_ase = ["dep:asefile"]
 de_heic = ["dep:libheif-rs"]
-de_avif = []
+#de_avif = []
 de_svg = ["dep:usvg", "dep:tiny-skia", "dep:resvg"]
 ex_full = ["ex_tar", "ex_zip"]
 ex_tar = ["dep:tar"]
 ex_zip = ["dep:zip"]
-web = ["minifb/web"]
+web = ["minifb/web","dep:console_error_panic_hook","dep:wasm-bindgen","dep:web-sys"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

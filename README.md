@@ -69,20 +69,21 @@ NOTE: You must create the file first.
 
 | Format | Supported | Default | Dependency | Mode
 |:-|:-|:-|:-|:-|
-.jpg          | ✔     | ✔ |         | Scroll/Once
-.png          | ✔     | ✔ |         | Scroll/Once
-.heic / .avif | ✔     | ✖ | libheif | Scroll/Once
-.gif          | ✔     | ✔ |         | Once
-.aseprite     | ✔     | ✖ |         | Once
-.svg          | (dev) | ✖ |         | Scroll/Once
+.jpg       | +     | + |         | Scroll/Once
+.png       | +     | + |         | Scroll/Once
+.heic/avif | +     | - | libheif | Scroll/Once
+.gif       | +     | + |         | Once
+.aseprite  | +     | - |         | Once
+.svg       | (dev) | - |         | Scroll/Once
 
 | Format | Supported | Default | Dependency
 |:-|:-|:-|:-|
-directory   | ✔ | ✔ |
-.tar        | ✔ | ✔ |
-.zip / .cbz | ✔ | ✔ |
-.rar        | ✖ |   |
-.zst        | ✖ |   |
+directory | + | + |
+.tar      | + | + |
+.zip/cbz  | + | + |
+.7z       | - |   |
+.rar      | - |   |
+.zst      | - |   |
 
 ## Features
 

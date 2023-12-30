@@ -1,5 +1,3 @@
-#!/bin/#!/bin/bash
-
 # https://www.brendangregg.com/perf.html
 
 top() {

@@ -9,6 +9,7 @@ pub mod heic;
 pub mod svg;
 
 // ==============================================
+use esyn::*;
 use fir;
 use image;
 use std::{mem, num::NonZeroU32};
@@ -16,7 +17,7 @@ use std::{mem, num::NonZeroU32};
 pub struct TransRgb {}
 pub struct TransRgba {}
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, EsynDe)]
 pub struct Size<T> {
     pub width: T,
     pub height: T,
@@ -28,6 +29,16 @@ pub struct MetaSize<T> {
     pub window: Size<T>,
     pub image: Size<T>,
     pub fix: Size<T>,
+}
+
+#[derive(Debug, Clone, Copy, EsynDe)]
+pub enum FilterType {
+    Box,
+    Bilinear,
+    Hamming,
+    CatmullRom,
+    Mitchell,
+    Lanczos3,
 }
 
 // ==============================================
@@ -172,7 +183,7 @@ pub fn resize_rgba8(
     bytes: &mut Vec<u8>,
     from: &Size<u32>,
     to: &Size<u32>,
-    filter: &fir::FilterType,
+    filter: &FilterType,
 ) -> anyhow::Result<()> {
     let mut src_image = fir::Image::from_vec_u8(
         NonZeroU32::new(from.width).unwrap(),
@@ -185,7 +196,7 @@ pub fn resize_rgba8(
 
     let mut dst_image = fir::Image::new(dst_width, dst_height, src_image.pixel_type());
     let mut dst_view = dst_image.view_mut();
-    let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(*filter));
+    let mut resizer = fir::Resizer::new(fir::ResizeAlg::Convolution(filter.to_fir()));
 
     unsafe {
         #[cfg(feature = "arch_sse4_1")]
@@ -263,5 +274,31 @@ mod test {
     #[test]
     fn _rgba_from_u32() {
         assert_eq!([1_u8, 2, 3, 4], TransRgba::rgba_from_u32(&16909060));
+    }
+}
+
+impl FilterType {
+    pub fn to_fir(&self) -> fir::FilterType {
+        match self {
+            Self::Box => fir::FilterType::Box,
+            Self::Bilinear => fir::FilterType::Bilinear,
+            Self::Hamming => fir::FilterType::Hamming,
+            Self::CatmullRom => fir::FilterType::CatmullRom,
+            Self::Mitchell => fir::FilterType::Mitchell,
+            Self::Lanczos3 => fir::FilterType::Lanczos3,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn from_str(v: &str) -> Self {
+        match v {
+            "box" => Self::Box,
+            "bilinear" => Self::Bilinear,
+            "hamming" => Self::Hamming,
+            "catmullRom" => Self::CatmullRom,
+            "mitchell" => Self::Mitchell,
+            "lanczos3" => Self::Lanczos3,
+            _ => unreachable!(),
+        }
     }
 }

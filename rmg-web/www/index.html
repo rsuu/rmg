@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="Access-Control-Allow-Origin" content="*" />
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta name="viewport" content="" />
+
+    <link type="text/css" rel="stylesheet" href="css/style.css" />
+
+    <title></title>
+    <style>
+      body,
+      html {
+        /* Disables pull-to-refresh but allows overscroll glow effects. */
+        overscroll-behavior-y: contain;
+      }
+
+      .tail_number {
+        position: fixed;
+        bottom: 20px; /* Adjust as per your needs */
+        right: 20px; /* Adjust as per your needs */
+        background-color: #f2f2f2;
+        padding: 15px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+
+      .tail_dire {
+        position: fixed;
+        float: left;
+        bottom: 20px; /* Adjust as per your needs */
+        right: 10px; /* Adjust as per your needs */
+        background-color: #f2f2f2;
+        padding: 15px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="top">
+      <div style="overflow: scroll">
+        <input type="file" id="zip_input" />
+      </div>
+
+      <div style="overflow: scroll">
+        <input type="url" id="btn_get_url" />
+        <button id="btn_get">GET</button>
+      </div>
+    </div>
+
+    <div class="tail_number">
+      <p id="tail">0</p>
+      <p id="pref">0</p>
+      <p id="dire"></p>
+    </div>
+
+    <div style="display: block">
+      <div id="img_list"></div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/worker.js"></script>
+  </body>
+</html>

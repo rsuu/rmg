@@ -22,7 +22,7 @@ pub fn cat_img(
     KeyMap::update(&mut keymap, config);
 
     let buffer_max = meta.window.width as usize * meta.window.height as usize;
-    let data = Data::new(archive_type, path, meta, config.base.filter);
+    let data = Data::new(archive_type, path, meta, config.base.filter.into());
 
     let mut canvas = Canvas::new(
         meta.window.width as usize,
@@ -40,12 +40,12 @@ pub fn cat_img(
         data.meta.window.width as usize,
     );
 
-    let vec = scroll.page_list.list;
-    let page_len = vec.len();
+    let tmp = scroll.page_list.list.as_slice();
+    let page_len = tmp.len();
 
     // Vec<Page> -> Vec<TaskResize>
     let arc_task = <AsyncTask as ForAsyncTask>::new(
-        vec.iter()
+        tmp.iter()
             .map(|page| TaskResize::new(page.clone()))
             .collect(),
     );
@@ -71,7 +71,7 @@ pub fn cat_img(
         // Bit/Anim
         ViewMode::Once => {
             let mut once = Once::from_scroll(scroll);
-            once.start(&mut canvas, &keymap, &data, config);
+            once.start(&mut canvas, &keymap, &data, config)?;
         }
 
         // Bit/Anim

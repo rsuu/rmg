@@ -1,6 +1,7 @@
 use std::default;
 
 use crate::Config;
+use esyn::EsynDe;
 use minifb::{Scale, ScaleMode, Window};
 
 pub struct Canvas {
@@ -8,7 +9,7 @@ pub struct Canvas {
     pub size: (usize, usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, EsynDe)]
 pub struct WindowPosition {
     pub x: isize,
     pub y: isize,

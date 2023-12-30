@@ -34,7 +34,7 @@ impl Scroll {
         empty_x_size: usize,
     ) -> Self {
         let mem = {
-            use sysinfo::SystemExt;
+            use sysinfo::System;
 
             let sys = sysinfo::System::new_all();
 
@@ -181,6 +181,12 @@ impl Scroll {
             if self.page_list.get_ref(index).flush(&mut self.buffer.data) {
                 self.page_list.get_mut(index).img.to_next_frame();
 
+            // TODO: remove this     // (stop now)
+            //       add more RAM and CPU for rmg (SPACE, POWER)
+            //       or stopping (FEEL BAD)
+            //       VS
+            //       gen_empty(w, h) // (scroll anywhere)
+            //       higher I/O (TIME)
             // false: empty page
             } else if arc_task.try_set_as_todo(index) {
                 for _ in 0..(len / self.empty_x_size) {

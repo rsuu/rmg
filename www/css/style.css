@@ -1,0 +1,11 @@
+body {
+  background: black;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+canvas {
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  object-fit: contain;
+}

@@ -6,6 +6,10 @@
 // - [ ] feat: fullscreen
 // - [ ] ?feat: padding L/R VS resize BG and FG
 
+// ingore main.rs
+#[cfg(feature = "web")]
+mod web;
+
 // ==========================================
 pub mod archive;
 pub mod config;
@@ -13,7 +17,6 @@ pub mod img;
 pub mod render;
 
 // ==========================================
-pub use fir::FilterType;
 pub use std::{
     mem,
     path::{Path, PathBuf},
@@ -27,7 +30,7 @@ pub use {archive::ForExtract, img::TMetaSize, render::ForAsyncTask};
 pub use {
     archive::{ArchiveType, FileInfo, FileList},
     config::rsconf::Config,
-    img::{MetaSize, Size, TransRgb, TransRgba},
+    img::{FilterType, MetaSize, Size, TransRgb, TransRgba},
     render::{
         keymap::{self, KeyMap, Map},
         once::Once,

@@ -10,7 +10,7 @@ use std::{io::Read, mem};
 struct LazyFrame {
     w: u32,
     h: u32,
-    data: Frame,
+    //data: Frame,
 
     // fn get() { .. }
     // if is_null {

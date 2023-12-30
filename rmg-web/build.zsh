@@ -4,12 +4,11 @@
 # target = ["YOUR_TARGET"]
 
 build() {
-    wasm-pack build ./ \
+    wasm-pack build ./yiiy \
         --target web \
         --release \
-        -d ./www/wasm \
-        --out-name rmg.wasm \
-        -- --no-default-features -F "web"
+        -d ../www/wasm \
+        --out-name yiiy.wasm
 }
 
 build-ts() {
@@ -20,8 +19,8 @@ build-ts() {
 server(){
     dufs --render-index \
         --allow-search \
-        ./www
+        ../www
         #--enable-cors \
 }
 
-build &&  server
+build && build-ts && server

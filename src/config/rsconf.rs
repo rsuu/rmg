@@ -5,6 +5,7 @@ use dirs_next;
 use esyn::*;
 use fir;
 use lexopt::{self, prelude::*};
+use pico_args::Arguments;
 use std::{fs::File, io::Read, path::Path, path::PathBuf, process::exit};
 
 #[derive(Debug, EsynDe)]
@@ -17,8 +18,7 @@ pub struct Config {
 
 #[derive(Debug, EsynDe)]
 pub struct Cli {
-    pub file_path: Option<String>,
-    pub is_debug: bool,
+    pub config_path: Option<String>,
 }
 
 #[derive(Debug, EsynDe)]
@@ -27,11 +27,12 @@ pub struct Base {
     pub font: Option<String>, // font file
     pub rename_pad: u8,       // pad (default: 0)
     pub invert_mouse: bool,   // (default: false)
-    pub filter: fir::FilterType,
+    pub filter: FilterType,
     pub step: u8,
     pub view_mode: ViewMode,
-    pub limit: u8,
+    pub limit: u8, // page
     pub thread_limit: u8,
+    //pub pos_start: (u32, u32),
 }
 
 #[derive(Debug, EsynDe)]
@@ -61,44 +62,71 @@ pub enum ConfigType {
     Window,
 }
 
+pub fn print_help() -> ! {
+    // TODO:
+    println!(
+        r#"
+rmg {VERSION}
+
+Tiny And Fast Manga/Image Viewer
+
+USAGE:
+    rmg [OPTIONS] [FLAGS] <path>
+
+ARGS:
+    <path>  A file or directory.
+
+FLAGS:
+    --invert-mouse                  [default: false]
+            e.g. `rmg --invert-mouse true`
+    --window-borderless             [default: false]
+            Display borderless
+    --window-resize                 [default: false]
+            Resize window
+    --window-topmost                [default: false]
+            Set as topmost
+    --window-none                   [default: true]
+            Set as transparency
+    --window-position
+            Sets the position of the window
+            e.g. `rmg --window-position 500,0`
+
+
+OPTIONS:
+    -h, --help
+            Prints help information.
+    -s, --size
+            Reset the width and the height of the buffer.
+            e.g. `rmg --size 900x900`
+    -c, --config
+            Specify the config config_path
+    -p, --rename-pad
+            Padding 0 in filename
+    -m, --mode
+            (TODO)
+"#,
+    );
+
+    exit(0);
+}
+
 impl Config {
     pub fn new() -> Config {
         Config {
             base: Base::default(),
             keymap: Keymap::default(),
-            cli: Cli {
-                file_path: None,
-                is_debug: false,
-            },
+            cli: Cli { config_path: None },
             window: Window::default(),
         }
     }
 
-    fn parse(&mut self, path: impl AsRef<Path>) -> anyhow::Result<()> {
-        let ast = {
-            let Ok(mut file) = File::open(path.as_ref()) else {
-                return Err(anyhow::anyhow!(""));
-            };
-            let mut code = String::new();
-            file.read_to_string(&mut code)?;
-
-            syn::parse_file(code.as_str())?
-        };
-
-        if let Some(config) = parse_config(ast.items.first().unwrap()) {
-            *self = config;
-        } else {
-        };
-
-        Ok(())
-    }
-
-    pub fn try_from_config_file(&mut self) -> anyhow::Result<()> {
+    pub fn try_from_file(&mut self) -> anyhow::Result<()> {
         let mut config_path = PathBuf::new();
 
         // e.g. ~/.config/rmg/config.rs
         let Some(path) = dirs_next::config_dir() else {
-            anyhow::bail!("")
+            // skip
+            return Ok(());
         };
 
         if path.as_path().is_dir() {
@@ -106,108 +134,101 @@ impl Config {
             config_path.push("rmg/config.rs");
         } else if config_path.as_path().is_file() {
         } else {
-            anyhow::bail!("")
+            // skip
+            return Ok(());
         }
 
         tracing::debug!("config_path: {:?}", config_path);
 
-        self.parse(config_path.as_path())
+        let mut f = File::open(&config_path)?;
+        let mut code = "".to_string();
+        f.read_to_string(&mut code)?;
+
+        let esyn = Esyn::new(&code);
+        esyn.init().unwrap();
+
+        let base = EsynBuilder::new()
+            .set_fn("base")
+            .flag_res()
+            .get::<Base>(&esyn)?;
+
+        let keymap = EsynBuilder::new()
+            .set_fn("keymap")
+            .flag_res()
+            .get::<Keymap<char>>(&esyn)?;
+
+        let window = EsynBuilder::new()
+            .set_fn("window")
+            .flag_res()
+            .get::<Window>(&esyn)?;
+
+        self.base = base.get();
+        self.keymap = keymap.get();
+        self.window = window.get();
+
+        Ok(())
     }
 
     pub fn try_from_cli(&mut self) -> anyhow::Result<()> {
-        let mut parser = lexopt::Parser::from_env();
+        let mut args = Arguments::from_env();
 
-        while let Some(arg) = parser.next().unwrap() {
-            match arg {
-                // config.base
-                Long("config") | Short('c') => {
-                    // parse from file
-                    let path = PathBuf::from(parser.value().unwrap().into_string().unwrap());
-                    self.parse(path.as_path()).unwrap();
-                }
+        // base
+        if let Some(v) = args.opt_value_from_str::<_, String>("--size")? {
+            let (w, h) = v.split_once('x').unwrap();
+            self.base.size = Size::new(w.parse().unwrap(), h.parse().unwrap());
+        }
+        if let Some(v) = args.opt_value_from_str::<_, u8>("--pad")? {
+            self.base.rename_pad = v;
+        }
+        if let Some(v) = args.opt_value_from_str::<_, bool>("--invert-mouse")? {
+            self.base.invert_mouse = v;
+        }
+        if let Some(v) = args.opt_value_from_str::<_, String>("--filter")? {
+            self.base.filter = FilterType::from_str(&v);
+        }
+        if let Some(v) = args.opt_value_from_str::<_, String>("--font")? {
+            self.base.font = Some(v);
+        }
+        if let Some(v) = args.opt_value_from_str::<_, u8>("--step")? {
+            self.base.step = v;
+        }
+        if let Some(v) = args.opt_value_from_str::<_, u8>("--limit")? {
+            self.base.limit = v;
+        }
+        if let Some(v) = args.opt_value_from_str::<_, u8>("--thread-limit")? {
+            self.base.thread_limit = v;
+        }
+        if let Some(v) = args.opt_value_from_str::<_, String>("--view-mode")? {
+            self.base.view_mode = ViewMode::from_str(&v);
+        }
 
-                // e.g. 900x900
-                Long("size") | Short('s') => {
-                    let size = parser.value().unwrap().into_string().unwrap();
-                    let size = size.as_str().split('x').collect::<Vec<&str>>();
+        // window
+        if let Some(v) = args.opt_value_from_str::<_, bool>("--window-none")? {
+            self.window.none = v;
+        }
+        if let Some(v) = args.opt_value_from_str::<_, bool>("--window-topmost")? {
+            self.window.topmost = v;
+        }
+        if let Some(v) = args.opt_value_from_str::<_, bool>("--window-borderless")? {
+            self.window.borderless = v;
+        }
+        if let Some(v) = args.opt_value_from_str::<_, bool>("--window-resize")? {
+            self.window.resize = v;
+        }
+        if let Some(v) = args.opt_value_from_str::<_, String>("--position")? {
+            let (x, y) = v.split_once(',').unwrap();
+            self.window.postition = WindowPosition {
+                x: x.parse().unwrap(),
+                y: y.parse().unwrap(),
+            };
+        }
 
-                    let (w, h) = (
-                        size[0].parse::<u32>().unwrap_or_default(),
-                        size[1].parse::<u32>().unwrap_or_default(),
-                    );
+        // ?keymap
+        //
 
-                    self.base.size = Size::new(w, h);
-                }
-
-                Long("mode") | Short('m') => {
-                    let arg = parser.value().unwrap().into_string().unwrap();
-
-                    self.base.view_mode = match arg.as_str() {
-                        "s" | "scroll" => ViewMode::Scroll,
-                        "o" | "once" => ViewMode::Once,
-                        "t" | "turn" => ViewMode::Turn,
-                        _ => ViewMode::Scroll,
-                    };
-                }
-
-                Long("rename-pad") | Short('p') => {
-                    let arg = parser.value().unwrap().into_string().unwrap();
-
-                    self.base.rename_pad = arg.parse::<u8>().unwrap();
-                }
-
-                Long("invert-mouse") => {
-                    let arg = parser.value().unwrap().into_string().unwrap();
-
-                    self.base.invert_mouse = arg.parse::<bool>().unwrap();
-                }
-
-                // config.Window
-                Long("window-borderless") => {
-                    let arg = parser.value().unwrap().into_string().unwrap();
-
-                    self.window.borderless = arg.parse::<bool>().unwrap();
-                }
-
-                // e.g. 0,0
-                Long("window-position") => {
-                    let size = parser.value().unwrap().into_string().unwrap();
-                    let size = size.as_str().split(',').collect::<Vec<&str>>();
-
-                    let (x, y) = (
-                        size[0].parse::<isize>().unwrap_or_default(),
-                        size[1].parse::<isize>().unwrap_or_default(),
-                    );
-
-                    self.window.postition = WindowPosition { x, y };
-                }
-
-                Long("window-topmost") => {
-                    let arg = parser.value().unwrap().into_string().unwrap();
-
-                    self.window.topmost = arg.parse::<bool>().unwrap();
-                }
-
-                Long("window-none") => {
-                    let arg = parser.value().unwrap().into_string().unwrap();
-
-                    self.window.none = arg.parse::<bool>().unwrap();
-                }
-
-                Long("window-resize") => {
-                    let arg = parser.value().unwrap().into_string().unwrap();
-
-                    self.window.resize = arg.parse::<bool>().unwrap();
-                }
-
-                Value(v) => {
-                    self.cli.file_path = Some(v.into_string().unwrap());
-                }
-
-                _ => {
-                    print_help();
-                }
-            }
+        // cli
+        if let Some(v) = args.opt_value_from_str::<_, String>("--config-path")? {
+            self.cli.config_path = Some(v);
         }
 
         Ok(())
@@ -248,7 +269,7 @@ impl Default for Keymap<char> {
 impl Default for Base {
     fn default() -> Self {
         let thread_limit = {
-            use sysinfo::SystemExt;
+            use sysinfo::System;
 
             let sys = sysinfo::System::new_all();
             sys.physical_core_count().unwrap_or(1) as u8
@@ -262,437 +283,11 @@ impl Default for Base {
             font: None,
             rename_pad: 0,
             invert_mouse: false,
-            filter: fir::FilterType::Hamming,
+            filter: FilterType::Hamming,
             step: 10,
             view_mode: ViewMode::Scroll,
             limit: 10,
             thread_limit,
         }
     }
-}
-
-pub fn parse_config(item: &syn::Item) -> Option<Config> {
-    // fn main() {
-    // ...
-    // }
-
-    if let syn::Item::Fn(f) = item {
-        if f.sig.ident.to_string().as_str() == "main" {
-            parse_struct(&f.block)
-        } else {
-            None
-        }
-    } else {
-        None
-    }
-}
-
-pub fn parse_struct(block: &syn::Block) -> Option<Config> {
-    let mut config = Config::default();
-
-    for stmt in block.stmts.iter() {
-        if let syn::Stmt::Semi(syn::Expr::Struct(expr_struct), _token) = stmt {
-            tracing::debug!("{:#?}", expr_struct);
-
-            //dbg!(&expr_struct);
-
-            match match_struct_name(expr_struct) {
-                ConfigType::Base => config.base = parse_base(expr_struct),
-
-                ConfigType::Keymap => config.keymap = parse_keymap(expr_struct),
-
-                ConfigType::Window => config.window = parse_window(expr_struct),
-
-                _ => {}
-            }
-        }
-    }
-
-    Some(config)
-}
-
-// struct NAME {
-//   ...
-// }
-pub fn match_struct_name(expr_struct: &syn::ExprStruct) -> ConfigType {
-    let name = expr_struct.path.segments.first().unwrap().ident.to_string();
-
-    //dbg!(&name);
-
-    match name.as_str() {
-        "Base" => ConfigType::Base,
-        "Keymap" => ConfigType::Keymap,
-        "Window" => ConfigType::Window,
-        _ => panic!(),
-    }
-}
-
-// BASE {
-//   rename_pad,
-//   ...
-// }
-pub fn parse_base(expr_struct: &syn::ExprStruct) -> Base {
-    let mut base = Base::default();
-
-    for fields in expr_struct.fields.iter() {
-        let syn::Member::Named(_name) = &fields.member else {
-            todo!()
-        };
-
-        match (_name.to_string().as_str(), &fields.expr) {
-            ("rename_pad", syn::Expr::Lit(_expr_lit)) => {
-                // u8
-                // dbg!(fields);
-                let syn::Lit::Int(lit) = &_expr_lit.lit else {
-                    panic!()
-                };
-
-                base.rename_pad = lit
-                    .token()
-                    .to_string()
-                    .as_str()
-                    .parse::<u8>()
-                    .unwrap_or_default(); // default: false
-            }
-
-            ("step", syn::Expr::Lit(_expr_lit)) => {
-                // u8
-                // dbg!(fields);
-                let syn::Lit::Int(lit) = &_expr_lit.lit else {
-                    panic!()
-                };
-
-                base.step = lit
-                    .token()
-                    .to_string()
-                    .as_str()
-                    .parse::<u8>()
-                    .unwrap_or_default(); // default: false
-            }
-
-            // u8
-            ("limit", syn::Expr::Lit(_expr_lit)) => {
-                // dbg!(fields);
-                let syn::Lit::Int(lit) = &_expr_lit.lit else {
-                    panic!()
-                };
-
-                base.limit = lit
-                    .token()
-                    .to_string()
-                    .as_str()
-                    .parse::<u8>()
-                    .unwrap_or_default(); // default: false
-            }
-
-            ("filter", syn::Expr::Lit(_expr_lit)) => {
-                // fir::FilterType
-
-                let syn::Lit::Str(lit) = &_expr_lit.lit else {
-                    panic!()
-                };
-
-                let ty = lit.token().to_string().trim_matches('"').to_string();
-
-                tracing::debug!("ty: {}", ty);
-
-                base.filter = match ty.as_str() {
-                    "Box" => fir::FilterType::Box,
-                    "Hamming" => fir::FilterType::Hamming,
-                    "CatmullRom" => fir::FilterType::CatmullRom,
-                    "Mitchell" => fir::FilterType::Mitchell,
-                    "Lanczos3" => fir::FilterType::Lanczos3,
-                    _ => fir::FilterType::Hamming,
-                };
-            }
-
-            ("invert_mouse", syn::Expr::Lit(_expr_lit)) => {
-                // bool
-
-                let syn::Lit::Bool(lit) = &_expr_lit.lit else {
-                    panic!()
-                };
-
-                base.invert_mouse = lit
-                    .token()
-                    .to_string()
-                    .as_str()
-                    .parse::<bool>()
-                    .unwrap_or_default(); // default is false
-            }
-
-            ("font", syn::Expr::Lit(_expr_lit)) => {
-                let syn::Lit::Str(lit) = &_expr_lit.lit else {
-                    panic!()
-                };
-                let font_path = lit.token().to_string().trim_matches('"').to_string();
-
-                if std::path::Path::new(font_path.as_str()).is_file() {
-                    base.font = Some(font_path);
-                } else {
-                    base.font = None;
-                }
-            }
-
-            ("size", syn::Expr::Tuple(tuple_)) => {
-                let syn::Expr::Lit(_lhs) = &tuple_.elems[0] else {
-                    panic!()
-                };
-
-                let syn::Expr::Lit(_rhs) = &tuple_.elems[1] else {
-                    panic!()
-                };
-
-                if let syn::Lit::Int(width) = &_lhs.lit {
-                    base.size.width = width.token().to_string().parse::<u32>().unwrap_or_default();
-                }
-
-                if let syn::Lit::Int(height) = &_rhs.lit {
-                    base.size.height = height
-                        .token()
-                        .to_string()
-                        .parse::<u32>()
-                        .unwrap_or_default();
-                }
-            }
-
-            _ => {}
-        }
-    }
-
-    base
-}
-
-// Keymap {
-//   up,
-//   ...
-// }
-pub fn parse_keymap(expr_struct: &syn::ExprStruct) -> Keymap<char> {
-    let mut keymap = Keymap::default();
-
-    for fields in expr_struct.fields.iter() {
-        if let syn::Member::Named(_name) = &fields.member {
-            match _name.to_string().as_str() {
-                "up" => {
-                    if let syn::Expr::Lit(_expr_lit) = &fields.expr {
-                        if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
-                            keymap.up = _lit_char
-                                .token()
-                                .to_string()
-                                .as_str()
-                                .chars()
-                                .nth(1) // e.g. j
-                                .unwrap();
-                        }
-                    }
-                }
-
-                "down" => {
-                    if let syn::Expr::Lit(_expr_lit) = &fields.expr {
-                        if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
-                            keymap.down = _lit_char
-                                .token()
-                                .to_string()
-                                .as_str()
-                                .chars()
-                                .nth(1)
-                                .unwrap();
-                        }
-                    }
-                }
-
-                "left" => {
-                    if let syn::Expr::Lit(_expr_lit) = &fields.expr {
-                        if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
-                            keymap.left = _lit_char
-                                .token()
-                                .to_string()
-                                .as_str()
-                                .chars()
-                                .nth(1)
-                                .unwrap();
-                        }
-                    }
-                }
-
-                "right" => {
-                    if let syn::Expr::Lit(_expr_lit) = &fields.expr {
-                        if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
-                            keymap.right = _lit_char
-                                .token()
-                                .to_string()
-                                .as_str()
-                                .chars()
-                                .nth(1)
-                                .unwrap();
-                        }
-                    }
-                }
-
-                "exit" => {
-                    if let syn::Expr::Lit(_expr_lit) = &fields.expr {
-                        if let syn::Lit::Char(_lit_char) = &_expr_lit.lit {
-                            keymap.exit = _lit_char
-                                .token()
-                                .to_string()
-                                .as_str()
-                                .chars()
-                                .nth(1)
-                                .unwrap();
-                        }
-                    }
-                }
-
-                _ => {}
-            }
-        }
-    }
-
-    keymap
-}
-
-pub fn parse_window(expr_struct: &syn::ExprStruct) -> Window {
-    let mut window = Window::default();
-
-    for fields in expr_struct.fields.iter() {
-        let syn::Member::Named(_name) = &fields.member else {
-            todo!()
-        };
-
-        //dbg!(&fields);
-
-        match (_name.to_string().as_str(), &fields.expr) {
-            // bool
-            ("borderless", syn::Expr::Lit(_expr_lit)) => {
-                let syn::Lit::Bool(lit) = &_expr_lit.lit else {
-                    panic!()
-                };
-
-                window.borderless = lit
-                    .token()
-                    .to_string()
-                    .as_str()
-                    .parse::<bool>()
-                    .unwrap_or_default();
-            }
-
-            // bool
-            ("topmost", syn::Expr::Lit(_expr_lit)) => {
-                let syn::Lit::Bool(lit) = &_expr_lit.lit else {
-                    panic!()
-                };
-
-                window.topmost = lit
-                    .token()
-                    .to_string()
-                    .as_str()
-                    .parse::<bool>()
-                    .unwrap_or_default();
-            }
-
-            // bool
-            ("none", syn::Expr::Lit(_expr_lit)) => {
-                let syn::Lit::Bool(lit) = &_expr_lit.lit else {
-                    panic!()
-                };
-
-                window.none = lit
-                    .token()
-                    .to_string()
-                    .as_str()
-                    .parse::<bool>()
-                    .unwrap_or_default();
-            }
-
-            // bool
-            ("resize", syn::Expr::Lit(_expr_lit)) => {
-                let syn::Lit::Bool(lit) = &_expr_lit.lit else {
-                    panic!()
-                };
-
-                window.resize = lit
-                    .token()
-                    .to_string()
-                    .as_str()
-                    .parse::<bool>()
-                    .unwrap_or_default();
-            }
-
-            ("postition", syn::Expr::Tuple(tuple_)) => {
-                let syn::Expr::Lit(_lhs) = &tuple_.elems[0] else {
-                    panic!()
-                };
-
-                let syn::Expr::Lit(_rhs) = &tuple_.elems[1] else {
-                    panic!()
-                };
-
-                let x = if let syn::Lit::Int(x) = &_lhs.lit {
-                    x.token().to_string().parse::<isize>().unwrap_or_default()
-                } else {
-                    unreachable!()
-                };
-
-                let y = if let syn::Lit::Int(y) = &_rhs.lit {
-                    y.token().to_string().parse::<isize>().unwrap_or_default()
-                } else {
-                    unreachable!()
-                };
-
-                window.postition = WindowPosition { x, y };
-            }
-
-            _ => {}
-        }
-    }
-
-    window
-}
-
-pub fn print_help() -> ! {
-    // TODO:
-    println!(
-        r#"
-rmg {VERSION}
-
-Tiny And Fast Manga/Image Viewer
-
-USAGE:
-    rmg [OPTIONS] [FLAGS] <path>
-
-ARGS:
-    <path>  A file or directory.
-
-FLAGS:
-    --invert-mouse                  [default: false]
-            e.g. `rmg --invert-mouse true`
-    --window-borderless             [default: false]
-            Display borderless
-    --window-resize                 [default: false]
-            Resize window
-    --window-topmost                [default: false]
-            Set as topmost
-    --window-none                   [default: true]
-            Set as transparency
-    --window-position
-            Sets the position of the window
-            e.g. `rmg --window-position 500,0`
-
-
-OPTIONS:
-    -h, --help
-            Prints help information.
-    -s, --size
-            Reset the width and the height of the buffer.
-            e.g. `rmg --size 900x900`
-    -c, --config
-            Specify the config file path
-    -p, --rename-pad
-            Padding 0 in filename
-    -m, --mode
-            (TODO)
-"#,
-    );
-
-    exit(0);
 }

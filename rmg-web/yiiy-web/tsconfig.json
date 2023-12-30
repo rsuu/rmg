@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+      "target": "esnext",
+      "module": "esnext",
+      "rootDir": "./src",
+      "baseUrl": "./src",
+      "outDir": "../www/js",
+      "lib":["dom","esnext"],
+      "esModuleInterop": true,
+      "forceConsistentCasingInFileNames": true,
+      "strict": true,
+      "skipLibCheck": true,
+      "paths": {
+          "/*":["../../www/*"]
+      }
+  }
+}

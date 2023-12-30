@@ -1,5 +1,7 @@
-fn main() {
-    Base {
+fn main() {}
+
+fn base() -> Res {
+    Res {
         size: (900, 900),
         font: None,
         rename_pad: 6,
@@ -7,20 +9,24 @@ fn main() {
         filter: "Hamming",
         step: 6,
         limit: 4,
-    };
+    }
+}
 
-    Keymap {
+fn keymap() -> Res {
+    Res {
         up: 'k',
         down: 'j',
         left: 'h',
         right: 'l',
         exit: 'q',
-    };
+    }
+}
 
-    Window {
+fn window() -> Res {
+    Res {
         borderless: false,
         topmost: false,
         resize: false,
         none: true,
-    };
+    }
 }

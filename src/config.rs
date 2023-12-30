@@ -4,7 +4,7 @@ pub mod history;
 // TODO: impl EsynDe for minifb::Key
 pub mod rsconf;
 
-struct KeyMap<T: char> {
+struct KeyMap<T = char> {
     pub up: T,
     pub down: T,
     pub left: T,
@@ -15,7 +15,7 @@ struct KeyMap<T: char> {
 
 //fn get_config() {
 //    let a = &EsynBuilder::new()
-//        .set_val("a")
+//        .set_fn("a")
 //        .get_once::<Test>(config)
 //        .unwrap();
 //}
