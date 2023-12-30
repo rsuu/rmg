@@ -36,6 +36,7 @@ jobs:
           rustup target add wasm32-unknown-unknown
           #cargo install wasm-pack
           export PATH="$PATH:/home/runner/.cargo/bin/"
+          cargo build --lib --release --target wasm32-unknown-unknown --no-default-features -F "web,ex_tar,ex_zip"
           bash build_web.zsh
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
