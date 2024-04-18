@@ -1,25 +1,25 @@
 name: wasm
 
-# on:
-#   push:
-#     branches:
-#       - main
-#   pull_request:
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
-  build-build:
+  build:
     name: wasm
     strategy:
       matrix:
         build: [linux]
         include:
           - build: linux
-            os: ubuntu-22.04
+            os: ubuntu-lastest
             rust: nightly
             target: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.os }}-test
@@ -34,8 +34,9 @@ jobs:
           export RUSTFLAGS="-Awarnings"
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
           rustup target add wasm32-unknown-unknown
-          #cargo install wasm-pack
           export PATH="$PATH:/home/runner/.cargo/bin/"
+          cargo install wasm-pack
+
           bash build_web.zsh
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
