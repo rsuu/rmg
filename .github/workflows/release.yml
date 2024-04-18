@@ -1,0 +1,113 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  create-release:
+    name: release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      bin_version: ${{ env.BIN_VERSION }}
+    steps:
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}-release
+      - name: Get the release version from the tag
+        shell: bash
+        if: env.BIN_VERSION == ''
+        run: |
+          echo "BIN_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "version is: ${{ env.BIN_VERSION }}"
+      - name: Create GitHub release
+        id: release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.BIN_VERSION }}
+          release_name: ${{ env.BIN_VERSION }}
+
+  build-release:
+    name: build-release
+    needs: ["create-release"]
+    strategy:
+      matrix:
+        build: [linux, linux-arm, macos, win-msvc, win-gnu, win32-msvc]
+        include:
+          - build: linux-x86_64
+            os: ubuntu-latest
+            rust: nightly
+            target: x86_64-unknown-linux-gnu
+          - build: linux-aarch64
+            os: ubuntu-latest
+            rust: nightly
+            target: aarch64-unknown-linux-gnu
+          - build: macos
+            os: macos-latest
+            rust: nightly
+            target: x86_64-apple-darwin
+          - build: win-msvc
+            os: windows-latest
+            rust: nightly
+            target: x86_64-pc-windows-msvc
+          - build: win-gnu
+            os: windows-latest
+            rust: nightly-x86_64-gnu
+            target: x86_64-pc-windows-gnu
+    runs-on: ${{ matrix.os }}
+    outputs:
+      upload_url: ${{ steps.release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+
+      - name: Add mingw64 to path for x86_64
+        run: echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
+        if: matrix.rust == 'nightly'
+        shell: bash
+
+      - name: Build
+        shell: bash
+        run: |
+          export RUSTFLAGS="-Awarnings"
+          cargo build --release
+
+      - name: Build archive
+        shell: bash
+        run: |
+          staging="rmg_${{ matrix.build }}_${{ needs.create-release.outputs.bin_version }}"
+          mkdir -p "$staging"
+
+          cp {README.md,LICENSE-MIT,LICENSE-APACHE} "$staging/"
+
+          if [ "${{ matrix.os }}" = "windows-lastest" ]; then
+            cp target/release/rmg.exe "$staging/"
+            7z a "$staging.zip" "$staging"
+            echo "ASSET=$staging.zip" >> $GITHUB_ENV
+          else
+            cp target/release/rmg "$staging/"
+            tar czf "$staging.tar.gz" "$staging"
+            echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+          fi
+
+      - name: Upload Release Asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream
+
+
+# REFS: https://github.com/BurntSushi/ripgrep/blob/master/.github/workflows/release.yml

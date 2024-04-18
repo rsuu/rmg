@@ -1,0 +1,10 @@
+* {
+  /* Disables pull-to-refresh but allows overscroll glow effects. */
+  overscroll-behavior-y: contain;
+}
+
+canvas {
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  object-fit: contain;
+}

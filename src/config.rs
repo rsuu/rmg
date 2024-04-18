@@ -1,0 +1,309 @@
+pub mod history;
+// pub mod cache;
+
+use crate::*;
+
+use esyn::{Esyn, EsynBuilder, EsynDe};
+use pico_args::Arguments;
+use std::{fs::File, io::Read, process::exit};
+
+const DEFAULT_CONFIG: &str = include_str!("../assets/config.rs");
+
+#[derive(Debug, Default, EsynDe)]
+pub struct Config {
+    pub app: ConfApp,
+    pub window: ConfWindow,
+    pub canvas: ConfCanvas,
+    pub page: ConfPage,
+    pub misc: ConfMisc,
+}
+
+#[derive(Debug, Default, EsynDe)]
+pub struct ConfApp {
+    // workdir
+    pub path: String,
+}
+
+#[derive(Debug, Default, EsynDe)]
+struct ConfWindow {
+    pub borderless: bool,
+    pub invert_mouse: bool,
+}
+
+#[derive(Debug, Default, EsynDe)]
+pub struct ConfCanvas {
+    pub size: Size, // (default: win_size)
+
+    pub layout: Layout,
+
+    pub step_x: f32,
+    pub step_y: f32,
+
+    pub bg: u32,
+    pub cache_limit: u32,
+    pub mode: Mode,
+
+    // unused
+    pub font_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Default, EsynDe)]
+pub struct ConfPage {
+    pub image_resize_algo: WrapResizeAlg,
+    pub anime_resize_algo: WrapResizeAlg,
+}
+
+#[derive(Debug, Default, EsynDe)]
+pub struct ConfMisc {
+    pub padding_filename: u8,
+}
+
+impl Config {
+    pub fn new() -> eyre::Result<Self> {
+        let esyn = Esyn::new(DEFAULT_CONFIG);
+        esyn.init()?;
+        // dbg!(&esyn);
+
+        let app = EsynBuilder::new()
+            .set_fn("app")
+            .flag_res()
+            .get::<ConfApp>(&esyn)?
+            .get();
+
+        let window = EsynBuilder::new()
+            .set_fn("window")
+            .flag_res()
+            .get::<ConfWindow>(&esyn)?
+            .get();
+
+        let canvas = EsynBuilder::new()
+            .set_fn("canvas")
+            .flag_res()
+            .get::<ConfCanvas>(&esyn)?
+            .get();
+
+        let page = EsynBuilder::new()
+            .set_fn("page")
+            .flag_res()
+            .get::<ConfPage>(&esyn)?
+            .get();
+
+        let misc = EsynBuilder::new()
+            .set_fn("misc")
+            .flag_res()
+            .get::<ConfMisc>(&esyn)?
+            .get();
+
+        Ok(Self {
+            app,
+            window,
+            canvas,
+            page,
+            misc,
+        })
+    }
+
+    pub fn update(&mut self) -> eyre::Result<()> {
+        self.update_file()?;
+        // self.update_env()?;
+        self.update_cli()?;
+
+        // dbg!(&self);
+
+        Ok(())
+    }
+
+    // from config file
+    pub fn update_file(&mut self) -> eyre::Result<()> {
+        let config = {
+            let mut config_path = PathBuf::new();
+
+            // e.g. ~/.config/rmg/config.rs
+            let Some(path) = dirs_next::config_dir() else {
+                // skip
+                // ?create
+                return Ok(());
+            };
+
+            if path.as_path().is_dir() {
+                config_path.push(path.as_path());
+                config_path.push("rmg/config.rs");
+
+            // skip
+            } else if !config_path.as_path().is_file() {
+                return Ok(());
+            }
+
+            // tracing::debug!("config_path: {:?}", config_path);
+
+            let mut f = File::open(&config_path)?;
+            let mut res = "".to_string();
+            f.read_to_string(&mut res)?;
+
+            res
+        };
+
+        let esyn = Esyn::new(config.as_str());
+        esyn.init()?;
+
+        let app = EsynBuilder::new()
+            .set_fn("app")
+            .flag_res()
+            .get::<ConfApp>(&esyn)?
+            .get();
+
+        let window = EsynBuilder::new()
+            .set_fn("window")
+            .flag_res()
+            .get::<ConfWindow>(&esyn)?
+            .get();
+
+        let canvas = EsynBuilder::new()
+            .set_fn("canvas")
+            .flag_res()
+            .get::<ConfCanvas>(&esyn)?
+            .get();
+
+        let page = EsynBuilder::new()
+            .set_fn("page")
+            .flag_res()
+            .get::<ConfPage>(&esyn)?
+            .get();
+
+        let misc = EsynBuilder::new()
+            .set_fn("misc")
+            .flag_res()
+            .get::<ConfMisc>(&esyn)?
+            .get();
+
+        *self = Self {
+            app,
+            window,
+            canvas,
+            page,
+            misc,
+        };
+
+        Ok(())
+    }
+
+    pub fn update_env(&mut self) {}
+
+    pub fn update_cli(&mut self) -> eyre::Result<()> {
+        let mut args = Arguments::from_env();
+
+        // ConfWindow
+        if let Some(v) = args.opt_value_from_str::<_, bool>("--window-invert-mouse")? {
+            self.window.invert_mouse = v;
+        }
+        if let Some(v) = args.opt_value_from_str::<_, bool>("--window-borderless")? {
+            self.window.borderless = v;
+        }
+
+        // ConfCanvas
+        if let Some(v) = args.opt_value_from_str::<_, String>("--canvas-size")? {
+            let (w, h) = v.split_once('x').unwrap();
+            self.canvas.size = Size::new(w.parse().unwrap(), h.parse().unwrap());
+        }
+        if let Some(v) = args.opt_value_from_str::<_, String>("--canvas-layout")? {
+            self.canvas.layout = {
+                match v.as_str() {
+                    "vertical" | "scroll" => Layout::Vertical,
+                    "double" => Layout::Double,
+                    _ => unimplemented!(),
+                }
+            };
+        }
+
+        // ConfMisc
+        if let Some(v) = args.opt_value_from_str::<_, u8>("--padding-filename")? {
+            self.misc.padding_filename = v;
+        }
+
+        if let Some(v) = args.opt_value_from_str::<_, bool>("--help")? {
+            println!("{}", gen_help().as_str());
+
+            exit(0);
+        }
+
+        // ConfApp
+        self.app.path = args.free_from_str().unwrap();
+
+        Ok(())
+    }
+
+    pub fn path(&self) -> &str {
+        self.app.path.as_str()
+    }
+
+    pub fn canvas_size(&self) -> Size {
+        self.canvas.size
+    }
+
+    pub fn canvas_step(&self) -> Vec2 {
+        Vec2::new(self.canvas.step_x, self.canvas.step_y)
+    }
+
+    pub fn canvas_cache_limit(&self) -> f32 {
+        self.canvas.cache_limit as f32
+    }
+
+    pub fn bg(&self) -> u32 {
+        self.canvas.bg
+    }
+
+    pub fn layout(&self) -> &Layout {
+        &self.canvas.layout
+    }
+
+    pub fn page_image_resize_algo(&self) -> fir::ResizeAlg {
+        self.page.image_resize_algo.into()
+    }
+
+    pub fn page_anime_resize_algo(&self) -> fir::ResizeAlg {
+        self.page.anime_resize_algo.into()
+    }
+}
+
+// struct  KeyMap<T = char> {
+//     pub up: T,
+//     pub down: T,
+//     pub left: T,
+//     pub right: T,
+//     pub exit: T,
+//     pub fullscreen: T,
+// }
+
+pub fn gen_help() -> String {
+    format!(
+        r#"
+rmg {VERSION}
+
+Tiny And Fast Manga/Image Viewer
+
+USAGE:
+    rmg [OPTIONS] [FLAGS] <path>
+
+ARGS:
+    <path> A file or directory.
+
+FLAGS:
+
+OPTIONS:
+    -h, --help
+            Prints help information.
+        --config
+            Specify the config path.
+        --padding-filename
+            Padding filename with `0`.
+
+OPTIONS(for canvas):
+        --canvas-size
+            Specify the width and the height.
+            e.g. `rmg --canvas-size 900x900`
+        --canvas-layout
+            Specify layout.
+            e.g. `rmg --canvas-layout double`
+"#,
+    )
+}
