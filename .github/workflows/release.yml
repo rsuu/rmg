@@ -19,16 +19,16 @@ jobs:
     needs: ["create-release"]
     strategy:
       matrix:
-        build: [linux, linux-arm, macos, win-msvc]
+        build: [linux, linux-x11, macos, win-msvc]
         include:
           - build: linux
             os: ubuntu-latest
             rust: nightly
             target: x86_64-unknown-linux-gnu
-          - build: linux-arm
+          - build: linux-x11
             os: ubuntu-latest
             rust: nightly
-            target: arm-unknown-linux-gnueabihf
+            target: x86_64-unknown-linux-gnu
           - build: macos
             os: macos-latest
             rust: nightly
@@ -55,7 +55,10 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          if [ "${{ matrix.build }}" = "linux-x11" ]; then
+          sudo apt update -y
+          sudo apt install -y libx11-dev
+          elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
           sudo apt update -y
           sudo apt install -y curl gcc clang libudev-dev libgbm-dev libxkbcommon-dev libegl1-mesa-dev libwayland-dev libinput-dev libdbus-1-dev libsystemd-dev libseat-dev libpipewire-0.3-dev libpango1.0-dev libwayland-egl1-mesa libwayland-client++0 libwayland-client-extra++0
           fi

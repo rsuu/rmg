@@ -17,7 +17,7 @@ pub struct Frame {
     pub data: FrameData,
 
     pub size: Size,
-    pub vertex: RectVertex,
+    pub vertex: Rect,
 }
 
 #[derive(Clone)]
@@ -163,7 +163,7 @@ pub enum FrameTy {
 }
 
 impl Frame {
-    pub fn vertex(&self) -> &RectVertex {
+    pub fn vertex(&self) -> &Rect {
         &self.vertex
     }
 
@@ -323,10 +323,12 @@ impl Frame {
             }
         };
 
+        let vertex = Rect::new_at_zero(dst_size);
+
         Ok(Self {
             fmt,
             data,
-            vertex: RectVertex::from_size(dst_size),
+            vertex,
             size: dst_size,
         })
     }
@@ -368,7 +370,7 @@ impl FrameData {
 
                 // unready
                 } else {
-                    *delay += (1000.0 / 24.0);
+                    *delay += 1000.0 / 24.0;
                 }
 
                 &data[*index]
@@ -407,7 +409,7 @@ impl Default for Frame {
                 data: Pixels::RGBA { inner: vec![] },
             },
             size: Size::default(),
-            vertex: RectVertex::default(),
+            vertex: Rect::default(),
         }
     }
 }

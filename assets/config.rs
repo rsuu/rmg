@@ -1,7 +1,11 @@
 fn main() {}
 
 fn app() -> Any {
-    Any { path: "./" }
+    Any {
+        target: "./",
+        gestures_zip: "./assets/gestures.zip",
+        min_gesture_score: 0.9,
+    }
 }
 
 fn window() -> Any {
@@ -20,7 +24,9 @@ fn canvas() -> Any {
             height: 600,
         },
 
-        layout: Layout::Vertical,
+        layout: Layout::Vertical {
+            align: Align::Center,
+        },
 
         step_x: 100.0,
         step_y: 100.0,
@@ -43,5 +49,11 @@ fn page() -> Any {
 fn misc() -> Any {
     Any {
         padding_filename: 10,
+    }
+}
+
+fn once() -> Any {
+    Any {
+        record_gesture_name: None,
     }
 }

@@ -29,13 +29,17 @@ use {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 fn main() {
+    inner_main().unwrap();
+}
+
+fn inner_main() -> eyre::Result<()> {
     init_log();
 
     let config = Config::new().unwrap();
 
     let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
-    let win_size = config.canvas_size();
+    let win_size = config.canvas.size;
     let mut size = LogicalSize::new(win_size.width(), win_size.height());
     let window = Rc::new(
         WindowBuilder::new()
@@ -57,7 +61,8 @@ fn main() {
         .unwrap();
     dbg!("INFO: web-sys");
 
-    let context = softbuffer::Context::new(window.clone()).unwrap();
+    let context =
+        softbuffer::Context::new(window.clone()).or_else(|e| Err(eyre::eyre!("{e:#?}")))?;
     let mut surface = softbuffer::Surface::new(&context, window.clone()).unwrap();
     dbg!("INFO: softbuffer");
 
@@ -189,6 +194,8 @@ fn main() {
     //
     //     window.request_redraw();
     // });
+
+    Ok(())
 }
 
 // fn request_animation_frame(f: &Closure<dyn FnMut()>) {

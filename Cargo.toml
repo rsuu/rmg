@@ -78,37 +78,49 @@ resvg = { version = "0.41.0", optional = true, default-features = false, feature
 tar = { version = "0.4.40", default-features = false, optional = true }
 zip = { version = "0.6.6", default-features = false, features = [
   "deflate",
-], optional = true }
+] }
 
 # config
 dirs-next = "2.0.0"
 esyn = "0.9.0"
 
-# misc
+# thread
+rayon = "1.10.0"
+
+# cli
+pico-args = "0.5.0"
+
+# log
+#minitrace = "0.6.4"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+tracing = "0.1.40"
 eyre = { version = "0.6.12", default-features = false, features = [
   "track-caller",
   "auto-install",
 ] }
-walkdir = "2.5.0"
-pico-args = "0.5.0"
-rayon = "1.10.0"
+
+# math
 gcd = "2.3.0"
-pollster = "0.3.0"
+
+# gesture
+guessture = "0.1.0"
+
+# io
+walkdir = "2.5.0"
 
 [features]
-default = ["win_wayland", "ex_full"]
+default = ["win_wayland"]
+full = ["ex_full", "de_full"]
 win_wayland = ["winit/wayland", "softbuffer/wayland"]
 win_x11 = ["winit/x11", "softbuffer/x11"]
-# full = ["ex_full", "de_full"]
 arch_avx2 = []
 arch_sse4_1 = []
 de_full = ["de_heic", "de_aseprite", "de_svg"]
 de_aseprite = ["dep:asefile"]
 de_heic = ["dep:libheif-rs"]
 de_svg = ["dep:usvg", "dep:tiny-skia", "dep:resvg"]
-ex_full = ["ex_tar", "ex_zip"]
+ex_full = ["ex_tar"]
 ex_tar = ["dep:tar"]
-ex_zip = ["dep:zip"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_log = "1.0"
@@ -118,7 +130,7 @@ wasm-bindgen = "0.2.92"
 web-sys = { version = "0.3.69", features = ["Document", "Window", "Element"] }
 
 [target.'cfg(target_arch = "wasm32")'.features]
-default = ["ex_full"]
+default = []
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

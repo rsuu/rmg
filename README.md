@@ -1,6 +1,6 @@
 # rmg
 
-*Rust: Tiny And Fast Manga/Image Viewer*
+**Rust: Tiny And Fast Manga/Image Viewer**
 
 ## Demo
 
@@ -33,59 +33,75 @@ cargo build --release
 ```bash
 rmg --help
 
-rmg --data tests/bit/png
+rmg tests/bit/png
 
-rmg --data file.zip
+rmg file.zip
 
 # rmg file.gif
 
-rmg --canvas-size 600x600 --data file.zip
+rmg --canvas-size 600x600 file.zip
 
-rmg --canvas-size 600x600 --config ./tests/other/config.rs --data file.zip
+rmg --canvas-size 600x600 --config ./assets/config.rs file.zip
 ```
 
-## KeyMap
+## Keymap
 
-|Key| |
-|:-|:-|
-k/Up    | move up
-j/Down  | move down
-h/Left  | move left
-r/Right | move right
-q       | quit
+|Key     | Action              |
+|:-      |:-                   |
+|k/Up    | move up             |
+|j/Down  | move down           |
+|h/Left  | move left           |
+|r/Right | move right          |
+|g       | toggle gesture mode |
+|q       | quit                |
 
-## Configuration
+## Mouse Binding
 
-> config: https://raw.githubusercontent.com/rsuu/rmg/main/tests/other/config.rs
+|Key          | Action    |  Mode       |
+|:-           |:-         |:-           |
+| scroll up   | move up   | Vertical    |
+| scroll down | move down | Vertical    |
+| scroll up   | zoom out  | Single      |
+| scroll down | zoom in   | Single      |
+
+## Gesture
+
+|Gesture| Action   |
+|:-     |:-        |
+|rect   |          |
+|ring   |          |
+
+## Config
+
+> config: https://raw.githubusercontent.com/rsuu/rmg/main/assets/config.rs
 
 NOTE: You must create the file first.
 
-+ Config file path
++ Config path
   + Linux: `$HOME/.config/rmg/config.rs`
   + Mac: `$HOME/Library/Application Support/rmg/config.rs`
   + Windows: `C:\Users\<USER>\AppData\<USER>\rmg\config.rs`
 
 ## Supported Formats
 
-| Format | Supported | Default | Dependency
-|:-|:-|:-|:-|
-.jpg       | +     | + |
-.png       | +     | + |
-.webp      | +     | + |
-.heic/avif | +     | - | libheif
-.gif       | (dev) | + |
-.aseprite  | (dev) | - |
-.svg       | (dev) | - |
+| Format    | Supported | Default | Dependency|
+|:-         |:-         |:-       |:-         |
+|.jpg       | +         | +       |           |
+|.png       | +         | +       |           |
+|.webp      | +         | +       |           |
+|.heic/avif | +         |         | libheif   |
+|.gif       | (dev)     | +       |           |
+|.aseprite  | (dev)     |         |           |
+|.svg       | (dev)     |         |           |
 
-| Format | Supported | Default | Dependency
-|:-|:-|:-|:-|
-directory | + | + |
-.tar      | + | + |
-.zip/cbz  | + | + |
-.7z       | - | - |
-.rar      | - | - |
-.zst      | - | - |
-
+| Format   | Supported | Default | Dependency|
+|:-        |:-         |:-       |:-         |
+|directory | +         | +       |           |
+|.tar      | +         |         |           |
+|.zip/cbz  | +         | +       |           |
+|.7z       |           |         |           |
+|.rar      |           |         |           |
+|.zst      |           |         |           |
 
 ## Features
 

@@ -2,16 +2,18 @@ pub mod archive;
 pub mod canvas;
 pub mod config;
 pub mod frame;
+pub mod shape;
 pub mod ui;
 pub mod utils;
 pub mod window;
 
 pub use {
     archive::*,
-    canvas::{buffer::*, draw::*, layout::*, page::*, task::*, *},
+    canvas::{buffer::*, draw::*, gesture::*, layout::*, page::*, state::*, task::*, *},
     config::*,
     frame::*,
-    ui::{style::*, tags::*, *},
+    shape::{circle::*, rect::*},
+    ui::{elem::*, style::*, *},
     utils::{filter::*, size::*, vec2::*, *},
     window::*,
 };

@@ -1,6 +1,8 @@
+use crate::*;
+
 use esyn::EsynDe;
 
-#[derive(Debug, Default, EsynDe, PartialEq)]
+#[derive(Debug, Clone, Copy, EsynDe, PartialEq)]
 pub enum Layout {
     //
     //  +------------------+
@@ -16,21 +18,20 @@ pub enum Layout {
     //  | .  .  .  .  .  . |
     //  +------------------+
     //
-    #[default]
-    Vertical,
+    Vertical { align: Align },
 
     //
     //               (right to left)
-    //  +----+----+----+----+
-    //  |    |    |    |    |
-    //  |    |    |    |    |
-    //  | P1 | P2 | P3 | .. |
-    //  |    |    |    |    |
-    //  |    |    |    |    |
-    //  +----+----+----+----+
+    //  +--------+------+----+
+    //  |        |      |    |
+    //  |        |      |    |
+    //  |   P1   |  P2  | .. |
+    //  |        |      |    |
+    //  |        |      |    |
+    //  +--------+------+----+
     // (left to right)
     //
-    Horizontal,
+    Horizontal { align: Align },
 
     //
     //  +------------------+
@@ -41,7 +42,7 @@ pub enum Layout {
     //  |                  |
     //  +------------------+
     //
-    Single,
+    Single { zoom: f32, mouse_pos: Vec2 },
 
     //
     //  +--------+--------+
@@ -58,10 +59,11 @@ pub enum Layout {
     //  |        |        |
     //  +--------+--------+
     //
-    Double,
+    Double { align: Align, gap: Gap },
+
+    Multi { nums: usize },
 
     Gallery,
-    SingleImage,
 
     //
     // fixed width
@@ -101,11 +103,7 @@ pub enum Layout {
     //  |         |         |
     //  +---------+---------+
     //
-    Masonry {
-        cols: u32,
-        gap_x: u32,
-        gap_y: u32,
-    },
+    Masonry { cols: u32, gap: Gap },
 
     //
     //  +--------+--------+
@@ -122,9 +120,7 @@ pub enum Layout {
     //  |        |        |
     //  +--------+--------+
     //
-    Grid {
-        cols: u32,
-    },
+    Grid { cols: u32 },
     //  +------+------------+------------+------+
     //  |      |            |            |      |
     //  |  P1  |     P2     |     P5     |  P6  |
@@ -147,13 +143,44 @@ pub enum Layout {
     //
 }
 
+#[derive(Debug, Default, Clone, Copy, EsynDe, PartialEq)]
+pub struct Gap<T = f32> {
+    pub x: T,
+    pub y: T,
+}
+
+#[derive(Debug, Default, Clone, Copy, EsynDe, PartialEq)]
+pub enum Align {
+    #[default]
+    Center,
+
+    Left,
+    Right,
+}
+
+impl Gap {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
 impl Layout {
     fn as_str(&self) -> &'static str {
         match self {
-            Self::Vertical => "VERTICAL",
-            Self::Double => "DOUBLE",
+            Self::Vertical { .. } => "VERTICAL",
+            Self::Horizontal { .. } => "HORIZONTAL",
+            Self::Double { .. } => "DOUBLE",
+            Self::Multi { .. } => "MULTI",
             Self::Masonry { .. } => "MASONRY",
             _ => todo!(),
+        }
+    }
+}
+
+impl Default for Layout {
+    fn default() -> Self {
+        Self::Vertical {
+            align: Align::default(),
         }
     }
 }

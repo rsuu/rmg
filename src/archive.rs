@@ -204,10 +204,7 @@ pub fn pad_name(width: usize, name: &str) -> String {
     let filename = format!("/{name}.{suffix}");
     path.push(PathBuf::from("filename").as_path());
 
-    // tracing::trace!(
-    //     "pad_name()\n\tpath = {:?}",
-    //     &path
-    // );
+    // tracing::debug!(path = path);
 
     path.display().to_string()
 }

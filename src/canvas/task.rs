@@ -1,20 +1,8 @@
 use crate::*;
 
-use pollster;
 use std::sync::{Arc, OnceLock, RwLock};
 
 pub static THREAD_GET_ALL_FRAME_SIZE: OnceLock<Pages> = OnceLock::new();
-
-pub fn thread_get_all_frame_size(mut pages: Pages, data: Arc<DataType>) {
-    // TODO: https://doc.rust-lang.org/std/async_iter/index.html
-    for page in pages.iter_mut() {
-        let index = page.index;
-
-        page.set_size(&data, false).unwrap();
-    }
-
-    THREAD_GET_ALL_FRAME_SIZE.get_or_init(|| pages);
-}
 
 pub struct Pool {
     inner: rayon::ThreadPool,
@@ -29,7 +17,7 @@ impl Pool {
         }
     }
 
-    pub fn task_set_size(&self, page: &mut Page, data: Arc<DataType>) {
+    pub fn task_load(&self, page: &mut Page, data: Arc<DataType>) {
         let index = page.index;
         let list = self.list.clone();
 
@@ -40,7 +28,7 @@ impl Pool {
             let task = &mut list[index];
 
             if task.frame.size.is_zero() {
-                task.set_size(&data, true).unwrap();
+                task.load(&data, true).unwrap();
                 // dbg!(task.frame.size);
             }
         });

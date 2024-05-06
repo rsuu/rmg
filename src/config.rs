@@ -16,12 +16,23 @@ pub struct Config {
     pub canvas: ConfCanvas,
     pub page: ConfPage,
     pub misc: ConfMisc,
+    pub once: ConfOnce,
+    // TODO: MouseMap
+    // ?KeyMap
+}
+
+#[derive(Debug, Default, EsynDe)]
+pub struct ConfOnce {
+    pub record_gesture_name: Option<String>,
 }
 
 #[derive(Debug, Default, EsynDe)]
 pub struct ConfApp {
-    // workdir
-    pub path: String,
+    pub target: PathBuf,
+
+    // TODO: $XDG_DATA_HOME/rmg/gestures.zip
+    pub gestures_zip: String,
+    pub min_gesture_score: f32,
 }
 
 #[derive(Debug, Default, EsynDe)]
@@ -60,7 +71,11 @@ pub struct ConfMisc {
 
 impl Config {
     pub fn new() -> eyre::Result<Self> {
-        let esyn = Esyn::new(DEFAULT_CONFIG);
+        Self::from_str(DEFAULT_CONFIG)
+    }
+
+    fn from_str(s: &str) -> eyre::Result<Self> {
+        let esyn = Esyn::new(s);
         esyn.init()?;
         // dbg!(&esyn);
 
@@ -94,12 +109,19 @@ impl Config {
             .get::<ConfMisc>(&esyn)?
             .get();
 
+        let once = EsynBuilder::new()
+            .set_fn("once")
+            .flag_res()
+            .get::<ConfOnce>(&esyn)?
+            .get();
+
         Ok(Self {
             app,
             window,
             canvas,
             page,
             misc,
+            once,
         })
     }
 
@@ -143,46 +165,7 @@ impl Config {
             res
         };
 
-        let esyn = Esyn::new(config.as_str());
-        esyn.init()?;
-
-        let app = EsynBuilder::new()
-            .set_fn("app")
-            .flag_res()
-            .get::<ConfApp>(&esyn)?
-            .get();
-
-        let window = EsynBuilder::new()
-            .set_fn("window")
-            .flag_res()
-            .get::<ConfWindow>(&esyn)?
-            .get();
-
-        let canvas = EsynBuilder::new()
-            .set_fn("canvas")
-            .flag_res()
-            .get::<ConfCanvas>(&esyn)?
-            .get();
-
-        let page = EsynBuilder::new()
-            .set_fn("page")
-            .flag_res()
-            .get::<ConfPage>(&esyn)?
-            .get();
-
-        let misc = EsynBuilder::new()
-            .set_fn("misc")
-            .flag_res()
-            .get::<ConfMisc>(&esyn)?
-            .get();
-
-        *self = Self {
-            app,
-            window,
-            canvas,
-            page,
-            misc,
-        };
+        *self = Self::from_str(&config)?;
 
         Ok(())
     }
@@ -201,15 +184,26 @@ impl Config {
         }
 
         // ConfCanvas
-        if let Some(v) = args.opt_value_from_str::<_, String>("--canvas-size")? {
+        if let Some(v) = args.opt_value_from_str::<_, String>("--size")? {
             let (w, h) = v.split_once('x').unwrap();
             self.canvas.size = Size::new(w.parse().unwrap(), h.parse().unwrap());
         }
-        if let Some(v) = args.opt_value_from_str::<_, String>("--canvas-layout")? {
+        if let Some(v) = args.opt_value_from_str::<_, String>("--layout")? {
             self.canvas.layout = {
-                match v.as_str() {
-                    "vertical" | "scroll" => Layout::Vertical,
-                    "double" => Layout::Double,
+                match v.to_uppercase().as_str() {
+                    "V" | "VERTICAL" | "SCROLL" => Layout::Vertical {
+                        align: Align::default(),
+                    },
+                    "D" | "DOUBLE" => Layout::Double {
+                        align: Default::default(),
+                        gap: Default::default(),
+                    },
+                    "H" | "SINGLE" => Layout::Horizontal { align: Align::Left },
+                    "S" | "SINGLE" => Layout::Single {
+                        zoom: 1.0,
+                        mouse_pos: Vec2::default(),
+                    },
+
                     _ => unimplemented!(),
                 }
             };
@@ -227,17 +221,9 @@ impl Config {
         }
 
         // ConfApp
-        self.app.path = args.free_from_str().unwrap();
+        self.app.target = args.free_from_str().unwrap();
 
         Ok(())
-    }
-
-    pub fn path(&self) -> &str {
-        self.app.path.as_str()
-    }
-
-    pub fn canvas_size(&self) -> Size {
-        self.canvas.size
     }
 
     pub fn canvas_step(&self) -> Vec2 {
@@ -297,13 +283,13 @@ OPTIONS:
         --padding-filename
             Padding filename with `0`.
 
-OPTIONS(for canvas):
-        --canvas-size
+OPTIONS(for Canvas):
+        --size
             Specify the width and the height.
-            e.g. `rmg --canvas-size 900x900`
-        --canvas-layout
+            e.g. `rmg --size 900x900`
+        --layout
             Specify layout.
-            e.g. `rmg --canvas-layout double`
+            e.g. `rmg --layout double`
 "#,
     )
 }

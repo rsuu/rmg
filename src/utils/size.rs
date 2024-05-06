@@ -1,6 +1,7 @@
+use std::ops::Mul;
+
 use esyn::EsynDe;
 
-// TODO: use f32
 #[derive(Debug, Clone, Copy, Default, EsynDe, PartialEq, Eq)]
 pub struct Size<T = f32> {
     pub width: T,
@@ -73,12 +74,20 @@ impl Size {
     }
 
     pub fn is_zero(&self) -> bool {
-        (self.width * self.height) == 0.0
+        self.len() == 0
     }
 }
 
 impl MetaSize {
     pub fn new(canvas: Size, window: Size) -> Self {
         Self { window, canvas }
+    }
+}
+
+impl Mul<f32> for Size {
+    type Output = Size;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self::new(self.width() * rhs, self.height() * rhs)
     }
 }
