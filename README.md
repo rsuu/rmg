@@ -55,8 +55,6 @@ rmg --canvas-size 600x600 --config ./assets/config.rs file.zip
 |g       | toggle gesture mode |
 |q       | quit                |
 
-## Mouse Binding
-
 |Key          | Action    |  Mode       |
 |:-           |:-         |:-           |
 | scroll up   | move up   | Vertical    |
