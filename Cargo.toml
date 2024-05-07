@@ -1,7 +1,7 @@
 [package]
 name = "rmg"
 edition = "2021"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["RSUU <rsuuyu@gmail.com>"]
 description = ""
 homepage = "https://crates.io/crates/rmg"
@@ -109,7 +109,7 @@ guessture = "0.1.0"
 walkdir = "2.5.0"
 
 [features]
-default = ["win_wayland"]
+default = []
 full = ["ex_full", "de_full"]
 win_wayland = ["winit/wayland", "softbuffer/wayland"]
 win_x11 = ["winit/x11", "softbuffer/x11"]
@@ -122,15 +122,15 @@ de_svg = ["dep:usvg", "dep:tiny-skia", "dep:resvg"]
 ex_full = ["ex_tar"]
 ex_tar = ["dep:tar"]
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
+[target.'cfg(target_family = "wasm")'.dependencies]
 console_log = "1.0"
 console_error_panic_hook = "0.1.7"
 #wasm-bindgen-futures = "0.4.30"
 wasm-bindgen = "0.2.92"
 web-sys = { version = "0.3.69", features = ["Document", "Window", "Element"] }
 
-[target.'cfg(target_arch = "wasm32")'.features]
-default = []
+# [target.'cfg(target_family = "wasm")'.features]
+# default = []
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

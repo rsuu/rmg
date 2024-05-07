@@ -38,10 +38,15 @@ jobs:
             rust: nightly
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
-    outputs:
-      upload_url: ${{ steps.release.outputs.upload_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+      - name: git lfs
+        uses: actions/checkout@v4
+        shell: bash
+        run: |
+          git lfs pull
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -52,28 +57,31 @@ jobs:
         shell: bash
         run: |
           echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
-      - name: Install dependencies
-        shell: bash
-        run: |
-          if [ "${{ matrix.build }}" = "linux-x11" ]; then
-          sudo apt update -y
-          sudo apt install -y libx11-dev
-          elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-          sudo apt update -y
-          sudo apt install -y curl gcc clang libudev-dev libgbm-dev libxkbcommon-dev libegl1-mesa-dev libwayland-dev libinput-dev libdbus-1-dev libsystemd-dev libseat-dev libpipewire-0.3-dev libpango1.0-dev libwayland-egl1-mesa libwayland-client++0 libwayland-client-extra++0
-          fi
       - name: Build
         shell: bash
         run: |
           export RUSTFLAGS="-Awarnings"
-          cargo build --release
+
+          if [ "${{ matrix.build }}" = "linux-x11" ]; then
+              sudo apt update -y
+              sudo apt install -y libx11-dev libx11-xcb-dev
+
+              cargo build --release -F win_x11
+          elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+              sudo apt update -y
+              sudo apt install -y curl gcc clang libudev-dev libgbm-dev libxkbcommon-dev libegl1-mesa-dev libwayland-dev libinput-dev libdbus-1-dev libsystemd-dev libseat-dev libpipewire-0.3-dev libpango1.0-dev libwayland-egl1-mesa libwayland-client++0 libwayland-client-extra++0
+
+              cargo build --release -F win_wayland
+          else
+              cargo build --release
+          fi
       - name: Build archive
         shell: bash
         run: |
           staging="rmg_${{ matrix.build }}_${{ github.ref_name }}"
           mkdir -p "$staging"
 
-          cp {README.md,LICENSE-MIT,LICENSE-APACHE} "$staging/"
+          cp {README.md,LICENSE-MIT,LICENSE-APACHE,assets/gestures.zip} "$staging/"
 
           if [ "${{ matrix.os }}" = "windows-lastest" ]; then
             cp target/release/rmg.exe "$staging/"

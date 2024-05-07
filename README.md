@@ -77,10 +77,11 @@ rmg --canvas-size 600x600 --config ./assets/config.rs file.zip
 
 NOTE: You must create the file first.
 
-+ Config path
-  + Linux: `$HOME/.config/rmg/config.rs`
-  + Mac: `$HOME/Library/Application Support/rmg/config.rs`
-  + Windows: `C:\Users\<USER>\AppData\<USER>\rmg\config.rs`
++ Linux: `$HOME/.config/rmg/config.rs`
++ Mac: `$HOME/Library/Application Support/rmg/config.rs`
++ Windows: `C:\Users\<USER>\AppData\<USER>\rmg\config.rs`
+
+see more: https://docs.rs/dirs-next/
 
 ## Supported Formats
 
