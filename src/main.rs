@@ -1,4 +1,4 @@
-use rmg::{window, Config};
+use rmg::{App, Config};
 
 fn main() -> eyre::Result<()> {
     init_log();
@@ -7,7 +7,7 @@ fn main() -> eyre::Result<()> {
     config.update()?;
     tracing::info!("{:#?}", &config);
 
-    window::desktop::main(config)?;
+    App::start(config)?;
 
     Ok(())
 }

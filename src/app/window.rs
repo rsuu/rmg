@@ -24,49 +24,6 @@ use {
     winit::platform::web::{EventLoopExtWebSys, WindowExtWebSys},
 };
 
-pub fn main(config: Config) -> eyre::Result<()> {
-    let record_gesture_name = config.once.record_gesture_name.clone();
-
-    let (mut app, mut window, event_loop) = App::new(config)?;
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        #[wasm_bindgen]
-        extern "C" {
-            #[wasm_bindgen(js_namespace = console)]
-            pub fn log(s: &str);
-
-            #[wasm_bindgen(js_namespace = console, js_name = log)]
-            pub fn log_u32(a: u8);
-
-        }
-
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-
-        web_sys::window()
-            .unwrap()
-            .document()
-            .unwrap()
-            .body()
-            .unwrap()
-            .append_child(&window.canvas().unwrap())
-            .unwrap();
-        log("INFO: web-sys");
-
-        // event_loop.spawn(move |event, elwt| {});
-    }
-
-    window.set_ime_allowed(true);
-
-    if let Some(name) = record_gesture_name {
-        app.run_record_gesture(&window, event_loop)?;
-    } else {
-        app.run(&window, event_loop)?;
-    }
-
-    Ok(())
-}
-
 pub struct App {
     // world: World,
     canvas: Canvas,
@@ -89,6 +46,46 @@ struct EnvVal {
 }
 
 impl App {
+    pub fn start(config: Config) -> eyre::Result<()> {
+        let (mut app, mut window, event_loop) = Self::new(config)?;
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            #[wasm_bindgen]
+            extern "C" {
+                #[wasm_bindgen(js_namespace = console)]
+                pub fn log(s: &str);
+
+                #[wasm_bindgen(js_namespace = console, js_name = log)]
+                pub fn log_u32(a: u8);
+
+            }
+
+            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+            web_sys::window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .body()
+                .unwrap()
+                .append_child(&window.canvas().unwrap())
+                .unwrap();
+            log("INFO: web-sys");
+
+            // event_loop.spawn(move |event, elwt| {});
+        }
+
+        window.set_ime_allowed(true);
+        if let Some(name) = app.config.once.record_gesture_name.clone() {
+            app.run_record_gesture(&window, event_loop)?;
+        } else {
+            app.run(&window, event_loop)?;
+        }
+
+        Ok(())
+    }
+
     fn new(config: Config) -> eyre::Result<(Self, Rc<Window>, EventLoop<()>)> {
         let layout = config.layout().clone();
 
