@@ -82,7 +82,7 @@ zip = { version = "0.6.6", default-features = false, features = [
 
 # config
 dirs-next = "2.0.0"
-esyn = "0.9.0"
+esyn = "0.9.1"
 
 # thread
 rayon = "1.10.0"

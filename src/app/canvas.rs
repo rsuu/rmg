@@ -80,6 +80,9 @@ impl Canvas {
         Ok(Self {
             step: config.canvas_step(),
             buffer: Buffer::new(tmp.clone(), size),
+            // TODO:from config
+            //      from winit
+            // init_size:
             bg_img: tmp,
             dire: PageDirection::default(),
             action: Action::default(),
