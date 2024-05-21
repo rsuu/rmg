@@ -84,7 +84,7 @@ impl Canvas {
             //      from winit
             // init_size:
             bg_img: tmp,
-            dire: PageDirection::default(),
+            page_dire: PageDirection::default(),
             action: Action::default(),
             offset: Vec2::default(),
             cache_factor_up: 0.5,
