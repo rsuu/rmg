@@ -1,9 +1,9 @@
 pub mod dir;
 pub mod file;
+pub mod zip;
 
 // feature
 pub mod tar;
-pub mod zip;
 
 use crate::*;
 
@@ -59,7 +59,7 @@ impl FileList {
                 if fname_padding == 0 {
                     info.path.clone()
                 } else {
-                    pad_name(fname_padding, info.path.as_str())
+                    padding_filename(fname_padding, info.path.as_str())
                 }
             };
 
@@ -190,9 +190,9 @@ impl FileInfo {
 
 // e.g. width = 6
 //     01.jpg        -> 000001.jpg     (rename)
-//     000001.jpg    -> 000001.jpg     (as-is)
-//     000000001.jpg -> 0000000001.jpg (as-is)
-pub fn pad_name(width: usize, name: &str) -> String {
+//     000001.jpg    -> 000001.jpg     (skip)
+//     000000001.jpg -> 0000000001.jpg (skip)
+pub fn padding_filename(width: usize, name: &str) -> String {
     let full = Path::new(name);
 
     let mut path = full.parent().unwrap().to_path_buf();

@@ -159,7 +159,7 @@ impl Frame {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum FrameTy {
     Image,
-    Anime,
+    Anim,
 }
 
 impl Frame {
@@ -336,7 +336,7 @@ impl Frame {
     pub fn ty(&self) -> FrameTy {
         match self.data {
             FrameData::Single { .. } => FrameTy::Image,
-            FrameData::Multi { .. } => FrameTy::Anime,
+            FrameData::Multi { .. } => FrameTy::Anim,
             FrameData::DynSingle { .. } => FrameTy::Image,
         }
     }

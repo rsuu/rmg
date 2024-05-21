@@ -1,17 +1,17 @@
 use crate::*;
 
-use rgb::{RGBA8};
+use rgb::RGBA8;
 
 #[derive(Debug)]
 pub struct Nav {
-    dire: Direction,
+    pub dire: Direction,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct LeaveBlank {
-    rect: Rect,
-    size: Size,
-    bg: RGBA8,
+    pub rect: Rect,
+    pub size: Size,
+    pub bg: RGBA8,
 }
 
 #[derive(Debug)]
@@ -48,5 +48,12 @@ impl Element for LeaveBlank {
 
         canvas.offset.x = 0.0;
         canvas.offset.y += h as f32;
+    }
+
+    fn empty() -> Self
+    where
+        Self: Sized,
+    {
+        Default::default()
     }
 }

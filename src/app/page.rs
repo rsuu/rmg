@@ -1,9 +1,11 @@
+use std::ops::Neg;
+
 use crate::*;
 
 use fir::ResizeAlg;
 use imagesize::blob_size;
 
-pub type Pages = Vec<Page>;
+use self::affine::Affine;
 
 // ?Page.size and Frame.size
 #[derive(Default, Clone)]
@@ -32,11 +34,12 @@ pub enum State {
 impl Page {
     // ClipSpace -> ScreenSpace
     //       f32 -> u32
-    pub fn draw(&mut self, buffer: &mut Buffer, size: Size) {
+    pub fn draw(&mut self, buffer: &mut Buffer) {
+        let size = buffer.size;
+
         // TODO: zoom * frame.size
         let cast_v = self.cast_vertex;
-        let cast_w = self.frame.size.width() as i32;
-        let cast_h = self.frame.size.height() as i32;
+        let fw = self.frame.size.width() as i32;
         let (cw, ch) = (size.width() as i32, size.height() as i32);
 
         let (min_x, min_y, max_x, max_y) = {
@@ -56,12 +59,19 @@ impl Page {
 
         // FIXME(gif): missed first frame
         let frame = self.frame.next_frame().to_argb_bytes();
-        let tolerance = 1;
+        // let tolerance = 1;
 
-        for y in min_y..max_y - tolerance {
-            for x in min_x..max_x - tolerance {
+        for y in min_y..max_y {
+            for x in min_x..max_x {
                 // let index = (size.width() as i32 * y + x) as usize;
 
+                let src = {
+                    let o = cast_v.origin();
+                    let x = x - o.x as i32;
+                    let y = y - o.y as i32;
+
+                    (fw * y + x) as usize
+                };
                 let dst = {
                     // TODO: ?rotate
                     // let c = self.centroid();
@@ -74,15 +84,10 @@ impl Page {
 
                     (cw * y + x) as usize
                 };
-                let src = {
-                    let o = cast_v.origin();
-                    let x = x - o.x as i32;
-                    let y = y - o.y as i32;
 
-                    (cast_w * y + x) as usize
-                };
-
-                buffer[dst] = frame[src];
+                if src < frame.len() {
+                    buffer.vec[dst] = frame[src];
+                }
             }
         }
     }
@@ -139,10 +144,19 @@ impl Page {
         self.frame.flip();
     }
 
+    pub fn zoom_at(&mut self, at: Vec2, factor: f32) {
+        let Vec2 { x, y } = at;
+
+        self.cast_vertex = self.cast_vertex.translate(x.neg(), y.neg());
+        self.cast_vertex = self.cast_vertex.scale(factor, factor);
+        self.cast_vertex = self.cast_vertex.translate(x, y);
+    }
+
     pub fn drag(&mut self, offset: Vec2) {
         let new = self.frame.vertex.drag(offset);
-
         self.cast_vertex = new;
+
+        // self.cast_vertex = self.cast_vertex.drag(offset);
     }
 
     pub fn centroid(&self) -> Vec2 {
@@ -192,4 +206,15 @@ impl Page {
             _ => false,
         }
     }
+}
+
+impl Element for Page {
+    fn empty() -> Self
+    where
+        Self: Sized,
+    {
+        Self::new_empty(0)
+    }
+
+    fn draw(&self, canvas: &mut Canvas) {}
 }

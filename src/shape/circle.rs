@@ -1,10 +1,6 @@
-use rgb::{
-    alt::{ARGB, ARGB8}, RGBA8,
-};
-
 use crate::*;
 
-pub type Path = Vec<f32>;
+use rgb::{alt::ARGB8, RGBA8};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Circle {
@@ -58,9 +54,10 @@ impl Circle {
         inner_circle.outer_rect()
     }
 
-    pub fn draw(&self, buffer: &mut Buffer, size: Size, fill: RGBA8) {
+    pub fn draw(&self, buffer: &mut Buffer, fill: RGBA8) {
         tracing::trace!(func = "Circle::draw()");
 
+        let size = buffer.size;
         let rect = self.outer_rect();
 
         let (cw, ch) = (size.width() as i32, size.height() as i32);
@@ -78,20 +75,23 @@ impl Circle {
                 max_y.clamp(0, ch),
             )
         };
-        let ARGB { a, r, g, b } = ARGB8::from(fill);
+        let ARGB8 { a, r, g, b } = ARGB8::from(fill);
         let fill = u32::from_be_bytes([a, r, g, b]);
 
         // dbg!(&max_y, &max_x, self.origin);
-        // Drawing if `Ray` is at the `Circle`
+        // Draw if `Ray` is at the `Circle`
         for y in min_y..max_y {
             for x in min_x..max_x {
                 let ray = Vec2::new(x as f32, y as f32);
+                // TODO: if outer.include && inner.not_include
                 if self.is_include(ray) {
                     let dst = (cw * y + x) as usize;
 
-                    buffer[dst] = fill;
+                    buffer.vec[dst] = fill;
                 }
             }
         }
     }
 }
+
+// REFS: http://perfectionkills.com/exploring-canvas-drawing-techniques/

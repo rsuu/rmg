@@ -4,7 +4,7 @@ fn app() -> Any {
     Any {
         target: "./",
         gestures_zip: "./assets/gestures.zip",
-        min_gesture_score: 0.9,
+        gesture_min_score: 0.9,
     }
 }
 
@@ -32,7 +32,7 @@ fn canvas() -> Any {
         step_y: 100.0,
 
         cache_limit: 2,
-        mode: Mode::Manga,
+        page_dire: PageDirection::Manga,
 
         // RGBA
         bg: 0x00_00_00_00,

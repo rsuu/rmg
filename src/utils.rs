@@ -1,3 +1,4 @@
+pub mod affine;
 pub mod filter;
 pub mod size;
 pub mod vec2;

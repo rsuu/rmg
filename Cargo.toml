@@ -108,6 +108,9 @@ guessture = "0.1.0"
 # io
 walkdir = "2.5.0"
 
+# text
+# fontdue = "0.9.0"
+
 [features]
 default = []
 full = ["ex_full", "de_full"]

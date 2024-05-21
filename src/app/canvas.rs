@@ -1,16 +1,11 @@
-pub mod buffer;
-pub mod draw;
-pub mod gesture;
-pub mod layout;
-pub mod page;
-pub mod state;
-pub mod task;
-
-use eyre::OptionExt;
+// TODO: App { canvas, }
 
 use crate::*;
 
+use eyre::OptionExt;
 use std::sync::Arc;
+
+pub type Elems = Vec<Page>; // TODO
 
 // 1. LocalSpace(Frame)
 // 2. WorldSpace(Page)
@@ -33,20 +28,19 @@ use std::sync::Arc;
 // min: (0,0)
 // max: (w,h)
 pub struct Canvas {
-    pub config: Config,
-    pub size: Size,
+    pub config: Config, // TODO: rm
     pub buffer: Buffer,
 
-    pub pages: Pages,
+    pub elems: Elems, // TODO: mv to App.elems
     pub page_max_width: f32,
     // pub flag_get_all_frame_size: bool,
     /// view's offset
-    pub offset: Vec2,
+    pub offset: Vec2, // TODO: mv to App
 
     /// mouse step
-    pub step: Vec2,
-    pub mode: Mode,
-    pub action: Action,
+    pub step: Vec2, // TODO: mv to App
+    pub page_dire: PageDirection, // TODO: mv to App
+    pub action: Action,           // TODO: mv to App
     /// background `RGBA` color in `u32` format.
     pub bg: u32,
     /// background image.
@@ -56,9 +50,9 @@ pub struct Canvas {
     cache_factor_up: f32,
     cache_factor_down: f32,
 
-    pool: Pool,
+    pool: Pool, // TODO: mv to App
     /// archive's info.
-    data: Arc<DataType>,
+    data: Arc<DataType>, // TODO: mv to App
     // TODO:
     // min_page_width: f32
     // min_page_height: f32
@@ -76,7 +70,6 @@ impl Canvas {
         // dbg!(&config);
 
         let size = config.canvas.size;
-        let Size { width, height } = size;
 
         let bg = config.bg();
         let tmp = vec![bg; size.len()];
@@ -86,9 +79,9 @@ impl Canvas {
 
         Ok(Self {
             step: config.canvas_step(),
-            buffer: tmp.clone(),
+            buffer: Buffer::new(tmp.clone(), size),
             bg_img: tmp,
-            mode: Mode::default(),
+            dire: PageDirection::default(),
             action: Action::default(),
             offset: Vec2::default(),
             cache_factor_up: 0.5,
@@ -98,13 +91,27 @@ impl Canvas {
             top_line: 0.0,
             page_max_width: size.width(),
             pool: Pool::new(empty_pages.clone()),
-            pages: empty_pages,
-
-            size,
+            elems: empty_pages,
             data,
             bg,
             config,
         })
+    }
+
+    pub fn max_w(&self) -> f32 {
+        self.size().width()
+    }
+
+    pub fn min_w(&self, nums: f32) -> f32 {
+        self.max_w() / nums
+    }
+
+    pub fn max_h(&self) -> f32 {
+        self.size().height()
+    }
+
+    pub fn min_h(&self, nums: f32) -> f32 {
+        self.size().height() / nums
     }
 
     pub fn draw(&mut self) -> eyre::Result<()> {
@@ -132,18 +139,20 @@ impl Canvas {
         Ok(())
     }
 
+    pub fn size(&self) -> Size {
+        self.buffer.size
+    }
+
     pub fn drag(&mut self, offset: Vec2) {
         self.offset += offset;
     }
 
     pub fn push(&mut self, page: Page) {
-        self.pages.push(page);
+        self.elems.push(page);
     }
 
     pub fn reset(&mut self) {
-        self.clamp_offset();
-
-        self.buffer.copy_from_slice(&self.bg_img);
+        self.buffer.vec.copy_from_slice(&self.bg_img);
     }
 
     pub fn move_up(&mut self) {
@@ -155,7 +164,7 @@ impl Canvas {
     pub fn move_down(&mut self) {
         self.offset.y -= self.step.y;
         self.cache_factor_up = 0.5;
-        self.cache_factor_down = 1.0;
+        self.cache_factor_down = 1.0; // TODO: factor -> page nums
     }
 
     pub fn move_left(&mut self) {
@@ -185,13 +194,12 @@ impl Canvas {
     }
 
     pub fn resize(&mut self, new: Size) {
-        self.size = new;
         self.bg_img = vec![self.bg; new.len()];
-        self.buffer = self.bg_img.clone();
+        self.buffer = Buffer::new(self.bg_img.clone(), new);
     }
 
     pub fn center_point(&self) -> Vec2 {
-        Vec2::new(self.size.width() / 2.0, self.size.height() / 2.0)
+        Vec2::new(self.size().width() / 2.0, self.size().height() / 2.0)
     }
 }
 
@@ -201,6 +209,7 @@ impl Canvas {
     //   page: Page
     // }
     pub fn vertical_draw(&mut self) -> eyre::Result<()> {
+        self.clamp_offset();
         self.reset();
 
         let layout = &self.config.canvas.layout;
@@ -209,37 +218,30 @@ impl Canvas {
         };
 
         let view_area = self.view_area(layout);
-        let max_width = self.page_max_width;
+        let max_w = self.page_max_width;
 
-        let cw = self.size.width();
+        let cw = self.size().width();
         let cw_half = cw / 2.0;
 
         let mut elems: Vec<&mut Page> = Vec::with_capacity(10);
         let mut page_offset: Vec2<f32> = Vec2::default();
 
-        'l: for page in self.pages.iter_mut() {
+        'l: for page in self.elems.iter_mut() {
             // no async
             if page.frame.size.is_zero() {
                 page.load(&self.data, false)?;
-                page.dst_size = page.frame.size.resize_by_width(max_width);
-                page.cast_vertex = Rect::new_at_zero(page.dst_size);
+                page.dst_size = page.frame.size.resize_by_width(max_w);
 
                 return Ok(());
             }
 
             // dbg!(&page.index, &page.cast_vertex);
-            // FIXME:
-            let ew = page.dst_size.width();
-            let padding_left = {
-                match align {
-                    Align::Center => (cw - ew) / 2.0,
-                    Align::Left => 0.0,
-                    Align::Right => cw - ew,
-                }
-            }
-            .abs();
 
+            // TODO: flag_key
+            // TODO: rewrite align
+            // TODO: if fullscreen { padding } else { skip }
             // 1. drag
+            let padding_left = center_x(cw, page.dst_size.width());
             let drag_offset =
                 Vec2::new(self.offset.x + padding_left, self.offset.y + page_offset.y);
             page.drag(drag_offset);
@@ -256,7 +258,7 @@ impl Canvas {
             }
 
             match page.state {
-                // 4. drawing
+                // 4. draw
                 State::Done => {
                     elems.push(page);
                 }
@@ -267,8 +269,9 @@ impl Canvas {
 
                     if page.frame.size.is_zero() {
                         self.pool.task_load(page, data);
-                        page.dst_size = page.frame.size.resize_by_width(max_width);
                     } else {
+                        page.dst_size = page.frame.size.resize_by_width(max_w);
+
                         self.pool.task_resize(page, data, &self.config);
                     }
                 }
@@ -287,7 +290,7 @@ impl Canvas {
         //     elem.draw();
         // }
 
-        // 6. drawing
+        // 6. draw
         // dbg!(elems.len());
         for elem in elems {
             // dbg!(
@@ -297,15 +300,13 @@ impl Canvas {
             //     &elem.cast_vertex
             // );
 
-            elem.draw(&mut self.buffer, self.size);
+            elem.draw(&mut self.buffer);
         }
-
-        // dbg!(&dbg_cur_drawing);
-        // dbg!(&self.offset);
 
         Ok(())
     }
 
+    // FIXME: bug in fullscreen
     pub fn view_area(&self, layout: &Layout) -> ViewArea {
         // screen coordinate system:
         match layout {
@@ -332,9 +333,9 @@ impl Canvas {
             //
             Layout::Vertical { .. } => {
                 let origin = Vec2::new(0.0, 0.0);
-                let view = Rect::new(origin, self.size);
+                let view = Rect::new(origin, self.size());
 
-                let h = self.size.height();
+                let h = self.size().height();
                 let limit = self.config.canvas.cache_limit as f32;
                 let up = h * self.cache_factor_up * limit;
                 let down = h * self.cache_factor_down * limit;
@@ -364,8 +365,22 @@ impl Canvas {
             //
             // Layout::Horizontal { .. }=>{},
             //
-            // Layout::Double { .. } => {}
-            //
+            Layout::Double { .. } => {
+                // FIXME:
+                let origin = Vec2::new(0.0, 0.0);
+                let view = Rect::new(origin, self.size());
+
+                let h = self.size().height();
+                let limit = self.config.canvas.cache_limit as f32;
+                let up = h * self.cache_factor_up * limit;
+                let down = h * self.cache_factor_down * limit;
+                let mut border = view.clone();
+                border.min.y -= up;
+                border.max.y += down;
+
+                ViewArea { view, border }
+            }
+
             _ => todo!(),
         }
     }
@@ -386,65 +401,72 @@ impl Canvas {
             let r = diameter / 2.0;
             let circle = Circle::new(*origin, r);
 
-            circle.draw(&mut self.buffer, self.size, *fill);
+            circle.draw(&mut self.buffer, *fill);
         }
     }
 }
 
 impl Canvas {
+    // TODO: center
     pub fn single_draw(&mut self) -> eyre::Result<()> {
         self.reset();
 
-        let layout = &self.config.canvas.layout;
-        let Layout::Single { zoom, mouse_pos } = layout else {
+        let max_w = self.page_max_width;
+        let size = self.size();
+        let page = self.elems.first_mut().ok_or_eyre("None")?;
+
+        let Layout::Single {
+            flag_scroll,
+            ref dire,
+            ref mouse_pos,
+            ..
+        } = &mut self.config.canvas.layout
+        else {
             unreachable!()
         };
 
-        // dbg!(&zoom);
-
-        let max_width = self.page_max_width;
-        let page = self.pages.first_mut().ok_or_eyre("None")?;
-
-        // load file
+        // load img
         if page.frame.size.is_zero() {
             let algo = fir::ResizeAlg::Nearest;
 
             page.load(&self.data, true)?;
 
-            page.dst_size = page.frame.size.resize_by_width(max_width);
+            page.dst_size = page.frame.size.resize_by_width(max_w);
 
             let frame = Frame::resize(page.tmp_blob.as_slice(), page.dst_size, algo)?;
 
+            // align
+            let drag_offset = center_xy(size, page.dst_size);
+
             page.frame = frame;
+            page.frame.vertex = page.frame.vertex.translate(drag_offset.x, drag_offset.y);
             page.cast_vertex = page.frame.vertex;
             page.state = State::Done;
         }
 
-        let zoom = *zoom;
-        let zoom_size = page.dst_size * zoom;
+        // TODO: flag_key
+        let Vec2 { x, y } = self.offset;
+        page.cast_vertex = page.cast_vertex.translate(x, y);
+        self.offset = Default::default();
 
-        // TODO: zoom at mouse pos
-        {
+        if *flag_scroll {
+            // TODO: how align
+
             let algo = fir::ResizeAlg::Nearest;
+            let scale = 1.1_f32;
+            let factor = scale.powf(*dire);
+            let dst_size = page.dst_size * factor;
 
-            let frame = Frame::resize(page.tmp_blob.as_slice(), zoom_size, algo)?;
-
+            let frame = Frame::resize(page.tmp_blob.as_slice(), dst_size, algo)?;
             page.frame = frame;
-            page.cast_vertex = page.frame.vertex;
+            page.dst_size = dst_size;
 
-            // no
-            // page.dst_size = zoom_size;
+            page.zoom_at(*mouse_pos, factor);
+
+            *flag_scroll = false;
         }
 
-        // TODO: align
-        let drag_offset = Vec2::new(
-            self.offset.x * zoom + self.size.width() * zoom / 2.0,
-            // self.offset.y * zoom + self.size.height() * zoom / 2.0,
-            self.offset.y * zoom,
-        );
-        page.drag(drag_offset);
-
-        page.draw(&mut self.buffer, self.size);
+        page.draw(&mut self.buffer);
 
         Ok(())
     }
@@ -491,41 +513,61 @@ impl Canvas {
     // TODO:
     // REFS: https://kittenyang.com/layout-algorithm/
     pub fn multi_draw(&mut self) -> eyre::Result<()> {
-        let Layout::Multi { nums } = self.config.layout() else {
+        let Layout::Multi { cols_nums } = self.config.layout() else {
             eyre::bail!("")
         };
 
-        let nums = nums.clone();
-
+        let cols_nums = cols_nums.clone();
         let r43 = 4.0 / 3.0;
-        let y_heights = vec![0.0; nums];
-        let mut cur_idx = 0;
+        let max_w = self.size().width();
+        let min_w = max_w / (cols_nums as f32);
 
-        for page in self.pages.iter_mut() {
-            if page.dst_size.ratio() >= r43 {
-                if cur_idx == 0 {
-                    todo!("?resize frame")
-                } else {
-                    let range = &y_heights[0..cur_idx];
-                    let mut sum = 0.0;
-                    for f in range {
-                        sum += f;
-                    }
+        let mut cur_cols = 0;
+        let mut cur_total_w = 0.0;
+        let mut progress = 0;
+        let mut head_h = 0.0;
+        let mut elem_offset = Vec2::new(0.0, 0.0);
 
-                    let frame_width = self.size.width() - sum;
+        let mut draw_elems = Vec::with_capacity(10);
 
-                    todo!("?resize")
+        for elem in self.elems.iter_mut() {
+            let need_laying = { elem.index == progress };
+            let is_head_elem = { cur_cols == 0 };
+
+            // laying
+            if need_laying {
+                if is_head_elem {
+                    head_h = elem.dst_size.height();
                 }
 
-                // breaking
-                cur_idx = 0;
-            } else {
-                if cur_idx < nums {
-                    cur_idx += 1;
+                // resize
+                elem.dst_size.resize_by_height(head_h);
+                cur_total_w += elem.dst_size.width();
+
+                // drag and align
+                let padding_left = 0.0;
+                let mut drag_offset =
+                    Vec2::new(self.offset.x + padding_left, self.offset.y + elem_offset.y);
+                elem.drag(drag_offset);
+
+                // try breaking
+                let need_break = { cur_cols == cols_nums || cur_total_w > max_w };
+
+                if need_break {
+                    elem_offset.y += head_h;
+
+                    cur_cols = 0;
                 } else {
-                    cur_idx = 0;
+                    cur_cols += 1;
                 }
             }
+
+            // TODO: state
+            draw_elems.push(elem);
+        }
+
+        for elem in draw_elems.iter_mut() {
+            elem.draw(&mut self.buffer);
         }
 
         Ok(())
@@ -541,48 +583,156 @@ impl Canvas {
     // page.draw();
     // space.draw();
     pub fn double_draw(&mut self) -> eyre::Result<()> {
+        self.clamp_offset();
         self.reset();
 
+        // TODO: align
+        // TODO: gap
+        // TODO: page_dire
         let layout = &self.config.canvas.layout;
         let Layout::Double { align, gap } = layout else {
             unreachable!()
         };
 
         let view_area = self.view_area(layout);
-        let max_width = self.page_max_width;
+        let max_w = self.page_max_width;
 
-        let cw = self.size.width();
-        let cw_half = cw / 2.0;
+        let max_page_nums = 2.0;
+        let max_w = self.size().width();
+        let min_w = max_w / max_page_nums;
 
-        // let mut no_layout = false;
-
-        let elems: Vec<&mut Page> = Vec::with_capacity(10);
-        let page_offset: Vec2<f32> = Vec2::default();
-
-        // {0, 1}
-        let cur_col = 0;
-
-        // 'l: for page in self.pages.iter_mut() {
-        //     let mut cur_line = vec![];
         //
-        //     if cur_col == 0 {
-        //         cur_line.push(&mut page_left);
+        // +-----+-----+  case 1
+        // |     |     |
+        // |     |     |
+        // |     |     |
+        // +-----+-----+
         //
-        //         cur_col = 1;
-        //     } else {
-        //         if page.dst_size.ratio() > 1.333 {
-        //             // TODO: push-empty-rect + line-break
-        //         } else {
-        //             cur_line.push(&mut page_right);
-        //         }
+        // +-----------+  case 2
+        // |           |
+        // |           |
+        // |           |
+        // +-----------+
         //
-        //         cur_col = 0;
-        //     }
+        // +-----+-----+  case 3
+        // |     |.....|  `.` is mean `empty`
+        // |     |.....|
+        // |     |.....|
+        // +-----+-----+
+        // |           |
+        // |           |
+        // |           |
+        // +-----------+
         //
-        //     // Align
-        // }
 
-        todo!();
+        let r43 = 4.0 / 3.0;
+
+        let mut draw_elems: Vec<&mut Page> = Vec::with_capacity(10);
+        let mut elem_offset: Vec2<f32> = Vec2::default();
+        let mut elem_rank = 0;
+        let mut head_size = Default::default();
+
+        'l: for elem in self.elems.iter_mut() {
+            if elem.frame.size.is_zero() {
+                elem.load(&self.data, false)?;
+                elem.dst_size = elem.frame.size.resize_by_width(max_w);
+                elem.cast_vertex = Rect::new_at_zero(elem.dst_size);
+
+                return Ok(());
+            }
+
+            let flag = elem.is_passed(&self.config, &view_area);
+            if !flag {
+                // dbg!("skip", elem.index);
+
+                continue 'l;
+            }
+
+            // TODO: Align
+            let padding_left = 0.0;
+            let mut drag_offset = Vec2::new(self.offset.x, self.offset.y + elem_offset.y);
+
+            // lhs
+            if elem_rank == 0 {
+                // case 2
+                if elem.dst_size.ratio() > r43 {
+                    elem.dst_size.resize_by_width(max_w);
+
+                    // next elem is at lhs
+                    elem_rank = 0;
+
+                    elem_offset.y += elem.dst_size.height();
+
+                // maybe case 1
+                } else {
+                    elem.dst_size = elem.dst_size.resize_by_width(min_w);
+
+                    elem_rank = 1;
+                }
+
+                head_size = elem.dst_size;
+
+            // rhs
+            } else {
+                // case 3
+                if elem.dst_size.ratio() > r43 {
+                    elem.dst_size.resize_by_width(max_w);
+                    // elem.offset.y += head_size.h
+                    // push empty elem
+
+                    todo!("")
+
+                // case 1
+                } else {
+                    // dbg!("case 1");
+
+                    drag_offset.x += head_size.width() + gap.x;
+                    elem_offset.y += head_size.height() + gap.y;
+                }
+
+                // if elem_rank + 1 > max {
+                //    elem_rank = 0;
+                // }
+                elem_rank = 0;
+            }
+
+            elem.drag(drag_offset);
+
+            match elem.state {
+                State::Done => {
+                    draw_elems.push(elem);
+                }
+
+                State::Waiting => {
+                    let data = self.data.clone();
+
+                    if elem.frame.size.is_zero() {
+                        self.pool.task_load(elem, data);
+                    } else {
+                        let w = {
+                            if elem.frame.size.ratio() > r43 {
+                                max_w
+                            } else {
+                                min_w
+                            }
+                        };
+
+                        elem.dst_size = elem.frame.size.resize_by_width(w);
+
+                        self.pool.task_resize(elem, data, &self.config);
+                    }
+                }
+
+                _ => {}
+            }
+        }
+
+        for elem in draw_elems.iter_mut() {
+            elem.draw(&mut self.buffer);
+        }
+
+        Ok(())
+        // todo!();
     }
 }
 
@@ -613,19 +763,6 @@ impl ViewArea {
 
         (is_hover_edge, is_hover_view)
     }
-}
-
-fn center_xy(canvas: Size, img: Size) -> Vec2 {
-    let canvas_center_x = canvas.width() / 2.0;
-    let canvas_center_y = canvas.height() / 2.0;
-
-    let img_center_x = img.width() / 2.0;
-    let img_center_y = img.height() / 2.0;
-
-    Vec2::new(
-        canvas_center_x - img_center_x,
-        canvas_center_y - img_center_y,
-    )
 }
 
 // REFS: https://www.codeandweb.com/texturepacker

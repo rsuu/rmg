@@ -1,15 +1,12 @@
-pub mod history;
-// pub mod cache;
-
 use crate::*;
 
 use esyn::{Esyn, EsynBuilder, EsynDe};
 use pico_args::Arguments;
 use std::{fs::File, io::Read, process::exit};
 
-const DEFAULT_CONFIG: &str = include_str!("../assets/config.rs");
+const DEFAULT_CONFIG: &str = include_str!("../../assets/config.rs");
 
-#[derive(Debug, Default, EsynDe)]
+#[derive(Debug, Default, Clone, EsynDe)]
 pub struct Config {
     pub app: ConfApp,
     pub window: ConfWindow,
@@ -21,27 +18,27 @@ pub struct Config {
     // ?KeyMap
 }
 
-#[derive(Debug, Default, EsynDe)]
+#[derive(Debug, Default, Clone, EsynDe)]
 pub struct ConfOnce {
     pub record_gesture_name: Option<String>,
 }
 
-#[derive(Debug, Default, EsynDe)]
+#[derive(Debug, Default, Clone, EsynDe)]
 pub struct ConfApp {
     pub target: PathBuf,
 
     // TODO: $XDG_DATA_HOME/rmg/gestures.zip
     pub gestures_zip: String,
-    pub min_gesture_score: f32,
+    pub gesture_min_score: f32,
 }
 
-#[derive(Debug, Default, EsynDe)]
+#[derive(Debug, Default, Clone, EsynDe)]
 struct ConfWindow {
     pub borderless: bool,
     pub invert_mouse: bool,
 }
 
-#[derive(Debug, Default, EsynDe)]
+#[derive(Debug, Default, Clone, EsynDe)]
 pub struct ConfCanvas {
     pub size: Size, // (default: win_size)
 
@@ -52,19 +49,19 @@ pub struct ConfCanvas {
 
     pub bg: u32,
     pub cache_limit: u32,
-    pub mode: Mode,
+    pub page_dire: PageDirection,
 
     // unused
     pub font_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Default, EsynDe)]
+#[derive(Debug, Default, Clone, EsynDe)]
 pub struct ConfPage {
     pub image_resize_algo: WrapResizeAlg,
     pub anime_resize_algo: WrapResizeAlg,
 }
 
-#[derive(Debug, Default, EsynDe)]
+#[derive(Debug, Default, Clone, EsynDe)]
 pub struct ConfMisc {
     pub padding_filename: u8,
 }
@@ -196,12 +193,16 @@ impl Config {
                     },
                     "D" | "DOUBLE" => Layout::Double {
                         align: Default::default(),
-                        gap: Default::default(),
+                        gap: Gap { x: 5.0, y: 10.0 },
                     },
                     "H" | "SINGLE" => Layout::Horizontal { align: Align::Left },
                     "S" | "SINGLE" => Layout::Single {
-                        zoom: 1.0,
                         mouse_pos: Vec2::default(),
+                        flag_scroll: false,
+                        dire: 0.0,
+                        cur_zoom: 0,
+                        min_zoom: -40,
+                        max_zoom: 40,
                     },
 
                     _ => unimplemented!(),

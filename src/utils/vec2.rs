@@ -1,7 +1,7 @@
 use crate::{utils::is_similar, Size};
 
 use esyn::EsynDe;
-use std::ops::{Add, AddAssign, Div, Sub};
+use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
 
 #[derive(Debug, Default, Clone, Copy, Eq, PartialOrd, Ord, PartialEq, EsynDe)]
 pub struct Vec2<T = f32> {
@@ -63,31 +63,26 @@ impl AddAssign for Vec2 {
     }
 }
 
-pub struct Affine {}
-
-impl Affine {
-    // cx/cy: center point
-    // r: [0.0..=360.0]
-    //
-    // REFS: https://upload.wikimedia.org/wikipedia/commons/2/2c/2D_affine_transformation_matrix.svg
-    fn rotate_at(origin: Vec2, p: Vec2, r: f32) -> (i32, i32) {
-        let r = r.to_radians();
-        let (ox, oy) = (origin.x, origin.y);
-        let (x, y) = (p.x, p.y);
-
-        let new_x = (x - ox) * r.cos() - (y - oy) * r.sin() + ox;
-        let new_y = (x - ox) * r.sin() + (y - oy) * r.cos() + oy;
-
-        // FIXME: sometimes panic
-        //(new_x.round() as i32, new_y.round() as i32)
-        (new_x.round() as i32 - 1, new_y.round() as i32 - 1)
-    }
-}
-
 impl Div<f32> for Vec2 {
     type Output = Self;
 
     fn div(self, rhs: f32) -> Self::Output {
         Self::new(self.x / rhs, self.y / rhs)
+    }
+}
+
+impl Neg for Vec2 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self::new(self.x.neg(), self.y.neg())
+    }
+}
+
+impl Mul<f32> for Vec2 {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self::new(self.x * rhs, self.y * rhs)
     }
 }

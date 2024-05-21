@@ -2,18 +2,18 @@ use crate::*;
 
 use std::sync::{Arc, OnceLock, RwLock};
 
-pub static THREAD_GET_ALL_FRAME_SIZE: OnceLock<Pages> = OnceLock::new();
+pub static THREAD_GET_ALL_FRAME_SIZE: OnceLock<Elems> = OnceLock::new();
 
 pub struct Pool {
     inner: rayon::ThreadPool,
-    list: Arc<RwLock<Pages>>,
+    list: Arc<RwLock<Elems>>,
 }
 
 impl Pool {
-    pub fn new(pages: Pages) -> Self {
+    pub fn new(elems: Elems) -> Self {
         Self {
             inner: rayon::ThreadPoolBuilder::new().build().unwrap(),
-            list: Arc::new(RwLock::new(pages)),
+            list: Arc::new(RwLock::new(elems)),
         }
     }
 
@@ -85,6 +85,11 @@ impl Pool {
             mem::swap(task, page);
 
             task.free();
+
+            // TODO: Align
+            // let ew = page.dst_size.width();
+            // let padding_left = center_x(cw, ew);
+            // page.frame.vertex = page.frame.vertex.translate(padding_left, 0.0);
         }
     }
 }

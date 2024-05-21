@@ -1,4 +1,4 @@
-// WARN: WIP
+// TODO:
 
 use crate::{ArchiveFmt, Canvas, Config, DataType, FileList, Page, Path, PathBuf, Size, State};
 

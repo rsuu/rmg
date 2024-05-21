@@ -1,4 +1,8 @@
+use std::ops::Add;
+
 use crate::*;
+
+use self::affine::Affine;
 
 // v1          v2
 //   +--------+
@@ -109,5 +113,21 @@ impl Rect {
 
     pub fn not_hover(&self, other: &Self) -> bool {
         !self.is_hover(other)
+    }
+}
+
+impl Affine for Rect {
+    fn translate(&self, dx: f32, dy: f32) -> Self {
+        Self {
+            min: self.min.translate(dx, dy),
+            max: self.max.translate(dx, dy),
+        }
+    }
+
+    fn scale(&self, dx: f32, dy: f32) -> Self {
+        Self {
+            min: self.min.scale(dx, dy),
+            max: self.max.scale(dx, dy),
+        }
     }
 }

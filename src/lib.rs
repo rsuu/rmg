@@ -1,21 +1,22 @@
+pub mod app;
 pub mod archive;
-pub mod canvas;
-pub mod config;
+pub mod data;
 pub mod frame;
 pub mod shape;
 pub mod ui;
 pub mod utils;
-pub mod window;
 
 pub use {
+    app::{
+        buffer::*, canvas::*, draw::*, gesture::*, layout::*, page::*, state::*, task::*,
+        window::*, *,
+    },
     archive::*,
-    canvas::{buffer::*, draw::*, gesture::*, layout::*, page::*, state::*, task::*, *},
-    config::*,
+    data::{config::*, *},
     frame::*,
     shape::{circle::*, rect::*},
     ui::{elem::*, style::*, *},
-    utils::{filter::*, size::*, vec2::*, *},
-    window::*,
+    utils::{affine::*, filter::*, size::*, vec2::*, *},
 };
 
 pub use std::{
@@ -27,7 +28,6 @@ pub use std::{
 };
 // ==========================================
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const FPS: f32 = 120.0;
 pub const SUPPORTED_FORMAT: &[&str] = &[
     "jpg", "jpeg", //
     "png",  //

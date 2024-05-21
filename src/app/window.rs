@@ -2,6 +2,7 @@ use crate::*;
 
 use eyre::OptionExt;
 use rgb::RGBA8;
+use softbuffer::{Context, Surface};
 use std::{
     num::NonZeroU32,
     rc::Rc,
@@ -15,10 +16,47 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
+#[cfg(target_arch = "wasm32")]
+use {
+    console_error_panic_hook,
+    wasm_bindgen::{prelude::*, JsCast},
+    web_sys::console,
+    winit::platform::web::{EventLoopExtWebSys, WindowExtWebSys},
+};
+
 pub fn main(config: Config) -> eyre::Result<()> {
     let record_gesture_name = config.once.record_gesture_name.clone();
 
-    let (mut app, window, event_loop) = App::new(config)?;
+    let (mut app, mut window, event_loop) = App::new(config)?;
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        #[wasm_bindgen]
+        extern "C" {
+            #[wasm_bindgen(js_namespace = console)]
+            pub fn log(s: &str);
+
+            #[wasm_bindgen(js_namespace = console, js_name = log)]
+            pub fn log_u32(a: u8);
+
+        }
+
+        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+        web_sys::window()
+            .unwrap()
+            .document()
+            .unwrap()
+            .body()
+            .unwrap()
+            .append_child(&window.canvas().unwrap())
+            .unwrap();
+        log("INFO: web-sys");
+
+        // event_loop.spawn(move |event, elwt| {});
+    }
+
+    window.set_ime_allowed(true);
 
     if let Some(name) = record_gesture_name {
         app.run_record_gesture(&window, event_loop)?;
@@ -30,11 +68,16 @@ pub fn main(config: Config) -> eyre::Result<()> {
 }
 
 pub struct App {
+    // world: World,
     canvas: Canvas,
-    surface: softbuffer::Surface<Rc<Window>, Rc<Window>>,
+    layout: Layout,
+    config: Config,
+    gestures: Gesture,
+
+    event_info: EventInfo,
 
     ev: EnvVal,
-    gestures: Gesture,
+    surface: Surface<Rc<Window>, Rc<Window>>,
 }
 
 struct EnvVal {
@@ -47,17 +90,22 @@ struct EnvVal {
 
 impl App {
     fn new(config: Config) -> eyre::Result<(Self, Rc<Window>, EventLoop<()>)> {
+        let layout = config.layout().clone();
+
+        let gestures = config.app.gestures_zip.clone();
+        let gestures = Gesture::new(gestures)?;
+
         let canvas = {
             let path = config.app.target.as_path();
             let file = DataType::new(path)?;
 
-            Canvas::new(config, file)?
+            Canvas::new(config.clone(), file)?
         };
         tracing::info!("Canvas");
 
         let event_loop = EventLoop::new()?;
         let window = {
-            let size = canvas.size;
+            let size = canvas.size();
             let size = LogicalSize::new(size.width(), size.height());
 
             Rc::new(
@@ -71,21 +119,20 @@ impl App {
         };
         tracing::info!("Winit");
 
-        let context =
-            softbuffer::Context::new(window.clone()).or_else(|e| Err(eyre::eyre!("{e:#?}")))?;
-        let surface = softbuffer::Surface::new(&context, window.clone())
-            .or_else(|e| Err(eyre::eyre!("{e:#?}")))?;
+        let context = Context::new(window.clone()).or_else(|e| Err(eyre::eyre!("{e:#?}")))?;
+        let surface =
+            Surface::new(&context, window.clone()).or_else(|e| Err(eyre::eyre!("{e:#?}")))?;
         tracing::info!("Softbuffer");
-
-        let gestures = canvas.config.app.gestures_zip.clone();
-        let gestures = Gesture::new(gestures)?;
 
         Ok((
             Self {
                 ev: EnvVal::new(),
+                layout,
                 canvas,
                 surface,
+                config,
                 gestures,
+                event_info: EventInfo::new(),
             },
             window,
             event_loop,
@@ -153,10 +200,10 @@ impl App {
             Size::new(size.width as f32, size.height as f32)
         };
 
-        if new_size != self.canvas.size {
+        if new_size != self.canvas.size() {
             self.canvas.resize(new_size);
 
-            let Size { width, height } = self.canvas.size;
+            let Size { width, height } = self.canvas.size();
             self.surface
                 .resize(
                     NonZeroU32::new(width as u32).ok_or_eyre("NonZeroU32")?,
@@ -173,7 +220,7 @@ impl App {
         self.canvas.draw()?;
 
         // buffer.swap_with_slice(&mut self.canvas.buffer);
-        buffer.copy_from_slice(&self.canvas.buffer);
+        buffer.copy_from_slice(self.canvas.buffer.vec.as_slice());
         buffer.present().or_else(|e| Err(eyre::eyre!("{e:#?}")))?;
 
         // dbg!(&(window.inner_size(), self.canvas.size, window.outer_size(),));
@@ -197,10 +244,6 @@ impl App {
 
             // ===== Mouse =====
             WindowEvent::CursorMoved { position, .. } => 's: {
-                if !self.ev.flag_gesture {
-                    break 's;
-                }
-
                 let sf = window.scale_factor();
                 tracing::trace!(dpi.scale = sf);
 
@@ -239,12 +282,17 @@ impl App {
         sf: f64,
         PhysicalPosition { x, y }: PhysicalPosition<f64>,
     ) -> eyre::Result<()> {
+        let origin = Vec2::new(x as f32, y as f32);
+        self.event_info.mouse_pos = origin;
+
+        if !self.ev.flag_gesture {
+            return Ok(());
+        }
+
         let x = (x / sf) as f32;
         let y = (y / sf) as f32;
-        let x = x.clamp(0.0, self.canvas.size.width() - 1.0);
-        let y = y.clamp(0.0, self.canvas.size.height() - 1.0);
-
-        let origin = Vec2::new(x, y);
+        let x = x.clamp(0.0, self.canvas.size().width() - 1.0);
+        let y = y.clamp(0.0, self.canvas.size().height() - 1.0);
 
         // dbg!(y, window.inner_size().height);
         match self.canvas.action {
@@ -308,13 +356,26 @@ impl App {
         }
 
         match &mut self.canvas.config.canvas.layout {
-            // FIXME: get mouse pos
-            Layout::Single { zoom, mouse_pos } => {
-                // zoom at mouse position
-                if y < 0.0 && *zoom < 10.0 {
-                    *zoom += 0.1;
-                } else if y > 0.0 && *zoom > 0.2 {
-                    *zoom -= 0.1;
+            Layout::Single {
+                mouse_pos,
+                flag_scroll,
+                dire,
+                cur_zoom,
+                ref max_zoom,
+                ref min_zoom,
+                ..
+            } => 's: {
+                *mouse_pos = self.event_info.mouse_pos;
+                *flag_scroll = true;
+
+                if y < 0.0 && *cur_zoom < *max_zoom {
+                    *dire = 1.0;
+                    *cur_zoom += 1;
+                } else if y > 0.0 && *cur_zoom > *min_zoom {
+                    *dire = -1.0;
+                    *cur_zoom -= 1;
+                } else {
+                    *flag_scroll = false;
                 }
             }
 
@@ -421,7 +482,7 @@ impl App {
 
         if let Ok(name) = self
             .gestures
-            .matches(&path, self.canvas.config.app.min_gesture_score)
+            .matches(&path, self.canvas.config.app.gesture_min_score)
         {
             // TODO: name -> action
             dbg!(&name);
@@ -457,6 +518,18 @@ impl EnvVal {
             flag_fullscreen: false,
 
             loop_dur: Duration::from_millis(30),
+        }
+    }
+}
+
+struct EventInfo {
+    mouse_pos: Vec2,
+}
+
+impl EventInfo {
+    pub fn new() -> Self {
+        Self {
+            mouse_pos: Vec2::default(),
         }
     }
 }
