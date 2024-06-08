@@ -1,11 +1,15 @@
+use crate::*;
+
 #[derive(Default, Clone)]
 pub struct Style {
+    size: Size,
+    offset: Vec2,
     padding: Padding,
     margin: Margin,
 }
 
 #[derive(Default, Clone)]
-pub struct Padding<T = u32> {
+pub struct Padding<T = f32> {
     top: T,
     right: T,
     buttom: T,
@@ -13,19 +17,19 @@ pub struct Padding<T = u32> {
 }
 
 #[derive(Default, Clone)]
-pub struct Margin<T = u32> {
+pub struct Margin<T = f32> {
     top: T,
     right: T,
     buttom: T,
     left: T,
 }
 
-pub enum Animation {
+pub enum AnimType {
     Ease,
 }
 
 impl Padding {
-    pub fn new(top: u32, right: u32, buttom: u32, left: u32) -> Self {
+    pub fn new(top: f32, right: f32, buttom: f32, left: f32) -> Self {
         Self {
             top,
             right,
@@ -36,7 +40,7 @@ impl Padding {
 }
 
 impl Margin {
-    pub fn new(top: u32, right: u32, buttom: u32, left: u32) -> Self {
+    pub fn new(top: f32, right: f32, buttom: f32, left: f32) -> Self {
         Self {
             top,
             right,

@@ -4,19 +4,9 @@
     <title></title>
     <meta charset="UTF-8" />
     <link href="./css/style.css" rel="stylesheet" />
-    <style>
-      canvas {
-        background-color: black;
-        width: 100%;
-        height: 100%;
-      }
-    </style>
+    <style></style>
   </head>
   <body id="win-web">
-    <script type="module">
-      import init from "./wasm/web.js";
-      await init("./wasm/web.wasm");
-      console.log("init");
-    </script>
+    <script async type="module" src="/js/main.js"></script>
   </body>
 </html>

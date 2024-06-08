@@ -1,29 +1,34 @@
+pub mod align;
 pub mod elem;
 pub mod style;
 
 use crate::*;
 
-// pub type Elems = Vec<Box<dyn Element>>;
-
+// ?match attrs
 pub trait Element {
-    fn empty() -> Self
+    type Res;
+
+    fn new() -> Self
     where
-        Self: Sized;
-
-    fn draw(&self, canvas: &mut Canvas);
-}
-
-pub struct World {
-    elems: Vec<Box<dyn Element>>,
-
-    // global value
-    offset: Vec2,
-}
-
-impl World {
-    pub fn draw(&mut self, canvas: &mut Canvas) {
-        for elem in self.elems.iter() {
-            elem.as_ref().draw(canvas);
-        }
+        Self: Sized + Default,
+    {
+        Default::default()
     }
+
+    fn draw<'a>(&self, args: &'a mut ElementArgs) -> Self::Res;
+    fn size(&self) -> Size;
+
+    // pub fn style(&self) -> &Style;
+    // pub fn state(&self) -> &State;
+    // pub fn frame(&self) -> &Frame;
+    // pub fn predraw(&self) -> &[u8];
+    // pub fn vertex(&self) -> &Rect<Vec2>;
+    // pub fn next_frame(&mut self);
+    // pub fn reload(&mut self);
 }
+
+pub struct ElementArgs<'a> {
+    canvas: &'a mut Canvas,
+}
+
+// REFS: https://github.com/zed-industries/zed/blob/dc141d0f6182773b1281b019c28bcd97413102f0/crates/gpui/src/elements/img.rs

@@ -1066,6 +1066,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "line_drawing"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d1478a313008a3e6c8149995e90a99ee9094034b5c5c3da1eeb81183cb61d1d"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1780,7 +1789,9 @@ dependencies = [
  "image 0.25.1",
  "imagesize",
  "infer",
+ "js-sys",
  "libheif-rs",
+ "line_drawing",
  "pico-args",
  "rayon",
  "resvg",
@@ -1793,6 +1804,7 @@ dependencies = [
  "usvg",
  "walkdir",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
  "winit",
  "zip",

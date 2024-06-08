@@ -1,17 +1,7 @@
-// TODO: App { canvas, }
-
 use crate::*;
 
 use eyre::OptionExt;
-use std::sync::Arc;
 
-pub type Elems = Vec<Page>; // TODO
-
-// 1. LocalSpace(Frame)
-// 2. WorldSpace(Page)
-// 3. ViewSpace(Page)
-// 4. ClipSpace(Canvas)
-// 5. ScreenSpace(Window)
 //
 // screen coordinate system:
 //
@@ -28,118 +18,46 @@ pub type Elems = Vec<Page>; // TODO
 // min: (0,0)
 // max: (w,h)
 pub struct Canvas {
-    pub config: Config, // TODO: rm
     pub buffer: Buffer,
 
-    pub elems: Elems, // TODO: mv to App.elems
-    pub page_max_width: f32,
     // pub flag_get_all_frame_size: bool,
     /// view's offset
     pub offset: Vec2, // TODO: mv to App
 
     /// mouse step
     pub step: Vec2, // TODO: mv to App
-    pub page_dire: PageDirection, // TODO: mv to App
-    pub action: Action,           // TODO: mv to App
     /// background `RGBA` color in `u32` format.
     pub bg: u32,
     /// background image.
     pub bg_img: Vec<u32>,
 
-    /// limit cache size when scroll.
     cache_factor_up: f32,
     cache_factor_down: f32,
 
-    pool: Pool, // TODO: mv to App
     /// archive's info.
-    data: Arc<DataType>, // TODO: mv to App
-    // TODO:
-    // min_page_width: f32
-    // min_page_height: f32
     pub top_line: f32,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct ViewArea<T = Rect> {
-    pub view: T,
-    pub border: T,
-}
-
 impl Canvas {
-    pub fn new(config: Config, data: DataType) -> eyre::Result<Self> {
+    pub fn new(config: &Config) -> eyre::Result<Self> {
         // dbg!(&config);
 
-        let size = config.canvas.size;
-
-        let bg = config.bg();
-        let tmp = vec![bg; size.len()];
-        let fname_padding = 10;
-        let empty_pages = data.gen_empty_pages(fname_padding)?;
-        let data = Arc::new(data);
+        let buf = Vec::new();
 
         Ok(Self {
-            step: config.canvas_step(),
-            buffer: Buffer::new(tmp.clone(), size),
+            step: Vec2::new(config.on_scroll.step_x, config.on_scroll.step_y),
+            buffer: Buffer::new(buf.clone(), Default::default()),
+            bg_img: buf,
             // TODO:from config
             //      from winit
-            // init_size:
-            bg_img: tmp,
-            page_dire: PageDirection::default(),
-            action: Action::default(),
             offset: Vec2::default(),
             cache_factor_up: 0.5,
             cache_factor_down: 1.0,
 
             // flag_get_all_frame_size: false,
             top_line: 0.0,
-            page_max_width: size.width(),
-            pool: Pool::new(empty_pages.clone()),
-            elems: empty_pages,
-            data,
-            bg,
-            config,
+            bg: config.canvas.bg,
         })
-    }
-
-    pub fn max_w(&self) -> f32 {
-        self.size().width()
-    }
-
-    pub fn min_w(&self, nums: f32) -> f32 {
-        self.max_w() / nums
-    }
-
-    pub fn max_h(&self) -> f32 {
-        self.size().height()
-    }
-
-    pub fn min_h(&self, nums: f32) -> f32 {
-        self.size().height() / nums
-    }
-
-    pub fn draw(&mut self) -> eyre::Result<()> {
-        match &self.action {
-            Action::Gesture { .. } => {
-                self.draw_gesture_path();
-
-                return Ok(());
-            }
-
-            _ => {}
-        }
-
-        match self.config.layout() {
-            Layout::Vertical { .. } => self.vertical_draw()?,
-            Layout::Horizontal { .. } => self.horizontal_draw()?,
-            Layout::Double { .. } => self.double_draw()?,
-            Layout::Multi { .. } => self.multi_draw()?,
-            Layout::Masonry { .. } => self.masonry_draw()?,
-            Layout::Single { .. } => self.single_draw()?,
-
-            _ => todo!(),
-        }
-
-        Ok(())
     }
 
     pub fn size(&self) -> Size {
@@ -148,10 +66,6 @@ impl Canvas {
 
     pub fn drag(&mut self, offset: Vec2) {
         self.offset += offset;
-    }
-
-    pub fn push(&mut self, page: Page) {
-        self.elems.push(page);
     }
 
     pub fn reset(&mut self) {
@@ -180,7 +94,7 @@ impl Canvas {
 
     pub fn clamp_offset(&mut self) {
         self.offset.x = {
-            let min = 0.0 - self.page_max_width;
+            let min = 0.0 - self.size().width();
             let max = min.abs() * 2.0;
 
             self.offset.x.clamp(min, max)
@@ -196,6 +110,14 @@ impl Canvas {
         // crate::dbg!(self.offset);
     }
 
+    pub fn width(&self) -> f32 {
+        self.size().width()
+    }
+
+    pub fn height(&self) -> f32 {
+        self.size().height()
+    }
+
     pub fn resize(&mut self, new: Size) {
         self.bg_img = vec![self.bg; new.len()];
         self.buffer = Buffer::new(self.bg_img.clone(), new);
@@ -206,34 +128,71 @@ impl Canvas {
     }
 }
 
-impl Canvas {
+impl App {
+    pub fn render(&mut self) -> eyre::Result<()> {
+        match &self.action {
+            Action::Gesture { .. } => {
+                self.draw_gesture_path();
+
+                return Ok(());
+            }
+
+            _ => {}
+        }
+
+        match &self.layout {
+            Layout::Vertical { .. } => self.vertical_draw()?,
+            Layout::Horizontal { .. } => self.horizontal_draw()?,
+            Layout::Double { .. } => self.double_draw()?,
+            Layout::Multi { .. } => self.multi_draw()?,
+            Layout::Masonry { .. } => self.masonry_draw()?,
+            Layout::Single { .. } => self.single_draw()?,
+
+            _ => todo!(),
+        }
+
+        Ok(())
+    }
+}
+
+impl App {
+    // ?inner_width = page_size.width
+    // ?outer_width = canvas.width
+    pub fn max_w(&self) -> f32 {
+        self.init.page_size.width()
+    }
+
+    pub fn page_size(&self) -> Size {
+        self.init.page_size
+    }
+
+    pub fn max_h(&self) -> f32 {
+        self.init.page_size.height()
+    }
+
     // TODO: cache `page.dst_size` and `page.frame.size`
     // Block {
     //   page: Page
     // }
     pub fn vertical_draw(&mut self) -> eyre::Result<()> {
-        self.clamp_offset();
-        self.reset();
+        self.canvas.clamp_offset();
+        self.canvas.reset();
 
-        let layout = &self.config.canvas.layout;
-        let Layout::Vertical { align } = layout else {
+        let cw = self.canvas.width();
+        let page_size = self.page_size();
+        let Layout::Vertical { align } = &self.layout else {
             unreachable!()
         };
-
-        let view_area = self.view_area(layout);
-        let max_w = self.page_max_width;
-
-        let cw = self.size().width();
-        let cw_half = cw / 2.0;
+        let view_area = self.view_area(&self.layout);
 
         let mut elems: Vec<&mut Page> = Vec::with_capacity(10);
         let mut page_offset: Vec2<f32> = Vec2::default();
 
         'l: for page in self.elems.iter_mut() {
-            // no async
+            // page.size()
             if page.frame.size.is_zero() {
-                page.load(&self.data, false)?;
-                page.dst_size = page.frame.size.resize_by_width(max_w);
+                page.load(&self.ext.data, false)?;
+                page.dst_size = page.frame.size.resize_by_width(page_size.width());
 
                 return Ok(());
             }
@@ -245,8 +204,10 @@ impl Canvas {
             // TODO: if fullscreen { padding } else { skip }
             // 1. drag
             let padding_left = center_x(cw, page.dst_size.width());
-            let drag_offset =
-                Vec2::new(self.offset.x + padding_left, self.offset.y + page_offset.y);
+            let drag_offset = Vec2::new(
+                self.canvas.offset.x + padding_left,
+                self.canvas.offset.y + page_offset.y,
+            );
             page.drag(drag_offset);
 
             // 2. update
@@ -268,14 +229,14 @@ impl Canvas {
 
                 // 3. loading
                 State::Waiting => {
-                    let data = self.data.clone();
+                    let data = self.ext.data.clone();
 
                     if page.frame.size.is_zero() {
-                        self.pool.task_load(page, data);
+                        self.ext.pool.task_load(page, data);
                     } else {
-                        page.dst_size = page.frame.size.resize_by_width(max_w);
+                        page.dst_size = page.frame.size.resize_by_width(page_size.width());
 
-                        self.pool.task_resize(page, data, &self.config);
+                        self.ext.pool.task_resize(page, data, &self.config);
                     }
                 }
 
@@ -284,12 +245,12 @@ impl Canvas {
         }
 
         // TODO:
-        // if let Some(nav) = self.ui_nav_bar {
+        // if let Some(nav) = self.canvas.ui_nav_bar {
         //     elems.push(nav);
         // }
 
         // TODO: case 2
-        // for elem in self.ui_elems.iter() {
+        // for elem in self.canvas.ui_elems.iter() {
         //     elem.draw();
         // }
 
@@ -303,7 +264,7 @@ impl Canvas {
             //     &elem.cast_vertex
             // );
 
-            elem.draw(&mut self.buffer);
+            elem.draw(&mut self.canvas.buffer);
         }
 
         Ok(())
@@ -336,50 +297,61 @@ impl Canvas {
             //
             Layout::Vertical { .. } => {
                 let origin = Vec2::new(0.0, 0.0);
-                let view = Rect::new(origin, self.size());
+                let view = Rect::new(origin, self.canvas.size());
 
-                let h = self.size().height();
+                let h = self.canvas.height();
                 let limit = self.config.canvas.cache_limit as f32;
-                let up = h * self.cache_factor_up * limit;
-                let down = h * self.cache_factor_down * limit;
+                let top = h * self.canvas.cache_factor_up * limit;
+                let buttom = h * self.canvas.cache_factor_down * limit;
+
                 let mut border = view.clone();
-                border.min.y -= up;
-                border.max.y += down;
+                border.min.y -= top;
+                border.max.y += buttom;
 
                 ViewArea { view, border }
             }
 
             //
+            //
             //              -1
             //              |
             //              |
-            //              |
-            //-1 --+--------+--------+--------+--- +1
-            //     |        |        |        |
-            //     |   PL   |  VIEW  |   PR   |
-            //     |        |        |        |
-            //     +--------+--------+--------+
-            //              |
+            //              +--------+--------+
+            //              |        |        |
+            //              |  PTOP  |  PTOP  |
+            //              |        |        |
+            //-1 -----------+--------+--------+--- +1
+            //              |        |        |
+            //              |  VIEW  |  VIEW  |
+            //              |        |        |
+            //              +--------+--------+
+            //              |        |        |
+            //              |  PBTN  |  PBTN  |
+            //              |        |        |
+            //              +--------+--------+
             //              |
             //              |
             //              +1
-            //
             // * canvas.size == window.size
             //
             // Layout::Horizontal { .. }=>{},
             //
+            // FIXME:
             Layout::Double { .. } => {
-                // FIXME:
                 let origin = Vec2::new(0.0, 0.0);
-                let view = Rect::new(origin, self.size());
+                let mut size = self.canvas.size();
+                size.width *= 2.0;
 
-                let h = self.size().height();
+                let view = Rect::new(origin, size);
+
+                let h = self.canvas.height();
                 let limit = self.config.canvas.cache_limit as f32;
-                let up = h * self.cache_factor_up * limit;
-                let down = h * self.cache_factor_down * limit;
+                let top = h * self.canvas.cache_factor_up * limit;
+                let buttom = h * self.canvas.cache_factor_down * limit;
+
                 let mut border = view.clone();
-                border.min.y -= up;
-                border.max.y += down;
+                border.min.y -= top;
+                border.max.y += buttom;
 
                 ViewArea { view, border }
             }
@@ -404,18 +376,18 @@ impl Canvas {
             let r = diameter / 2.0;
             let circle = Circle::new(*origin, r);
 
-            circle.draw(&mut self.buffer, *fill);
+            circle.draw(&mut self.canvas.buffer, *fill);
         }
     }
 }
 
-impl Canvas {
+impl App {
     // TODO: center
     pub fn single_draw(&mut self) -> eyre::Result<()> {
-        self.reset();
+        self.canvas.reset();
 
-        let max_w = self.page_max_width;
-        let size = self.size();
+        let size = self.canvas.size();
+        let page_size = self.page_size();
         let page = self.elems.first_mut().ok_or_eyre("None")?;
 
         let Layout::Single {
@@ -423,7 +395,7 @@ impl Canvas {
             ref dire,
             ref mouse_pos,
             ..
-        } = &mut self.config.canvas.layout
+        } = &mut self.layout
         else {
             unreachable!()
         };
@@ -432,9 +404,9 @@ impl Canvas {
         if page.frame.size.is_zero() {
             let algo = fir::ResizeAlg::Nearest;
 
-            page.load(&self.data, true)?;
+            page.load(&self.ext.data, true)?;
 
-            page.dst_size = page.frame.size.resize_by_width(max_w);
+            page.dst_size = page.frame.size.resize_by_width(page_size.width());
 
             let frame = Frame::resize(page.tmp_blob.as_slice(), page.dst_size, algo)?;
 
@@ -448,10 +420,11 @@ impl Canvas {
         }
 
         // TODO: flag_key
-        let Vec2 { x, y } = self.offset;
+        let Vec2 { x, y } = self.canvas.offset;
         page.cast_vertex = page.cast_vertex.translate(x, y);
-        self.offset = Default::default();
+        self.canvas.offset = Default::default();
 
+        // REFS: http://phrogz.net/tmp/canvas_zoom_to_cursor.html
         if *flag_scroll {
             // TODO: how align
 
@@ -469,13 +442,13 @@ impl Canvas {
             *flag_scroll = false;
         }
 
-        page.draw(&mut self.buffer);
+        page.draw(&mut self.canvas.buffer);
 
         Ok(())
     }
 }
 
-impl Canvas {
+impl App {
     //
     // linebreak:
     // Block {
@@ -504,26 +477,26 @@ impl Canvas {
     }
 }
 
-impl Canvas {
+impl App {
     pub fn horizontal_draw(&mut self) -> eyre::Result<()> {
-        // self.page_max_width = f32::INFINITY;
+        // self.canvas.page_max_width = f32::INFINITY;
 
         Ok(())
     }
 }
 
-impl Canvas {
+impl App {
     // TODO:
     // REFS: https://kittenyang.com/layout-algorithm/
     pub fn multi_draw(&mut self) -> eyre::Result<()> {
-        let Layout::Multi { cols_nums } = self.config.layout() else {
+        let Layout::Multi { cols } = self.layout else {
             eyre::bail!("")
         };
 
-        let cols_nums = cols_nums.clone();
+        let cols = cols.clone();
         let r43 = 4.0 / 3.0;
-        let max_w = self.size().width();
-        let min_w = max_w / (cols_nums as f32);
+        let min_w = self.page_size().width();
+        let max_w = min_w * cols as f32;
 
         let mut cur_cols = 0;
         let mut cur_total_w = 0.0;
@@ -549,12 +522,14 @@ impl Canvas {
 
                 // drag and align
                 let padding_left = 0.0;
-                let mut drag_offset =
-                    Vec2::new(self.offset.x + padding_left, self.offset.y + elem_offset.y);
+                let mut drag_offset = Vec2::new(
+                    self.canvas.offset.x + padding_left,
+                    self.canvas.step.y + elem_offset.y,
+                );
                 elem.drag(drag_offset);
 
                 // try breaking
-                let need_break = { cur_cols == cols_nums || cur_total_w > max_w };
+                let need_break = { cur_cols == cols || cur_total_w > max_w };
 
                 if need_break {
                     elem_offset.y += head_h;
@@ -570,14 +545,14 @@ impl Canvas {
         }
 
         for elem in draw_elems.iter_mut() {
-            elem.draw(&mut self.buffer);
+            elem.draw(&mut self.canvas.buffer);
         }
 
         Ok(())
     }
 }
 
-impl Canvas {
+impl App {
     // Block {
     //   page: Page,
     //   space: Space,
@@ -586,44 +561,41 @@ impl Canvas {
     // page.draw();
     // space.draw();
     pub fn double_draw(&mut self) -> eyre::Result<()> {
-        self.clamp_offset();
-        self.reset();
+        self.canvas.clamp_offset();
+        self.canvas.reset();
 
         // TODO: align
         // TODO: gap
-        // TODO: page_dire
-        let layout = &self.config.canvas.layout;
-        let Layout::Double { align, gap } = layout else {
+        // TODO: config.reading_dire
+        let Layout::Double { align, gap } = &self.layout else {
             unreachable!()
         };
 
-        let view_area = self.view_area(layout);
-        let max_w = self.page_max_width;
-
-        let max_page_nums = 2.0;
-        let max_w = self.size().width();
-        let min_w = max_w / max_page_nums;
+        let view_area = self.view_area(&self.layout);
+        let cols = 2.0;
+        let min_w = self.page_size().width();
+        let max_w = min_w * 2.0;
 
         //
         // +-----+-----+  case 1
         // |     |     |
-        // |     |     |
+        // |  1  |  2  |
         // |     |     |
         // +-----+-----+
         //
         // +-----------+  case 2
         // |           |
-        // |           |
+        // |     1     |
         // |           |
         // +-----------+
         //
         // +-----+-----+  case 3
-        // |     |.....|  `.` is mean `empty`
-        // |     |.....|
-        // |     |.....|
+        // |     |. . .|  `.` means `empty`
+        // |  1  |. . .|
+        // |     |. . .|
         // +-----+-----+
         // |           |
-        // |           |
+        // |     2     |
         // |           |
         // +-----------+
         //
@@ -637,7 +609,7 @@ impl Canvas {
 
         'l: for elem in self.elems.iter_mut() {
             if elem.frame.size.is_zero() {
-                elem.load(&self.data, false)?;
+                elem.load(&self.ext.data, false)?;
                 elem.dst_size = elem.frame.size.resize_by_width(max_w);
                 elem.cast_vertex = Rect::new_at_zero(elem.dst_size);
 
@@ -653,7 +625,8 @@ impl Canvas {
 
             // TODO: Align
             let padding_left = 0.0;
-            let mut drag_offset = Vec2::new(self.offset.x, self.offset.y + elem_offset.y);
+            let mut drag_offset =
+                Vec2::new(self.canvas.offset.x, self.canvas.offset.y + elem_offset.y);
 
             // lhs
             if elem_rank == 0 {
@@ -707,10 +680,10 @@ impl Canvas {
                 }
 
                 State::Waiting => {
-                    let data = self.data.clone();
+                    let data = self.ext.data.clone();
 
                     if elem.frame.size.is_zero() {
-                        self.pool.task_load(elem, data);
+                        self.ext.pool.task_load(elem, data);
                     } else {
                         let w = {
                             if elem.frame.size.ratio() > r43 {
@@ -722,7 +695,7 @@ impl Canvas {
 
                         elem.dst_size = elem.frame.size.resize_by_width(w);
 
-                        self.pool.task_resize(elem, data, &self.config);
+                        self.ext.pool.task_resize(elem, data, &self.config);
                     }
                 }
 
@@ -731,40 +704,11 @@ impl Canvas {
         }
 
         for elem in draw_elems.iter_mut() {
-            elem.draw(&mut self.buffer);
+            elem.draw(&mut self.canvas.buffer);
         }
 
         Ok(())
         // todo!();
-    }
-}
-
-impl ViewArea {
-    pub fn is_page_hover(&self, page: &Page) -> (bool, bool) {
-        // dbg!(&self, page.cast_vertex);
-
-        let Self { view, border } = *self;
-        let page = &page.cast_vertex;
-
-        let is_hover_edge = {
-            if border.is_include(page.min()) || border.is_include(page.max()) {
-                true
-            } else {
-                false
-            }
-        };
-        let is_hover_view = {
-            // if page.max().y >= view.min().y && page.min().y <= view.max().y {
-            if view.is_include(page.min()) || view.is_include(page.max()) {
-                true
-            } else {
-                false
-            }
-        };
-
-        // dbg!((page, border, view));
-
-        (is_hover_edge, is_hover_view)
     }
 }
 

@@ -2,15 +2,15 @@ use crate::*;
 
 use std::sync::{Arc, OnceLock, RwLock};
 
-pub static THREAD_GET_ALL_FRAME_SIZE: OnceLock<Elems> = OnceLock::new();
+pub static THREAD_GET_ALL_FRAME_SIZE: OnceLock<Vec<Page>> = OnceLock::new();
 
 pub struct Pool {
     inner: rayon::ThreadPool,
-    list: Arc<RwLock<Elems>>,
+    list: Arc<RwLock<Vec<Page>>>,
 }
 
 impl Pool {
-    pub fn new(elems: Elems) -> Self {
+    pub fn new(elems: Vec<Page>) -> Self {
         Self {
             inner: rayon::ThreadPoolBuilder::new().build().unwrap(),
             list: Arc::new(RwLock::new(elems)),
@@ -47,8 +47,8 @@ impl Pool {
     pub fn task_resize(&self, page: &mut Page, data: Arc<DataType>, config: &Config) {
         let list = self.list.clone();
 
-        let algo_image = config.page_image_resize_algo();
-        let algo_anime = config.page_anime_resize_algo();
+        let algo_image = config.page_img_resize_algo();
+        let algo_anim = config.page_anim_resize_algo();
 
         let index = page.index;
         let dst_size = page.dst_size;
@@ -61,10 +61,10 @@ impl Pool {
 
             if task.state == State::Empty && !dst_size.is_zero() {
                 let algo = {
-                    if task.frame.ty() == FrameTy::Image {
+                    if task.frame.ty() == FrameTy::Img {
                         algo_image
                     } else {
-                        algo_anime
+                        algo_anim
                     }
                 };
 

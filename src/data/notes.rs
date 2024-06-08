@@ -1,35 +1,65 @@
 // TODO: notes
 // TODO: text
+// TODO: https://github.com/flxzt/rnote/issues/15
 
 use crate::*;
 
 use rgb::RGBA8;
 
+/// All points in normalized.
+// REFS: https://github.com/flxzt/rnote/blob/205223c078fa1254062b956a2cf6697aca5347b3/crates/rnote-engine/src/fileformats/xoppformat.rs#L432
 #[derive(Debug)]
 pub struct Notes {
-    inner: Vec<Note>,
+    pages: Vec<NotePage>,
 }
 
 #[derive(Debug)]
-pub struct Note {
-    pub color: RGBA8,
-    pub data: Data,
+pub struct NotePage {
+    pub size: Size,
+    pub page_number: usize,
+    // pub background: XoppBackground,
+    /// The layers of the page.
+    pub layers: Vec<NoteLayer>,
 }
 
 #[derive(Debug)]
-enum Data {
-    Shape {
-        stroke_width: u8,
+pub struct NoteLayer {
+    /// Stroke on this layer.
+    pub strokes: Vec<NoteStroke>,
+    /// Texts on this layer.
+    pub texts: Vec<NoteText>,
+    // /// Images on this layer.
+    // pub images: Vec<XoppImage>,
+}
+
+#[derive(Debug)]
+pub struct NoteStroke {
+    color: RGBA8,
+    tool: ToolType,
+    fill: Option<RGBA8>,
+    start_at: Vec2,
+}
+
+#[derive(Debug)]
+pub enum ToolType {
+    Pixel {
+        stroke_width: f32,
         points: Vec<Vec2>,
     },
-    Text {
-        content: String,
-        font: Font,
-        start_at: Vec2,
+    Rect {
+        size: Size,
     },
-    RichText {
-        // ?
+    Circle {
+        radius: f32,
     },
+}
+
+#[derive(Debug)]
+pub struct NoteText {
+    content: String,
+    font: Font,
+    color: RGBA8,
+    start_at: Vec2,
 }
 
 // REFS: https://developer.mozilla.org/en-US/docs/Web/CSS/font
@@ -45,7 +75,7 @@ struct Font {
     font_stretch: u8,
 }
 
-impl Note {
+impl NoteLayer {
     pub fn new(size: Size, color: RGBA8, path: &[Vec2]) -> Self {
         let mut res: Vec<Vec2> = Vec::new();
         let len = size.len();

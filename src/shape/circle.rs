@@ -1,6 +1,6 @@
 use crate::*;
 
-use rgb::{alt::ARGB8, RGBA8};
+use rgb::RGBA8;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Circle {
@@ -75,7 +75,7 @@ impl Circle {
                 max_y.clamp(0, ch),
             )
         };
-        let ARGB8 { a, r, g, b } = ARGB8::from(fill);
+        let RGBA8 { r, g, b, a } = fill;
         let fill = u32::from_be_bytes([a, r, g, b]);
 
         // dbg!(&max_y, &max_x, self.origin);

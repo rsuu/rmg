@@ -158,7 +158,7 @@ impl Frame {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum FrameTy {
-    Image,
+    Img,
     Anim,
 }
 
@@ -181,7 +181,8 @@ impl Frame {
 
                 ImageType::Avif => FrameFmt::Avif,
                 ImageType::Heif => FrameFmt::Heic,
-
+                // TODO:
+                // ImageType::Heic => FrameFmt::Heic,
                 ImageType::Aseprite => FrameFmt::Aseprite,
                 ImageType::Gif => FrameFmt::Gif,
                 ImageType::Webp => FrameFmt::Webp,
@@ -335,9 +336,9 @@ impl Frame {
 
     pub fn ty(&self) -> FrameTy {
         match self.data {
-            FrameData::Single { .. } => FrameTy::Image,
+            FrameData::Single { .. } => FrameTy::Img,
             FrameData::Multi { .. } => FrameTy::Anim,
-            FrameData::DynSingle { .. } => FrameTy::Image,
+            FrameData::DynSingle { .. } => FrameTy::Img,
         }
     }
 }

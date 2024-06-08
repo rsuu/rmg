@@ -39,39 +39,37 @@ rmg file.zip
 
 # rmg file.gif
 
-rmg --canvas-size 600x600 file.zip
+rmg --page-size 600x600 file.zip
 
-rmg --canvas-size 600x600 --config ./assets/config.rs file.zip
+rmg --page-size 600x600 --config ./assets/config.rs file.zip
 ```
 
 ## Keymap
 
-|Key     | Action              |
-|:-      |:-                   |
-|k/Up    | move up             |
-|j/Down  | move down           |
-|h/Left  | move left           |
-|r/Right | move right          |
-|g       | toggle gesture mode |
-|q       | quit                |
+|Key      | Action              |
+|:-       |:-                   |
+|`k/Up`   | move up             |
+|`j/Down` | move down           |
+|`h/Left` | move left           |
+|`r/Right`| move right          |
+|`g`      | toggle gesture mode |
+|`q`      | quit                |
 
 |Key          | Action    |  Layout     |
 |:-           |:-         |:-           |
-| scroll up   | move up   | Vertical    |
-| scroll down | move down | Vertical    |
-| scroll up   | zoom out  | Single      |
-| scroll down | zoom in   | Single      |
+|`scroll up  `| move up   | Vertical    |
+|`scroll down`| move down | Vertical    |
+|`scroll up  `| zoom out  | Single      |
+|`scroll down`| zoom in   | Single      |
 
-|Gesture| Action   |
-|:-     |:-        |
-|rect   |          |
-|ring   |          |
+|Gesture  | Action   |
+|:-       |:-        |
+|`rect`   |          |
+|`ring`   |          |
 
 ## Config
 
-> config: https://raw.githubusercontent.com/rsuu/rmg/main/assets/config.rs
-
-NOTE: You must create the file first.
+First copy [config.rs](https://raw.githubusercontent.com/rsuu/rmg/main/assets/config.rs) into `<config_path>`.
 
 + Linux: `$HOME/.config/rmg/config.rs`
 + Mac: `$HOME/Library/Application Support/rmg/config.rs`
@@ -81,26 +79,26 @@ see more: https://docs.rs/dirs-next/
 
 ## Supported Formats
 
+| Format     | Supported | Default | Dependency|
+|:-          |:-         |:-       |:-         |
+|`.jpg`      | +         | +       |           |
+|`.png`      | +         | +       |           |
+|`.webp`     | +         | +       |           |
+|`.heic/avif`| +         |         | libheif   |
+|`.gif`      | (dev)     | +       |           |
+|`.aseprite` | (dev)     |         |           |
+|`.svg`      | (dev)     |         |           |
+
 | Format    | Supported | Default | Dependency|
 |:-         |:-         |:-       |:-         |
-|.jpg       | +         | +       |           |
-|.png       | +         | +       |           |
-|.webp      | +         | +       |           |
-|.heic/avif | +         |         | libheif   |
-|.gif       | (dev)     | +       |           |
-|.aseprite  | (dev)     |         |           |
-|.svg       | (dev)     |         |           |
+|`directory`| +         | +       |           |
+|`.tar`     | +         |         |           |
+|`.zip/cbz` | +         | +       |           |
+|`.7z`      |           |         |           |
+|`.rar`     |           |         |           |
+|`.zst`     |           |         |           |
 
-| Format   | Supported | Default | Dependency|
-|:-        |:-         |:-       |:-         |
-|directory | +         | +       |           |
-|.tar      | +         |         |           |
-|.zip/cbz  | +         | +       |           |
-|.7z       |           |         |           |
-|.rar      |           |         |           |
-|.zst      |           |         |           |
-
-## Features
+## Optional Features
 
 ```bash
 # HEIF/HEIC

@@ -148,7 +148,7 @@ impl DataType {
 
             Self::SingleImg { path } => archive::file::get_file(path),
 
-            Self::Unknown => eyre::bail!("Unknown data format"),
+            Self::Unknown => eyre::bail!("Unknown URI"),
         }
     }
 }

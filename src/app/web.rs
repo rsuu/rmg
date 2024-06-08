@@ -1,223 +1,149 @@
-// TODO:
+// TODO(threadpool): https://github.com/rustwasm/wasm-bindgen/tree/main/examples/raytrace-parallel
 
-use crate::{ArchiveFmt, Canvas, Config, DataType, FileList, Page, Path, PathBuf, Size, State};
+mod pool;
 
+use crate::*;
+
+use eyre::OptionExt;
+use rayon::ThreadPoolBuilder;
+use rgb::RGBA8;
+use softbuffer::{Context, Surface};
 use std::{
-    cell::RefCell, collections::HashMap, fs::File, io::Read, num::NonZeroU32, panic, rc::Rc,
+    collections::VecDeque,
+    num::NonZeroU32,
+    rc::Rc,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
 };
 use winit::{
-    dpi::LogicalSize,
-    event::{Event, KeyEvent, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    dpi::{LogicalSize, PhysicalPosition},
+    event::{Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent},
+    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
     keyboard::{KeyCode, PhysicalKey},
-    window::WindowBuilder,
+    monitor::{MonitorHandle, VideoMode},
+    window::{Window, WindowBuilder},
 };
-
 use {
     console_error_panic_hook,
-    wasm_bindgen::{prelude::*, JsCast},
-    web_sys::console,
+    js_sys::Uint8Array,
+    wasm_bindgen::{prelude::*, JsCast, JsValue},
+    wasm_bindgen_futures::JsFuture,
+    web_sys::{console, Request, RequestInit, RequestMode, Response},
     winit::platform::web::{EventLoopExtWebSys, WindowExtWebSys},
 };
 
-// #[macro_export]
-// macro_rules! dbg {
-//     ($s: expr) => {
-//         crate::web::log($s)
-//     };
-// }
-
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-fn main() {
-    inner_main().unwrap();
+#[macro_export]
+macro_rules! log {
+    ($($t:tt)*) => (crate::app::web::log(&format_args!($($t)*).to_string()))
 }
 
-fn inner_main() -> eyre::Result<()> {
-    init_log();
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
+pub async fn main() {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
 
-    let config = Config::new().unwrap();
+    let web_win = web_sys::window().unwrap();
+    let web_dom = web_win.document().unwrap();
+
+    // let (mut app, event_loop) = App::new(Config::new().unwrap()).unwrap();
 
     let event_loop = EventLoop::new().unwrap();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
-    let win_size = config.canvas.size;
-    let mut size = LogicalSize::new(win_size.width(), win_size.height());
+    let size = LogicalSize::new(100.0, 100.0);
     let window = Rc::new(
         WindowBuilder::new()
             .with_inner_size(size)
-            .with_max_inner_size(size)
-            .with_min_inner_size(size)
             .build(&event_loop)
             .unwrap(),
     );
-    dbg!("INFO: winit");
-
-    web_sys::window()
-        .unwrap()
-        .document()
-        .unwrap()
+    web_dom
         .body()
         .unwrap()
         .append_child(&window.canvas().unwrap())
         .unwrap();
-    dbg!("INFO: web-sys");
+    let context = Context::new(window.clone()).unwrap();
+    let mut surface = Surface::new(&context, window.clone()).unwrap();
+    log!("INFO: web-sys");
 
-    let context =
-        softbuffer::Context::new(window.clone()).or_else(|e| Err(eyre::eyre!("{e:#?}")))?;
-    let mut surface = softbuffer::Surface::new(&context, window.clone()).unwrap();
-    dbg!("INFO: softbuffer");
+    // TODO(web): ?canvas from url
+    // REFS: https://rustwasm.github.io/wasm-bindgen/examples/fetch.html
+    let img = {
+        let url = "/zoom.png";
 
-    // let mut canvas = {
-    //     // let file = DataType::new(PathBuf::from("./assets/test.zip").as_path()).unwrap();
-    //     let file = DataType::SingleImg {
-    //         path: PathBuf::from(""),
-    //     };
-    //     let mut canvas = Canvas::new(config, file, win_size.width(), win_size.height()).unwrap();
-    //
-    //     // let mut offset_y = 0.0;
-    //     // let mut file_index = 1;
-    //     // let cw = win_size.width();
-    //     // let filter = fir::FilterType::Lanczos3;
-    //     //
-    //     // for _ in 0..4 {
-    //     //     let (w, h) = (win_size.width(), win_size.height());
-    //     //     let buf = vec![255_u8; (w as usize * h as usize) * 4];
-    //     //     let (nw, nh) = (cw, 600);
-    //     //     let img = Page::new_buf(
-    //     //         buf,
-    //     //         Size::new(w, h),
-    //     //         Size::new(nw, nh),
-    //     //         filter,
-    //     //         &mut offset_y,
-    //     //         &mut file_index,
-    //     //     );
-    //     //     canvas.add_page(img.unwrap());
-    //     //
-    //     //     // padding-buttom
-    //     //     offset_y += 50.0;
-    //     // }
-    //
-    //     canvas
-    // };
-    // dbg!(&format!("pages.len(): {}", canvas.pages.len()));
-    //
-    // event_loop.spawn(move |event, elwt| {
-    //     elwt.set_control_flow(ControlFlow::Wait);
-    //
-    //     match event {
-    //         Event::WindowEvent {
-    //             window_id,
-    //             event: WindowEvent::RedrawRequested,
-    //         } => {
-    //             // if window_id != window.id() {
-    //             //     unimplemented!()
-    //             // }
-    //
-    //             let (width, height) = {
-    //                 let size = window.inner_size();
-    //                 (size.width, size.height)
-    //             };
-    //             //dbg!(&format!("{width}x{height}"));
-    //
-    //             let (width, height) = (win_size.width(), win_size.height());
-    //             surface
-    //                 .resize(
-    //                     NonZeroU32::new(width).unwrap(),
-    //                     NonZeroU32::new(height).unwrap(),
-    //                 )
-    //                 .unwrap();
-    //             let mut buffer = surface.buffer_mut().unwrap();
-    //
-    //             // dbg!(&format!("buf   : {}", buffer.len()));
-    //             // dbg!(&format!("canvas: {}", canvas.buf.data.len()));
-    //             // dbg!(&format!("buffer: {}", canvas.bg_vec.len()));
-    //
-    //             canvas.render().unwrap();
-    //             buffer.swap_with_slice(&mut canvas.buffer.data);
-    //             // buffer.copy_from_slice(&canvas.buf.data);
-    //             buffer.present().unwrap();
-    //
-    //             // if canvas.pages[0].state == State::Unneeded {
-    //             //     dbg!("free");
-    //             // }
-    //
-    //             // dbg!("flush");
-    //         }
-    //
-    //         Event::WindowEvent { event, .. } => match event {
-    //             WindowEvent::KeyboardInput {
-    //                 device_id,
-    //                 event:
-    //                     KeyEvent {
-    //                         physical_key,
-    //                         logical_key,
-    //                         text,
-    //                         location,
-    //                         state,
-    //                         repeat,
-    //                         ..
-    //                     },
-    //                 is_synthetic,
-    //             } => match physical_key {
-    //                 PhysicalKey::Code(KeyCode::KeyJ) | PhysicalKey::Code(KeyCode::ArrowDown) => {
-    //                     // dbg!("J");
-    //                     canvas.move_down();
-    //                 }
-    //                 PhysicalKey::Code(KeyCode::KeyK) | PhysicalKey::Code(KeyCode::ArrowUp) => {
-    //                     // dbg!("K");
-    //                     canvas.move_up();
-    //                 }
-    //                 PhysicalKey::Code(KeyCode::KeyH) | PhysicalKey::Code(KeyCode::ArrowLeft) => {
-    //                     // dbg!("H");
-    //                     canvas.move_left();
-    //                 }
-    //                 PhysicalKey::Code(KeyCode::KeyL) | PhysicalKey::Code(KeyCode::ArrowRight) => {
-    //                     // dbg!("L");
-    //                     canvas.move_right();
-    //                 }
-    //                 PhysicalKey::Code(KeyCode::KeyQ) | PhysicalKey::Code(KeyCode::Escape) => {
-    //                     dbg!("exit");
-    //                     elwt.exit();
-    //                 }
-    //                 _ => {}
-    //             },
-    //             WindowEvent::ModifiersChanged(new) => {}
-    //             WindowEvent::Resized(new_size) => {
-    //                 size = new_size.to_logical(1.0);
-    //             }
-    //             WindowEvent::CloseRequested => {
-    //                 elwt.exit();
-    //             }
-    //             _ => (),
-    //         },
-    //         _ => {}
-    //     }
-    //
-    //     window.request_redraw();
-    // });
+        let req = web_win.fetch_with_str(url);
+        let res: Response = JsFuture::from(req).await.unwrap().dyn_into().unwrap();
+        let res = JsFuture::from(res.array_buffer().unwrap()).await.unwrap();
 
-    Ok(())
+        Uint8Array::new(&res).to_vec()
+    };
+    log!("buffer.len: {}", img.len());
+
+    let mut buffer = vec![];
+    {
+        let img = image::load_from_memory(&img).unwrap().into_rgba8().to_vec();
+
+        for v in img.chunks(4) {
+            let (r, g, b, a) = (v[0], v[1], v[2], v[3]);
+            buffer.push(u32::from_be_bytes([a, r, g, b]));
+        }
+    }
+
+    let loop_dur = Duration::from_millis(1000 / 90);
+
+    event_loop.spawn(move |event, elwt| {
+        elwt.set_control_flow(ControlFlow::wait_duration(loop_dur));
+
+        match event {
+            Event::AboutToWait => {
+                window.request_redraw();
+            }
+
+            Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
+                WindowEvent::RedrawRequested => {
+                    surface
+                        .resize(NonZeroU32::new(100).unwrap(), NonZeroU32::new(100).unwrap())
+                        .unwrap();
+
+                    let mut map = surface.buffer_mut().unwrap();
+
+                    map.copy_from_slice(&buffer);
+                    map.present().unwrap();
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+
+        // app.event_loop(event, elwt).unwrap();
+    });
 }
 
-// fn request_animation_frame(f: &Closure<dyn FnMut()>) {
-//     window()
-//         .request_animation_frame(f.as_ref().unchecked_ref())
-//         .expect("should register `requestAnimationFrame` OK");
-// }
+#[wasm_bindgen]
+pub struct Pool {}
 
-// fn window() -> web_sys::Window {
-//     web_sys::window().expect("no global `window` exists")
-// }
+#[wasm_bindgen]
+impl Pool {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Result<Pool, JsValue> {
+        Ok(Self {})
+    }
 
-fn init_log() {
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
+    pub fn render(pool: &pool::WorkerPool) {
+        log!("render");
+
+        let threads = 8;
+        let thread_pool = ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .spawn_handler(|thread| {
+                pool.run(|| thread.run()).unwrap();
+                Ok(())
+            })
+            .build()
+            .unwrap();
+    }
 }
 
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     pub fn log(s: &str);
-
-    #[wasm_bindgen(js_namespace = console, js_name = log)]
-    pub fn log_u32(a: u8);
 
 }

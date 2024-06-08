@@ -15,11 +15,11 @@ pub struct Gesture {
 }
 
 impl Gesture {
-    pub fn new(zip_path: String) -> eyre::Result<Self> {
+    pub fn new(zip_path: &str) -> eyre::Result<Self> {
         let mut temps = Vec::new();
 
         let file = {
-            if let Ok(file) = File::open(zip_path.as_str()) {
+            if let Ok(file) = File::open(zip_path) {
                 file
 
             // $XDG_DATA_HOME/rmg/gestures.zip
@@ -49,7 +49,10 @@ impl Gesture {
             temps.push(load_gesture(name, buf.as_slice())?);
         }
 
-        Ok(Self { temps, zip_path })
+        Ok(Self {
+            temps,
+            zip_path: zip_path.to_string(),
+        })
     }
 
     pub fn matches(&self, path: &[Vec2], min_score: f32) -> eyre::Result<String> {

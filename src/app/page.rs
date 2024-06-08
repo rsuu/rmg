@@ -209,12 +209,13 @@ impl Page {
 }
 
 impl Element for Page {
-    fn empty() -> Self
-    where
-        Self: Sized,
-    {
-        Self::new_empty(0)
+    type Res = eyre::Result<()>;
+
+    fn size(&self) -> Size {
+        self.frame.size
     }
 
-    fn draw(&self, canvas: &mut Canvas) {}
+    fn draw<'a>(&self, args: &'a mut ElementArgs) -> Self::Res {
+        Ok(())
+    }
 }

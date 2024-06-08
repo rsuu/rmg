@@ -8,14 +8,14 @@ pub mod utils;
 
 pub use {
     app::{
-        buffer::*, canvas::*, draw::*, gesture::*, layout::*, page::*, state::*, task::*,
+        buffer::*, canvas::*, draw::*, gesture::*, layout::*, page::*, state::*, task::*, view::*,
         window::*, *,
     },
     archive::*,
     data::{config::*, *},
     frame::*,
     shape::{circle::*, rect::*},
-    ui::{elem::*, style::*, *},
+    ui::{align::*, elem::*, style::*, *},
     utils::{affine::*, filter::*, size::*, vec2::*, *},
 };
 

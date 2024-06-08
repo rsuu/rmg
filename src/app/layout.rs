@@ -48,7 +48,9 @@ pub enum Layout {
     //
     Single {
         flag_scroll: bool, // TODO: to App.eventinfo
-        mouse_pos: Vec2,
+        mouse_pos: Vec2,   // mv App
+        /// zoom in : 1.0
+        /// zoom out: -1.0
         dire: f32,
         cur_zoom: i32,
         max_zoom: i32,
@@ -76,7 +78,7 @@ pub enum Layout {
     },
 
     Multi {
-        cols_nums: usize,
+        cols: usize,
     },
 
     Gallery,
@@ -170,15 +172,6 @@ pub struct Gap<T = f32> {
     pub y: T,
 }
 
-#[derive(Debug, Default, Clone, Copy, EsynDe, PartialEq)]
-pub enum Align {
-    #[default]
-    Center,
-
-    Left,
-    Right,
-}
-
 impl Gap {
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
@@ -192,6 +185,7 @@ impl Align {
             Self::Center => center_x(canvas_w, elem_w),
             Self::Left => 0.0,
             Self::Right => canvas_w - elem_w,
+            _ => unreachable!(),
         }
     }
 }

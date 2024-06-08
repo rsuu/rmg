@@ -1,11 +1,7 @@
 fn main() {}
 
 fn app() -> Any {
-    Any {
-        target: "./",
-        gestures_zip: "./assets/gestures.zip",
-        gesture_min_score: 0.9,
-    }
+    Any { target: "./" }
 }
 
 fn window() -> Any {
@@ -19,30 +15,26 @@ fn window() -> Any {
 
 fn canvas() -> Any {
     Any {
-        size: Size {
-            width: 800,
-            height: 600,
-        },
-
         layout: Layout::Vertical {
             align: Align::Center,
         },
 
-        step_x: 100.0,
-        step_y: 100.0,
-
         cache_limit: 2,
-        page_dire: PageDirection::Manga,
+        pre_load_nums: 4,
 
-        // RGBA
+        /// RGBA
         bg: 0x00_00_00_00,
     }
 }
 
 fn page() -> Any {
     Any {
-        image_resize_algo: WrapResizeAlg::Lanczos3,
-        anime_resize_algo: WrapResizeAlg::Nearest,
+        size: Size {
+            width: 800,
+            height: 600,
+        },
+        img_resize_algo: WrapResizeAlg::Lanczos3,
+        anim_resize_algo: WrapResizeAlg::Nearest,
     }
 }
 
@@ -55,5 +47,26 @@ fn misc() -> Any {
 fn once() -> Any {
     Any {
         record_gesture_name: None,
+    }
+}
+
+fn gestures() -> Any {
+    Any {
+        data_path: "./assets/gestures.zip",
+        min_score: 0.9,
+    }
+}
+
+fn layout_double() -> Any {
+    Any {
+        /// right to left
+        reading_dire: Direction::Rtl,
+    }
+}
+
+fn on_scroll() -> Any {
+    Any {
+        step_x: 100.0,
+        step_y: 100.0,
     }
 }

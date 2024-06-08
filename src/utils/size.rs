@@ -32,7 +32,7 @@ impl Size {
         self.width / self.height
     }
 
-    /// Adjust `self.width` according to `new.width`.
+    /// Adjust `self.width` according to `new_width`.
     pub fn resize_by_width(&self, new_width: f32) -> Self {
         let r = self.ratio();
         let w = new_width;

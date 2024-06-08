@@ -13,6 +13,12 @@ pub struct Config {
     pub canvas: ConfCanvas,
     pub page: ConfPage,
     pub misc: ConfMisc,
+
+    pub gestures: ConfGestures,
+    pub layout_double: ConfLayoutDouble,
+
+    pub on_scroll: ConfOnScroll,
+
     pub once: ConfOnce,
     // TODO: MouseMap
     // ?KeyMap
@@ -26,10 +32,6 @@ pub struct ConfOnce {
 #[derive(Debug, Default, Clone, EsynDe)]
 pub struct ConfApp {
     pub target: PathBuf,
-
-    // TODO: $XDG_DATA_HOME/rmg/gestures.zip
-    pub gestures_zip: String,
-    pub gesture_min_score: f32,
 }
 
 #[derive(Debug, Default, Clone, EsynDe)]
@@ -40,16 +42,10 @@ struct ConfWindow {
 
 #[derive(Debug, Default, Clone, EsynDe)]
 pub struct ConfCanvas {
-    pub size: Size, // (default: win_size)
-
     pub layout: Layout,
-
-    pub step_x: f32,
-    pub step_y: f32,
 
     pub bg: u32,
     pub cache_limit: u32,
-    pub page_dire: PageDirection,
 
     // unused
     pub font_path: Option<PathBuf>,
@@ -57,13 +53,32 @@ pub struct ConfCanvas {
 
 #[derive(Debug, Default, Clone, EsynDe)]
 pub struct ConfPage {
-    pub image_resize_algo: WrapResizeAlg,
-    pub anime_resize_algo: WrapResizeAlg,
+    pub size: Size,
+    pub img_resize_algo: WrapResizeAlg,
+    pub anim_resize_algo: WrapResizeAlg,
 }
 
 #[derive(Debug, Default, Clone, EsynDe)]
 pub struct ConfMisc {
     pub padding_filename: u8,
+}
+
+#[derive(Debug, Default, Clone, EsynDe)]
+pub struct ConfLayoutDouble {
+    pub reading_dire: Direction,
+}
+
+#[derive(Debug, Default, Clone, EsynDe)]
+pub struct ConfGestures {
+    // TODO: $XDG_DATA_HOME/rmg/gestures.zip
+    pub data_path: String,
+    pub min_score: f32,
+}
+
+#[derive(Debug, Default, Clone, EsynDe)]
+pub struct ConfOnScroll {
+    pub step_x: f32,
+    pub step_y: f32,
 }
 
 impl Config {
@@ -106,6 +121,24 @@ impl Config {
             .get::<ConfMisc>(&esyn)?
             .get();
 
+        let gestures = EsynBuilder::new()
+            .set_fn("gestures")
+            .flag_res()
+            .get::<ConfGestures>(&esyn)?
+            .get();
+
+        let layout_double = EsynBuilder::new()
+            .set_fn("layout_double")
+            .flag_res()
+            .get::<ConfLayoutDouble>(&esyn)?
+            .get();
+
+        let on_scroll = EsynBuilder::new()
+            .set_fn("on_scroll")
+            .flag_res()
+            .get::<ConfOnScroll>(&esyn)?
+            .get();
+
         let once = EsynBuilder::new()
             .set_fn("once")
             .flag_res()
@@ -119,6 +152,9 @@ impl Config {
             page,
             misc,
             once,
+            gestures,
+            layout_double,
+            on_scroll,
         })
     }
 
@@ -181,9 +217,9 @@ impl Config {
         }
 
         // ConfCanvas
-        if let Some(v) = args.opt_value_from_str::<_, String>("--size")? {
+        if let Some(v) = args.opt_value_from_str::<_, String>("--page-size")? {
             let (w, h) = v.split_once('x').unwrap();
-            self.canvas.size = Size::new(w.parse().unwrap(), h.parse().unwrap());
+            self.page.size = Size::new(w.parse().unwrap(), h.parse().unwrap());
         }
         if let Some(v) = args.opt_value_from_str::<_, String>("--layout")? {
             self.canvas.layout = {
@@ -227,28 +263,12 @@ impl Config {
         Ok(())
     }
 
-    pub fn canvas_step(&self) -> Vec2 {
-        Vec2::new(self.canvas.step_x, self.canvas.step_y)
+    pub fn page_img_resize_algo(&self) -> fir::ResizeAlg {
+        self.page.img_resize_algo.into()
     }
 
-    pub fn canvas_cache_limit(&self) -> f32 {
-        self.canvas.cache_limit as f32
-    }
-
-    pub fn bg(&self) -> u32 {
-        self.canvas.bg
-    }
-
-    pub fn layout(&self) -> &Layout {
-        &self.canvas.layout
-    }
-
-    pub fn page_image_resize_algo(&self) -> fir::ResizeAlg {
-        self.page.image_resize_algo.into()
-    }
-
-    pub fn page_anime_resize_algo(&self) -> fir::ResizeAlg {
-        self.page.anime_resize_algo.into()
+    pub fn page_anim_resize_algo(&self) -> fir::ResizeAlg {
+        self.page.anim_resize_algo.into()
     }
 }
 
@@ -285,9 +305,9 @@ OPTIONS:
             Padding filename with `0`.
 
 OPTIONS(for Canvas):
-        --size
-            Specify the width and the height.
-            e.g. `rmg --size 900x900`
+        --page-size
+            Specify the width and the height of page.
+            e.g. `rmg --page-size 900x900`
         --layout
             Specify layout.
             e.g. `rmg --layout double`
