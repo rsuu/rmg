@@ -13,10 +13,10 @@ use std::{
 use winit::{
     dpi::{LogicalSize, PhysicalPosition},
     event::{Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    event_loop::{ControlFlow, EventLoop, ActiveEventLoop},
     keyboard::{KeyCode, PhysicalKey},
     monitor::{MonitorHandle, VideoMode},
-    window::{Window, WindowBuilder},
+    window::Window,
 };
 
 pub struct App {
@@ -98,7 +98,7 @@ impl App {
             let size = canvas.size();
             let size = LogicalSize::new(size.width(), size.height());
 
-            Rc::new(WindowBuilder::new().with_title("rmg").build(&event_loop)?)
+            Rc::new(Window::default_attributes.with_title("rmg").build(&event_loop)?)
         };
         tracing::info!("Winit");
 
@@ -155,7 +155,7 @@ impl App {
     fn event_loop(
         &mut self,
         event: Event<()>,
-        elwt: &EventLoopWindowTarget<()>,
+        elwt: &ActiveEventLoop<()>,
     ) -> eyre::Result<()> {
         let window = self.window();
 
@@ -224,7 +224,7 @@ impl App {
 
     fn on_window_event(
         &mut self,
-        elwt: &EventLoopWindowTarget<()>,
+        elwt: &ActiveEventLoop<()>,
         e: WindowEvent,
     ) -> eyre::Result<()> {
         // TODO:
@@ -384,7 +384,7 @@ impl App {
             state,
             ..
         }: KeyEvent,
-        elwt: &EventLoopWindowTarget<()>,
+        elwt: &ActiveEventLoop<()>,
     ) -> eyre::Result<()> {
         if !state.is_pressed() {
             return Ok(());
@@ -427,7 +427,7 @@ impl App {
         Ok(())
     }
 
-    fn on_exit(&mut self, elwt: &EventLoopWindowTarget<()>) -> eyre::Result<()> {
+    fn on_exit(&mut self, elwt: &ActiveEventLoop<()>) -> eyre::Result<()> {
         tracing::info!("exit");
 
         self.gestures.save()?;
