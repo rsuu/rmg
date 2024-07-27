@@ -169,8 +169,7 @@ impl Frame {
 
     pub fn resize(blob: &[u8], dst_size: Size, algo: ResizeAlg) -> eyre::Result<Self> {
         use imagesize::{blob_size, image_type, ImageType};
-
-        // FIXME(imagesize): avif will be detected as heic
+        
         let ty = image_type(blob)?;
         let size = blob_size(blob)?;
 
@@ -179,7 +178,7 @@ impl Frame {
                 ImageType::Jpeg => FrameFmt::Jpeg,
                 ImageType::Png => FrameFmt::Png,
 
-                ImageType::Heif(imagesize::Compression::Avif) => FrameFmt::Avif,
+                ImageType::Heif(imagesize::Compression::Av1) => FrameFmt::Avif,
                 ImageType::Heif(imagesize::Compression::Hevc) => FrameFmt::Heic,
                 // TODO:
                 // ImageType::Heif { Hevc }=> FrameFmt::Heic,
