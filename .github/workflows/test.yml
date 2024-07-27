@@ -15,19 +15,19 @@ jobs:
         include:
           - build: linux
             os: ubuntu-latest
-            rust: nightly
+            rust: stable
             target: x86_64-unknown-linux-gnu
           - build: linux-x11
             os: ubuntu-latest
-            rust: nightly
+            rust: stable
             target: x86_64-unknown-linux-gnu
           - build: macos
             os: macos-latest
-            rust: nightly
+            rust: stable
             target: x86_64-apple-darwin
           - build: win-msvc
             os: windows-latest
-            rust: nightly
+            rust: stable
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
     steps:
@@ -41,7 +41,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
           target: ${{ matrix.target }}
       - name: Add mingw64 to path for x86_64-gnu
-        if: matrix.rust == 'nightly'
+        if: matrix.rust == 'stable'
         shell: bash
         run: |
           echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
