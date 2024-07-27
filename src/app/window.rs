@@ -98,7 +98,7 @@ impl App {
             let size = canvas.size();
             let size = LogicalSize::new(size.width(), size.height());
 
-            Rc::new(Window::default_attributes.with_title("rmg").build(&event_loop)?)
+            Rc::new(Window::default_attributes().with_title("rmg").build(&event_loop)?)
         };
         tracing::info!("Winit");
 
@@ -155,7 +155,7 @@ impl App {
     fn event_loop(
         &mut self,
         event: Event<()>,
-        elwt: &ActiveEventLoop<()>,
+        elwt: &ActiveEventLoop,
     ) -> eyre::Result<()> {
         let window = self.window();
 
@@ -224,7 +224,7 @@ impl App {
 
     fn on_window_event(
         &mut self,
-        elwt: &ActiveEventLoop<()>,
+        elwt: &ActiveEventLoop,
         e: WindowEvent,
     ) -> eyre::Result<()> {
         // TODO:
@@ -384,7 +384,7 @@ impl App {
             state,
             ..
         }: KeyEvent,
-        elwt: &ActiveEventLoop<()>,
+        elwt: &ActiveEventLoop,
     ) -> eyre::Result<()> {
         if !state.is_pressed() {
             return Ok(());
@@ -427,7 +427,7 @@ impl App {
         Ok(())
     }
 
-    fn on_exit(&mut self, elwt: &ActiveEventLoop<()>) -> eyre::Result<()> {
+    fn on_exit(&mut self, elwt: &ActiveEventLoop) -> eyre::Result<()> {
         tracing::info!("exit");
 
         self.gestures.save()?;
