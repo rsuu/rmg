@@ -40,7 +40,7 @@ impl Pool {
 
         if !task.frame.size.is_zero() {
             page.frame.size = task.frame.size;
-            page.state = State::Waiting;
+            page.state = State::Loading;
         }
     }
 

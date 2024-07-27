@@ -27,7 +27,7 @@ pub enum State {
     #[default]
     Empty,
 
-    Waiting,
+    Loading,
     Done,
 }
 
@@ -192,12 +192,12 @@ impl Page {
             }
 
             // 1.2. resize()
-            (State::Waiting, ..) => true,
+            (State::Loading, ..) => true,
 
             // 1. loading
             // 1.1. open_img()
             (State::Empty, true, ..) => {
-                self.state = State::Waiting;
+                self.state = State::Loading;
                 // dbg!("empty");
 
                 true

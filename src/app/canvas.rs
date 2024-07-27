@@ -228,7 +228,7 @@ impl App {
                 }
 
                 // 3. loading
-                State::Waiting => {
+                State::Loading => {
                     let data = self.ext.data.clone();
 
                     if page.frame.size.is_zero() {
@@ -679,7 +679,7 @@ impl App {
                     draw_elems.push(elem);
                 }
 
-                State::Waiting => {
+                State::Loading => {
                     let data = self.ext.data.clone();
 
                     if elem.frame.size.is_zero() {

@@ -57,9 +57,9 @@ rmg --page-size 600x600 --config ./assets/config.rs file.zip
 
 |Key          | Action    |  Layout     |
 |:-           |:-         |:-           |
-|`scroll up  `| move up   | Vertical    |
+|`scroll up`  | move up   | Vertical    |
 |`scroll down`| move down | Vertical    |
-|`scroll up  `| zoom out  | Single      |
+|`scroll up`  | zoom out  | Single      |
 |`scroll down`| zoom in   | Single      |
 
 |Gesture  | Action   |

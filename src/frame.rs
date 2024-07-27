@@ -182,7 +182,8 @@ impl Frame {
                 ImageType::Avif => FrameFmt::Avif,
                 ImageType::Heif => FrameFmt::Heic,
                 // TODO:
-                // ImageType::Heic => FrameFmt::Heic,
+                // ImageType::Heif { Hevc }=> FrameFmt::Heic,
+                // ImageType::Heif { Av1 }=> FrameFmt::Avif,
                 ImageType::Aseprite => FrameFmt::Aseprite,
                 ImageType::Gif => FrameFmt::Gif,
                 ImageType::Webp => FrameFmt::Webp,

@@ -9,7 +9,7 @@ pub mod task;
 pub mod view;
 pub mod window;
 
-// #[cfg(target_arch = "wasm32")]
+#[cfg(target_arch = "wasm32")]
 mod web;
 
 use crate::{Element, ElementArgs, Frame, Page, State, Style};
