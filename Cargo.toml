@@ -11,6 +11,9 @@ readme = "README.md"
 categories = []
 keywords = []
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [profile.release]
 lto = "thin"
 opt-level = 2
@@ -119,9 +122,6 @@ de_heic = ["dep:libheif-rs"]
 de_svg = ["dep:usvg", "dep:tiny-skia", "dep:resvg"]
 ex_full = ["ex_tar"]
 ex_tar = ["dep:tar"]
-
-[target.'cfg(target_family = "wasm")'.lib]
-crate-type = ["cdylib"]
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 console_error_panic_hook = "0.1.7"

@@ -171,27 +171,19 @@ impl Config {
     // from config file
     pub fn update_file(&mut self) -> eyre::Result<()> {
         let config = {
-            let mut config_path = PathBuf::new();
-
-            // e.g. ~/.config/rmg/config.rs
-            let Some(path) = dirs_next::config_dir() else {
-                // skip
-                // ?create
+            let Some(mut path) = dirs_next::config_dir() else {
                 return Ok(());
             };
 
-            if path.as_path().is_dir() {
-                config_path.push(path.as_path());
-                config_path.push("rmg/config.rs");
+            // e.g. ~/.config/rmg/config.rs
+            path.push("/rmg/config.rs");
 
-            // skip
-            } else if !config_path.as_path().is_file() {
+            // tracing::debug!("path: {:?}", path);
+
+            let Ok(mut f) = File::open(&path) else {
+                // TODO: create
                 return Ok(());
-            }
-
-            // tracing::debug!("config_path: {:?}", config_path);
-
-            let mut f = File::open(&config_path)?;
+            };
             let mut res = "".to_string();
             f.read_to_string(&mut res)?;
 
