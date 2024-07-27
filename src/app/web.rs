@@ -18,10 +18,10 @@ use std::{
 use winit::{
     dpi::{LogicalSize, PhysicalPosition},
     event::{Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    event_loop::{ControlFlow, EventLoop, ActiveEventLoop},
     keyboard::{KeyCode, PhysicalKey},
     monitor::{MonitorHandle, VideoMode},
-    window::{Window, WindowBuilder},
+    window::Window,
 };
 use {
     console_error_panic_hook,
@@ -48,12 +48,11 @@ pub async fn main() {
 
     let event_loop = EventLoop::new().unwrap();
     let size = LogicalSize::new(100.0, 100.0);
-    let window = Rc::new(
-        WindowBuilder::new()
-            .with_inner_size(size)
-            .build(&event_loop)
-            .unwrap(),
-    );
+    let attrs = Window::default_attributes().with_title("rmg")
+     .with_inner_size(size);
+     let window = event_loop.create_window(attrs).unwrap();        
+    let window = Rc::new(window);
+    
     web_dom
         .body()
         .unwrap()

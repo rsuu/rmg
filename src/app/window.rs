@@ -13,7 +13,7 @@ use std::{
 use winit::{
     dpi::{LogicalSize, PhysicalPosition},
     event::{Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, ActiveEventLoop},
+    event_loop::{self, ControlFlow, EventLoop, ActiveEventLoop},
     keyboard::{KeyCode, PhysicalKey},
     monitor::{MonitorHandle, VideoMode},
     window::Window,
@@ -97,8 +97,10 @@ impl App {
         let window = {
             let size = canvas.size();
             let size = LogicalSize::new(size.width(), size.height());
-
-            Rc::new(Window::default_attributes().with_title("rmg").build(&event_loop)?)
+            let attrs = Window::default_attributes().with_title("rmg");            
+            let window = event_loop.create_window(attrs)?;
+            
+            Rc::new(window)
         };
         tracing::info!("Winit");
 
