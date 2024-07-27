@@ -179,8 +179,8 @@ impl Frame {
                 ImageType::Jpeg => FrameFmt::Jpeg,
                 ImageType::Png => FrameFmt::Png,
 
-                ImageType::Avif => FrameFmt::Avif,
-                ImageType::Heif => FrameFmt::Heic,
+                ImageType::Heif(imagesize::Compression::Avif) => FrameFmt::Avif,
+                ImageType::Heif(imagesize::Compression::Hevc) => FrameFmt::Heic,
                 // TODO:
                 // ImageType::Heif { Hevc }=> FrameFmt::Heic,
                 // ImageType::Heif { Av1 }=> FrameFmt::Avif,

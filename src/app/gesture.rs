@@ -1,6 +1,6 @@
 use crate::*;
 
-use ::zip::{write::FileOptions, CompressionMethod, ZipArchive, ZipWriter};
+use ::zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 use eyre::OptionExt;
 use guessture::{find_matching_template_with_defaults, Path2D, Template};
 use std::{
@@ -86,7 +86,7 @@ impl Gesture {
     pub fn save(&self) -> eyre::Result<()> {
         let mut file = File::create(self.zip_path.as_str())?;
         let mut zip = ZipWriter::new(&mut file);
-        let options = FileOptions::default()
+        let options = SimpleFileOptions::default()
             .compression_method(CompressionMethod::Deflated)
             .compression_level(Some(9));
 
