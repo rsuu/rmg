@@ -15,18 +15,16 @@ pub struct Gesture {
 }
 
 impl Gesture {
-    pub fn new(zip_path: &str) -> eyre::Result<Self> {
+    pub fn load(zip_path: &str) -> eyre::Result<Self> {
         let mut temps = Vec::new();
 
         let file = {
             if let Ok(file) = File::open(zip_path) {
                 file
+            } else if let Some(mut p) = dirs_next::data_dir() {
+                p.push("rmg/gestures.zip");
 
-            // $XDG_DATA_HOME/rmg/gestures.zip
-            } else if let Some(mut default_dir) = dirs_next::data_dir() {
-                default_dir.push("rmg/gestures.zip");
-
-                File::open(default_dir)?
+                File::open(p)?
             } else {
                 return Err(eyre::eyre!("Unknown to read `gestures.zip`"));
             }

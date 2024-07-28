@@ -79,14 +79,6 @@ impl FileList {
 }
 
 impl DataType {
-    pub fn file_nums(&self) -> usize {
-        match self {
-            DataType::Archive { filelist, .. } | DataType::Dir { filelist, .. } => filelist.len(),
-            DataType::SingleImg { .. } => 1,
-            _ => unreachable!(),
-        }
-    }
-
     pub fn new(path: &Path) -> eyre::Result<Self> {
         if path.is_dir() {
             return Ok(Self::Dir {
@@ -95,19 +87,20 @@ impl DataType {
             });
         }
 
-        // BUG: remove space in the path
+        // FIXME: remove space in the path
         let Ok(ty) = infer::get_from_path(path) else {
             eyre::bail!("Unknown Type")
         };
 
-        let Some(ext) = ty else {
+        let Some(t) = ty else {
             // Not archive.
             return Ok(Self::SingleImg {
                 path: path.to_path_buf(),
             });
         };
+        let ext = t.extension();
 
-        Ok(match ext.extension() {
+        Ok(match ext {
             "zip" => Self::Archive {
                 fmt: ArchiveFmt::Zip,
                 filelist: archive::zip::get_list(path)?,
@@ -120,8 +113,20 @@ impl DataType {
                 path: path.to_path_buf(),
             },
 
+            _ if SUPPORTED_FORMAT.contains(&ext) => Self::SingleImg {
+                path: path.to_path_buf(),
+            },
+
             _ => Self::Unknown,
         })
+    }
+
+    pub fn file_nums(&self) -> usize {
+        match self {
+            DataType::Archive { filelist, .. } | DataType::Dir { filelist, .. } => filelist.len(),
+            DataType::SingleImg { .. } => 1,
+            _ => unreachable!(),
+        }
     }
 
     pub fn gen_empty_pages(&self, fname_padding: usize) -> eyre::Result<Vec<Page>> {

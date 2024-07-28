@@ -18,7 +18,7 @@ use std::{
 use winit::{
     dpi::{LogicalSize, PhysicalPosition},
     event::{Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, ActiveEventLoop},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
     monitor::{MonitorHandle, VideoMode},
     window::Window,
@@ -48,11 +48,12 @@ pub async fn main() {
 
     let event_loop = EventLoop::new().unwrap();
     let size = LogicalSize::new(100.0, 100.0);
-    let attrs = Window::default_attributes().with_title("rmg")
-     .with_inner_size(size);
-     let window = event_loop.create_window(attrs).unwrap();        
+    let attrs = Window::default_attributes()
+        .with_title("rmg")
+        .with_inner_size(size);
+    let window = event_loop.create_window(attrs).unwrap();
     let window = Rc::new(window);
-    
+
     web_dom
         .body()
         .unwrap()

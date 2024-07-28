@@ -426,7 +426,7 @@ impl App {
 
         // REFS: http://phrogz.net/tmp/canvas_zoom_to_cursor.html
         if *flag_scroll {
-            // TODO: how align
+            // TODO: align
 
             let algo = fir::ResizeAlg::Nearest;
             let scale = 1.1_f32;
@@ -436,7 +436,6 @@ impl App {
             let frame = Frame::resize(page.tmp_blob.as_slice(), dst_size, algo)?;
             page.frame = frame;
             page.dst_size = dst_size;
-
             page.zoom_at(*mouse_pos, factor);
 
             *flag_scroll = false;

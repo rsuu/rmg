@@ -160,7 +160,7 @@ impl Config {
 
     pub fn update(&mut self) -> eyre::Result<()> {
         self.update_file()?;
-        // self.update_env()?;
+        self.update_env()?;
         self.update_cli()?;
 
         // dbg!(&self);
@@ -175,8 +175,9 @@ impl Config {
                 return Ok(());
             };
 
-            // e.g. ~/.config/rmg/config.rs
-            path.push("/rmg/config.rs");
+            // e.g. $XDG_CONFIG_HOME/rmg/config.rs
+            //
+            path.push("rmg/config.rs");
 
             // tracing::debug!("path: {:?}", path);
 
@@ -195,7 +196,9 @@ impl Config {
         Ok(())
     }
 
-    pub fn update_env(&mut self) {}
+    pub fn update_env(&mut self) -> eyre::Result<()> {
+        Ok(())
+    }
 
     pub fn update_cli(&mut self) -> eyre::Result<()> {
         let mut args = Arguments::from_env();
@@ -250,7 +253,10 @@ impl Config {
         }
 
         // ConfApp
-        self.app.target = args.free_from_str().unwrap();
+        self.app.target = args.free_from_str().unwrap_or_else(|_| {
+            println!("{}", gen_help());
+            exit(0);
+        });
 
         Ok(())
     }

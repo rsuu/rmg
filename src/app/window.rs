@@ -13,7 +13,7 @@ use std::{
 use winit::{
     dpi::{LogicalSize, PhysicalPosition},
     event::{Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent},
-    event_loop::{self, ControlFlow, EventLoop, ActiveEventLoop},
+    event_loop::{self, ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
     monitor::{MonitorHandle, VideoMode},
     window::Window,
@@ -78,7 +78,7 @@ impl App {
     }
 
     fn new(config: Config) -> eyre::Result<(Self, EventLoop<()>)> {
-        let gestures = Gesture::new(config.gestures.data_path.as_str())?;
+        let gestures = Gesture::load(config.gestures.data_path.as_str())?;
 
         let (data, pool, elems);
         let canvas = {
@@ -97,9 +97,9 @@ impl App {
         let window = {
             let size = canvas.size();
             let size = LogicalSize::new(size.width(), size.height());
-            let attrs = Window::default_attributes().with_title("rmg");            
+            let attrs = Window::default_attributes().with_title("rmg");
             let window = event_loop.create_window(attrs)?;
-            
+
             Rc::new(window)
         };
         tracing::info!("Winit");
@@ -154,11 +154,7 @@ impl App {
         Ok(())
     }
 
-    fn event_loop(
-        &mut self,
-        event: Event<()>,
-        elwt: &ActiveEventLoop,
-    ) -> eyre::Result<()> {
+    fn event_loop(&mut self, event: Event<()>, elwt: &ActiveEventLoop) -> eyre::Result<()> {
         let window = self.window();
 
         match event {
@@ -224,11 +220,7 @@ impl App {
         Ok(())
     }
 
-    fn on_window_event(
-        &mut self,
-        elwt: &ActiveEventLoop,
-        e: WindowEvent,
-    ) -> eyre::Result<()> {
+    fn on_window_event(&mut self, elwt: &ActiveEventLoop, e: WindowEvent) -> eyre::Result<()> {
         // TODO:
         // [ ](window) full/mini/float screen
         // [ ](mouse) pick img
@@ -271,31 +263,29 @@ impl App {
         sf: f64,
         PhysicalPosition { x, y }: PhysicalPosition<f64>,
     ) -> eyre::Result<()> {
-        if !self.env.flag_gesture {
-            return Ok(());
-        }
-
         let sf = sf as f32;
         let origin = Vec2::new(x as f32, y as f32).scale(sf, sf);
 
         self.event_info.mouse_pos = origin;
 
-        // dbg!(y, window.inner_size().height);
-        match self.action {
-            Action::Gesture { ref mut path, .. } => {
-                path.push(origin);
-            }
+        if self.env.flag_gesture {
+            // dbg!(y, window.inner_size().height);
+            match self.action {
+                Action::Gesture { ref mut path, .. } => {
+                    path.push(origin);
+                }
 
-            Action::View => {
-                let red = RGBA8::new(255, 0, 0, 255);
-                self.action = Action::Gesture {
-                    fill: red,
-                    path: vec![],
-                    stroke_width: 4.0,
-                };
-            }
+                Action::View => {
+                    let red = RGBA8::new(255, 0, 0, 255);
+                    self.action = Action::Gesture {
+                        fill: red,
+                        path: vec![],
+                        stroke_width: 4.0,
+                    };
+                }
 
-            _ => {}
+                _ => {}
+            }
         }
 
         Ok(())
@@ -350,7 +340,7 @@ impl App {
                 ref max_zoom,
                 ref min_zoom,
                 ..
-            } => 's: {
+            } => {
                 *mouse_pos = self.event_info.mouse_pos;
                 *flag_scroll = true;
 
